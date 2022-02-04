@@ -595,6 +595,17 @@ public class OpAsQuery {
             ElementOptional opt = new ElementOptional(eRight) ;
             g.addElement(opt) ;
         }
+        
+        @Override
+		public void visit(OpSimJoin opSimJoin) {
+			Element eLeft = asElement(opSimJoin.getLeft()) ;
+            Element eRight = asElementGroup(opSimJoin.getRight()) ;
+            ElementSimJoin elSimJoin = new ElementSimJoin(eRight) ;
+            ElementGroup g = currentGroup() ;
+            if ( !emptyGroup(eLeft) )
+                g.addElement(eLeft) ;
+            g.addElement(elSimJoin) ;
+		}
 
         @Override
         public void visit(OpDiff opDiff) {

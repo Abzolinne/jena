@@ -71,4 +71,7 @@ public class ElementVisitorBase implements ElementVisitor
 
     @Override
     public void visit(ElementPathBlock el)      { }
+    
+    @Override
+	public void visit(ElementSimJoin el) 		{ }
 }

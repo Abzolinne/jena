@@ -291,6 +291,11 @@ public class VarFinder
             assignMentions.addAll(usage1.assignMentions);
             assignMentions.addAll(usage2.assignMentions);
         }
+        
+        @Override
+		public void visit(OpSimJoin opSimJoin) {
+			// TODO Auto-generated method stub
+		}
 
         @Override
         public void visit(OpDisjunction opDisjunction) {

@@ -41,6 +41,7 @@ import org.apache.jena.sparql.syntax.ElementNotExists;
 import org.apache.jena.sparql.syntax.ElementOptional;
 import org.apache.jena.sparql.syntax.ElementPathBlock;
 import org.apache.jena.sparql.syntax.ElementService;
+import org.apache.jena.sparql.syntax.ElementSimJoin;
 import org.apache.jena.sparql.syntax.ElementSubQuery;
 import org.apache.jena.sparql.syntax.ElementTriplesBlock;
 import org.apache.jena.sparql.syntax.ElementUnion;
@@ -205,5 +206,11 @@ public class ElementRewriter extends AbstractRewriter<Element> implements Elemen
         Query q = AbstractQueryBuilder.clone(el.getQuery());
         push(new ElementSubQuery(AbstractQueryBuilder.rewrite(q, values)));
     }
+    
+    @Override
+	public void visit(ElementSimJoin el) {
+		el.getSimJoinElement().visit(this);
+		push(new ElementSimJoin(getResult()));
+	}
 
 }

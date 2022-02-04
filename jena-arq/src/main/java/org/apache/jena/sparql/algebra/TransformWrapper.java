@@ -72,6 +72,8 @@ public class TransformWrapper implements Transform
     @Override
     public Op transform(OpLeftJoin opLeftJoin, Op left, Op right)   { return transform.transform(opLeftJoin, left, right) ; }
     @Override
+	public Op transform(OpSimJoin opSimJoin, Op left, Op right) 	{ return transform.transform(opSimJoin, left, right); }
+    @Override
     public Op transform(OpDiff opDiff, Op left, Op right)           { return transform.transform(opDiff, left, right) ; }
     @Override
     public Op transform(OpMinus opMinus, Op left, Op right)         { return transform.transform(opMinus, left, right) ; }

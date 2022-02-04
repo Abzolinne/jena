@@ -73,6 +73,8 @@ public class TransformCopy implements Transform
     @Override
     public Op transform(OpLeftJoin opLeftJoin, Op left, Op right)   { return xform(opLeftJoin, left, right) ; }
     @Override
+	public Op transform(OpSimJoin opSimJoin, Op left, Op right) 	{ return xform(opSimJoin, left, right); }
+    @Override
     public Op transform(OpDiff opDiff, Op left, Op right)           { return xform(opDiff, left, right) ; }
     @Override
     public Op transform(OpMinus opMinus, Op left, Op right)         { return xform(opMinus, left, right) ; }

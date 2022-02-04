@@ -39,8 +39,8 @@ public abstract class QueryIter2 extends QueryIter
         this.rightInput = right ;
     }
     
-    protected QueryIterator getLeft()   { return leftInput ; } 
-    protected QueryIterator getRight()  { return rightInput ; } 
+    public QueryIterator getLeft()   { return leftInput ; } 
+    public QueryIterator getRight()  { return rightInput ; } 
     
     @Override
     protected final

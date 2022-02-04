@@ -32,6 +32,7 @@ import org.apache.jena.sparql.core.* ;
 import org.apache.jena.sparql.engine.binding.Binding ;
 import org.apache.jena.sparql.expr.Expr ;
 import org.apache.jena.sparql.expr.ExprAggregator ;
+import org.apache.jena.sparql.expr.ExprList;
 import org.apache.jena.sparql.expr.ExprTransform ;
 import org.apache.jena.sparql.expr.ExprVar ;
 import org.apache.jena.sparql.expr.aggregate.Aggregator ;
@@ -89,6 +90,15 @@ public class Query extends Prologue implements Cloneable, Printable
     public static final long  NOLIMIT = Long.MIN_VALUE ;
     private long resultLimit   = NOLIMIT ;
     private long resultOffset  = NOLIMIT ;
+    
+    //SIMILARITY JOIN
+    private boolean isSimilarityJoin = false;
+	private long top = -1;
+	private double within = -1;
+	private String distanceFunction = null;
+	private ExprList leftAttrs;
+	private ExprList rightAttrs;
+	private Var distVar;
 
     // ORDER BY
     private List<SortCondition> orderBy       = null ;
@@ -909,4 +919,57 @@ public class Query extends Prologue implements Cloneable, Printable
         QueryVisitor serializer = factory.create(outSyntax, this, writer);
         this.visit(serializer);
     }
+    
+    //-- Similarity Join
+    public boolean isSimilarityJoin() {
+    	return this.isSimilarityJoin;
+    }
+    
+    public void setTop(long integerValue) {
+    	this.isSimilarityJoin = true;
+		this.top = integerValue;
+	}
+	
+	public int getTop() {
+		this.isSimilarityJoin = true;
+		return (int) this.top;
+	}
+
+	public void setWithin(double doubleValue) {
+		this.within = doubleValue;
+	}
+	
+	public double getWithin() {
+		return this.within;
+	}
+
+	public void setDistance(String distance) {
+		this.distanceFunction = distance;
+	}
+	
+	public String getDistance() {
+		return this.distanceFunction;
+	}
+	
+	public void setDistVar(Var v) {
+		this.distVar = v;
+	}
+	
+	public Var getDistVar() {
+		return this.distVar;
+	}
+	
+	public void addSimJoinKey(ExprList expr1, ExprList expr2) {
+		this.leftAttrs = expr1;
+		this.rightAttrs = expr2;
+	}
+
+	public ExprList getLeftAttrs() {
+		return this.leftAttrs;
+	}
+	
+	public ExprList getRightAttrs() {
+		return this.rightAttrs;
+	}
+    
 }

@@ -52,6 +52,7 @@ public interface Transform
     public Op transform(OpMinus opMinus, Op left, Op right) ;
     public Op transform(OpUnion opUnion, Op left, Op right) ;
     public Op transform(OpConditional opCondition, Op left, Op right) ;
+    public Op transform(OpSimJoin opSimJoin, Op left, Op right);
 
     // OpN
     public Op transform(OpSequence opSequence, List<Op> elts) ;

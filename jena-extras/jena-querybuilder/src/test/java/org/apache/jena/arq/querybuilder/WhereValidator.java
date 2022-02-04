@@ -33,6 +33,7 @@ import org.apache.jena.sparql.syntax.ElementNotExists;
 import org.apache.jena.sparql.syntax.ElementOptional;
 import org.apache.jena.sparql.syntax.ElementPathBlock;
 import org.apache.jena.sparql.syntax.ElementService;
+import org.apache.jena.sparql.syntax.ElementSimJoin;
 import org.apache.jena.sparql.syntax.ElementSubQuery;
 import org.apache.jena.sparql.syntax.ElementTriplesBlock;
 import org.apache.jena.sparql.syntax.ElementUnion;
@@ -203,5 +204,13 @@ public class WhereValidator implements ElementVisitor {
             el.getQuery().getQueryPattern().visit(this);
         }
     }
+
+	@Override
+	public void visit(ElementSimJoin el) {
+		checkMatching(el);
+        if (!matching) {
+            el.getSimJoinElement().visit(this);
+        }
+	}
 
 }

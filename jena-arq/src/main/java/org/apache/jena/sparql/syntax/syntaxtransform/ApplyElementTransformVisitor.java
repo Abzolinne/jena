@@ -203,6 +203,16 @@ class ApplyElementTransformVisitor implements ElementVisitor {
         Query newQuery = QueryTransformOps.transform(el.getQuery(), transform, exprTransform) ;
         push(new ElementSubQuery(newQuery)) ;
     }
+    
+    @Override
+	public void visit(ElementSimJoin el) {
+		Element elt = el.getSimJoinElement() ;
+        Element elt1 = pop() ;
+        if ( elt == elt1 )
+            push(el) ;
+        else
+            push(new ElementSimJoin(elt1)) ;
+	}
 
     private Node transformNode(Node n) {
         if ( exprTransform == null )

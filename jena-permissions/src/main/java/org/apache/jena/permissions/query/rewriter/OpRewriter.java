@@ -26,6 +26,7 @@ import org.apache.jena.graph.Triple;
 import org.apache.jena.permissions.SecuredItem;
 import org.apache.jena.permissions.SecurityEvaluator;
 import org.apache.jena.permissions.SecurityEvaluator.Action;
+import org.apache.jena.query.Query;
 import org.apache.jena.shared.AuthenticationRequiredException;
 import org.apache.jena.shared.ReadDeniedException;
 import org.apache.jena.sparql.algebra.Op;
@@ -374,6 +375,12 @@ public class OpRewriter implements OpVisitor {
         final OpRewriter rewriter = new OpRewriter(securityEvaluator, graphIRI);
         addOp(OpLeftJoin.create(rewriteOp2(opLeftJoin, rewriter), rewriter.getResult(), opLeftJoin.getExprs()));
     }
+    
+    @Override
+	public void visit(OpSimJoin opSimJoin) {
+		final OpRewriter rewriter = new OpRewriter(securityEvaluator, graphIRI);
+		addOp(OpSimJoin.create(rewriteOp2(opSimJoin, rewriter), rewriter.getResult(), new Query()));
+	}
 
     /**
      * rewrites the subop of list.

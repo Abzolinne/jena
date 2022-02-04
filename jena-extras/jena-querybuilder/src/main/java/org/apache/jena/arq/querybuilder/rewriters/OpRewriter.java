@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.jena.graph.Node;
+import org.apache.jena.query.Query;
 import org.apache.jena.query.SortCondition;
 import org.apache.jena.sparql.algebra.Op;
 import org.apache.jena.sparql.algebra.OpVisitor;
@@ -56,6 +57,7 @@ import org.apache.jena.sparql.algebra.op.OpQuadPattern;
 import org.apache.jena.sparql.algebra.op.OpReduced;
 import org.apache.jena.sparql.algebra.op.OpSequence;
 import org.apache.jena.sparql.algebra.op.OpService;
+import org.apache.jena.sparql.algebra.op.OpSimJoin;
 import org.apache.jena.sparql.algebra.op.OpSlice;
 import org.apache.jena.sparql.algebra.op.OpTable;
 import org.apache.jena.sparql.algebra.op.OpTopN;
@@ -253,6 +255,13 @@ class OpRewriter extends AbstractRewriter<Op> implements OpVisitor {
         opLeftJoin.getLeft().visit(this);
         push(OpLeftJoin.create(pop(), pop(), new ExprRewriter(values).rewrite(opLeftJoin.getExprs())));
     }
+    
+    @Override
+	public void visit(OpSimJoin opSimJoin) {
+		opSimJoin.getRight().visit(this);
+		opSimJoin.getLeft().visit(this);
+		push(OpSimJoin.create(pop(), pop(), new Query()));
+	}
 
     @Override
     public void visit(OpUnion opUnion) {

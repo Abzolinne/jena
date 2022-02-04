@@ -19,17 +19,25 @@
 package org.apache.jena.sparql.engine.join;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List ;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import org.apache.jena.atlas.iterator.Iter ;
+import org.apache.jena.atlas.lib.PairOfSameType;
 import org.apache.jena.sparql.algebra.Algebra ;
 import org.apache.jena.sparql.algebra.Table ;
 import org.apache.jena.sparql.algebra.TableFactory ;
+import org.apache.jena.sparql.algebra.op.OpSimJoin;
 import org.apache.jena.sparql.engine.ExecutionContext ;
 import org.apache.jena.sparql.engine.QueryIterator ;
 import org.apache.jena.sparql.engine.binding.Binding ;
+import org.apache.jena.sparql.engine.iterator.BufferedQueryIteratorFactory;
 import org.apache.jena.sparql.engine.iterator.QueryIterPlainWrapper ;
 import org.apache.jena.sparql.engine.main.OpExecutor ;
+import org.apache.jena.sparql.expr.Expr;
 import org.apache.jena.sparql.expr.ExprList ;
 
 /** API to various join algorithms */
@@ -236,4 +244,66 @@ public class Join {
     //        System.out.println(t4) ;
             return t3.iterator(execCxt) ;
         }
+    
+    public static QueryIterator simJoin(QueryIterator left, QueryIterator right, OpSimJoin opSimJoin,
+			ExecutionContext execCxt) {
+		BufferedQueryIteratorFactory leftFactory = new BufferedQueryIteratorFactory(left);
+		BufferedQueryIteratorFactory rightFactory = new BufferedQueryIteratorFactory(right);
+		PairOfSameType<Map<Expr, PairOfSameType<Number>>> minMax = getNormalisationMap(leftFactory.createBufferedQueryIterator(),
+				rightFactory.createBufferedQueryIterator(), opSimJoin.getLeftAttributes(), opSimJoin.getRightAttributes());
+		Map<Expr, PairOfSameType<Number>> condensedMinMax = condense(minMax);
+		opSimJoin.setNormMap(condensedMinMax);
+		return QueryIterSimJoin.create(leftFactory.createBufferedQueryIterator(), rightFactory.createBufferedQueryIterator(), opSimJoin, execCxt);
+	}
+
+	private static Map<Expr, PairOfSameType<Number>> condense(
+			PairOfSameType<Map<Expr, PairOfSameType<Number>>> minMax) {
+		Map<Expr, PairOfSameType<Number>> res = new HashMap<Expr, PairOfSameType<Number>>();
+		Iterator<Entry<Expr, PairOfSameType<Number>>> leftIter = minMax.getLeft().entrySet().iterator();
+		Iterator<Entry<Expr, PairOfSameType<Number>>> rightIter = minMax.getRight().entrySet().iterator();
+		while (leftIter.hasNext() && rightIter.hasNext()) {
+			Entry<Expr, PairOfSameType<Number>> left = leftIter.next();
+			Entry<Expr, PairOfSameType<Number>> right = rightIter.next();
+			PairOfSameType<Number> pair = new PairOfSameType<Number>(
+					Math.min(left.getValue().getLeft().doubleValue(), right.getValue().getLeft().doubleValue()),
+					Math.max(left.getValue().getRight().doubleValue(), right.getValue().getRight().doubleValue()));
+			res.put(left.getKey(), pair);
+		}
+		return res;
+	}
+
+	private static PairOfSameType<Map<Expr, PairOfSameType<Number>>> getNormalisationMap(QueryIterator left, QueryIterator right,
+			ExprList leftAttributes, ExprList rightAttributes) {
+		Map<Expr, PairOfSameType<Number>> resultLeft = new HashMap<Expr, PairOfSameType<Number>>();
+		Map<Expr, PairOfSameType<Number>> resultRight = new HashMap<Expr, PairOfSameType<Number>>();
+		for(;left.hasNext();) {
+			Binding current = left.nextBinding();
+			for(Expr lexpr : leftAttributes.getList()) {
+				probeToMap(resultLeft, current, lexpr);
+			}
+		}
+		for(;right.hasNext();) {
+			Binding current = right.nextBinding();
+			for(Expr rexpr : rightAttributes.getList()) {
+				probeToMap(resultRight, current, rexpr);
+			}
+		}
+		return new PairOfSameType<Map<Expr,PairOfSameType<Number>>>(resultLeft, resultRight);
+	}
+
+	private static void probeToMap(Map<Expr, PairOfSameType<Number>> result, Binding current, Expr expr) {
+		if(current.get(expr.asVar())==null)
+			throw new IllegalArgumentException("Similarity Join variables should not be obtained from an OPTIONAL clause");
+		Number currentValue = (Number) current.get(expr.asVar()).getLiteralValue();
+		if (!result.containsKey(expr)) {
+			result.put(expr, new PairOfSameType<Number>(currentValue, currentValue));
+			return;
+		}
+		if (currentValue.doubleValue() < result.get(expr).getLeft().doubleValue()) {
+			result.put(expr, new PairOfSameType<Number>(currentValue, result.get(expr).getRight()));
+		}
+		if (currentValue.doubleValue() > result.get(expr).getRight().doubleValue()) {
+			result.put(expr, new PairOfSameType<Number>(result.get(expr).getLeft(), currentValue));
+		}
+	}
 }

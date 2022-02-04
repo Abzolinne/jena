@@ -334,6 +334,14 @@ public class EvaluatorDispatch implements OpVisitor
         table = evaluator.groupBy(table, opGroup.getGroupVars(), opGroup.getAggregators()) ;
         push(table) ;
     }
+    
+    @Override
+	public void visit(OpSimJoin opSimJoin) {
+		Table left = eval(opSimJoin.getLeft()) ;
+        Table right = eval(opSimJoin.getRight()) ;
+        Table table = evaluator.simjoin(left, right, opSimJoin) ;
+        push(table) ;
+	}
 
     protected void push(Table table)  { stack.push(table) ; }
     protected Table pop()

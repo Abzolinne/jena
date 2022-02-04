@@ -23,7 +23,7 @@ import org.apache.jena.sparql.algebra.op.* ;
 public interface OpVisitor
 {
     // Op0
-    public void visit(OpBGP opBGP) ;
+	public void visit(OpBGP opBGP) ;
     public void visit(OpQuadPattern quadPattern) ;
     public void visit(OpQuadBlock quadBlock) ;
     public void visit(OpTriple opTriple) ;
@@ -50,6 +50,7 @@ public interface OpVisitor
     public void visit(OpDiff opDiff) ;
     public void visit(OpMinus opMinus) ;
     public void visit(OpConditional opCondition) ;
+    public void visit(OpSimJoin opSimJoin) ;
 
     // OpN
     public void visit(OpSequence opSequence) ;

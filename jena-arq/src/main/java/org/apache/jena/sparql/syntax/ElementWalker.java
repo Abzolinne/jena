@@ -214,5 +214,15 @@ public class ElementWalker
             proc.visit(el) ;
             after(el) ;
         }
+        
+        @Override
+		public void visit(ElementSimJoin el) {
+			before(el) ;
+            if ( el.getSimJoinElement() != null )
+                el.getSimJoinElement().visit(this) ;
+            proc.visit(el) ;
+            after(el) ;
+		}
+        
     }
 }

@@ -45,6 +45,7 @@ import org.apache.jena.sparql.expr.Expr ;
 import org.apache.jena.sparql.expr.ExprList ;
 import org.apache.jena.sparql.procedure.ProcEval ;
 import org.apache.jena.sparql.procedure.Procedure ;
+import org.apache.jena.sparql.util.Symbol;
 
 /**
  * Turn an Op expression into an execution of QueryIterators.
@@ -98,6 +99,7 @@ public class OpExecutor
     protected int                  level      = TOP_LEVEL - 1 ;
     private final boolean          hideBNodeVars ;
     protected final StageGenerator stageGenerator ;
+    public static boolean optimiseOverlappingPatterns = false;
 
     protected OpExecutor(ExecutionContext execCxt)
     {
@@ -445,6 +447,22 @@ public class OpExecutor
         qIter = new QueryIterAssign(qIter, opExtend.getVarExprList(), execCxt, true) ;
         return qIter ;
     }
+    
+    public QueryIterator execute(OpSimJoin opSimJoin, QueryIterator input) {
+		QueryIterator left;
+        QueryIterator right;
+		if (optimiseOverlappingPatterns && opSimJoin.getLeft() instanceof OpBGP
+			&& opSimJoin.getRight() instanceof OpBGP){
+			execCxt.getContext().put(Symbol.create("RIGHT_PATTERN"), ((OpBGP) opSimJoin.getRight()).getPattern());
+			left = exec(opSimJoin.getLeft(), input) ;
+	        right = exec(opSimJoin.getRight(), root()) ;
+		} else {
+			left = exec(opSimJoin.getLeft(), input) ;
+        	right = exec(opSimJoin.getRight(), root()) ;
+		}
+        QueryIterator qIter = Join.simJoin(left, right, opSimJoin, execCxt) ;
+        return qIter ;
+	}
 
     public static QueryIterator createRootQueryIterator(ExecutionContext execCxt) {
         return QueryIterRoot.create(execCxt) ;

@@ -61,4 +61,5 @@ public abstract class Element
     static final int HashNotExists            = 0xA7 ;
     static final int HashPath                 = 0xA8 ;
     static final int HashFetch                = 0xA9 ;
+    static final int HashSJ		              = 0xAA ;
 }

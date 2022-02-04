@@ -246,4 +246,7 @@ public class Tags
     public static final String tagGroupConcat     = "group_concat" ;
     public static final String tagSeparator       = "separator" ;
     public static final String tagAgg             = "agg" ;             // Custom aggregate
+	
+    public static final String tagKNNSimJoin	  = "knn-simjoin";
+    public static final String tagRangeSimJoin	  = "range-simjoin";
 }

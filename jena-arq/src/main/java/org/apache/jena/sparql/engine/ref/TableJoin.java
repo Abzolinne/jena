@@ -100,4 +100,10 @@ public class TableJoin
             qIter = new QueryIterFilterExpr(qIter, expr, execCxt) ;
         return qIter ;
     }
+    
+    public static QueryIterator simJoinWorker(QueryIterator left, Table tableRight, ExecutionContext execCxt) {
+		// TODO SimJoin Execution!
+		return null;
+	}
+    
 }

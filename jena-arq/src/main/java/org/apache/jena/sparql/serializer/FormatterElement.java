@@ -446,6 +446,21 @@ public class FormatterElement extends FormatterBase implements ElementVisitor {
             out.print("}");
         }
     }
+    
+    @Override
+	public void visit(ElementSimJoin el) {
+		// TODO ver qué onda esto
+		 out.incIndent(INDENT);
+	        Element subElement = el.getSimJoinElement();
+	                out.decIndent(INDENT);
+	                out.newline();
+	                out.print("SIMILARITY JOIN");
+	                out.newline();
+	                out.incIndent(INDENT);
+	            visitAsGroup(subElement);
+
+	        out.incIndent(INDENT);
+	}
 
     // -------- Formatting a basic graph pattern
     // Triple order is preserved.

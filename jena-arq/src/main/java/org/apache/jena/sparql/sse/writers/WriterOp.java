@@ -286,6 +286,11 @@ public class WriterOp
         public void visit(OpLeftJoin opLeftJoin) {
             visitOp2(opLeftJoin, opLeftJoin.getExprs()) ;
         }
+        
+        @Override
+		public void visit(OpSimJoin op) {
+			visitOp2(op, null);
+		}
 
         @Override
         public void visit(OpDiff opDiff) {

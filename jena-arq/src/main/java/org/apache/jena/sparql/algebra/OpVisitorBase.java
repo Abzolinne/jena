@@ -93,4 +93,6 @@ public class OpVisitorBase implements OpVisitor
     @Override public void visit(OpGroup opGroup)                {}
 
     @Override public void visit(OpTopN opTop)                   {}
+    
+    @Override public void visit(OpSimJoin opSimJoin) 			{}
 }

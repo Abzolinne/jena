@@ -30,6 +30,7 @@ import org.apache.jena.sparql.algebra.Algebra;
 import org.apache.jena.sparql.algebra.JoinType;
 import org.apache.jena.sparql.algebra.Table;
 import org.apache.jena.sparql.algebra.TableFactory;
+import org.apache.jena.sparql.algebra.op.OpSimJoin;
 import org.apache.jena.sparql.algebra.table.TableN ;
 import org.apache.jena.sparql.core.BasicPattern ;
 import org.apache.jena.sparql.core.TriplePath ;
@@ -122,6 +123,11 @@ public class EvaluatorSimple implements Evaluator
 
         return joinWorker(tableLeft, tableRight, true, exprs) ;
     }
+    
+    @Override
+	public Table simjoin(Table left, Table right, OpSimJoin op) {
+		return simjoinWorker(left, right, op) ;
+	}
 
     @Override
     public Table diff(Table tableLeft, Table tableRight)
@@ -297,6 +303,15 @@ public class EvaluatorSimple implements Evaluator
         tableRight.close() ;
         return r ;
     }
+    
+    private Table simjoinWorker(Table tableLeft, Table tableRight, OpSimJoin op) {
+		QueryIterator left = tableLeft.iterator(execCxt) ;
+		QueryIterator qIter = TableJoin.simJoinWorker(left, tableRight, execCxt) ;
+	    tableLeft.close() ;
+	    tableRight.close() ;
+	        // qIter and left should be properly closed by use or called code. 
+	    return new TableN(qIter) ;
+	}
 
     private Table minusWorker(Table tableLeft, Table tableRight)
     {

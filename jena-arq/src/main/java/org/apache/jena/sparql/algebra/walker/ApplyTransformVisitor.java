@@ -345,6 +345,23 @@ public class ApplyTransformVisitor implements OpVisitorByTypeAndExpr, ExprVisito
         Op opX = x.apply(opTransform, left, right) ;
         push(opStack, opX) ;
     }
+    
+    @Override
+	public void visit(OpSimJoin op) {
+		Op left = null ;
+        Op right = null ;
+
+        // Must do right-left because the pushes onto the stack were left-right.
+        if ( op.getRight() != null )
+            right = pop(opStack) ;
+        if ( op.getLeft() != null )
+            left = pop(opStack) ;
+        OpSimJoin x = op;
+        x.setLeft(left);
+        x.setRight(right);
+        Op opX = x.apply(opTransform, left, right) ;
+        push(opStack, opX) ;
+	}
 
     @Override
     public void visit(OpService op) {
