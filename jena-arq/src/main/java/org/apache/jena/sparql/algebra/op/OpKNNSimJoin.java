@@ -1,6 +1,7 @@
 package org.apache.jena.sparql.algebra.op;
 
 import org.apache.jena.sparql.algebra.Op;
+import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.engine.ExecutionContext;
 import org.apache.jena.sparql.engine.QueryIterator;
 import org.apache.jena.sparql.engine.join.QueryIterKNNSimJoin;
@@ -15,8 +16,8 @@ public class OpKNNSimJoin extends OpSimJoin {
 		super(left, right);
 	}
 
-	public OpKNNSimJoin(Op left, Op right, int top, String distance, ExprList leftAttrs, ExprList rightAttrs) {
-		super(left, right, distance, leftAttrs, rightAttrs);
+	public OpKNNSimJoin(Op left, Op right, int top, String distance, ExprList leftAttrs, ExprList rightAttrs, Var v) {
+		super(left, right, distance, leftAttrs, rightAttrs, v);
 		this.top = top;
 	}
 
@@ -37,7 +38,7 @@ public class OpKNNSimJoin extends OpSimJoin {
 
 	@Override
 	public Op2 copy(Op left, Op right) {
-		return new OpKNNSimJoin(left, right, top, distance, leftAttributes, rightAttributes);
+		return new OpKNNSimJoin(left, right, top, distance, leftAttributes, rightAttributes, v);
 	}
 
 	@Override

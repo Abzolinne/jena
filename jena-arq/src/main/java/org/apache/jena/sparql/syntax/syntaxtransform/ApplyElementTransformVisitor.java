@@ -211,7 +211,7 @@ class ApplyElementTransformVisitor implements ElementVisitor {
         if ( elt == elt1 )
             push(el) ;
         else
-            push(new ElementSimJoin(elt1)) ;
+            push(new ElementSimJoin(elt1, el)) ;
 	}
 
     private Node transformNode(Node n) {

@@ -41,6 +41,10 @@ public class Syntax extends Symbol
     /** The query syntax for extended SPARQL */ 
     public static final Syntax syntaxARQ
                 = new Syntax("http://jena.hpl.hp.com/2003/07/query/ARQ") ;
+    
+    /** The syntax for similarity joins and cluster by*/
+    public static final Syntax syntaxSPARQL_11_sim 
+    			= new Syntax("http://sj.dcc.uchile.cl/SPARQL_11_sim");
 
 //    /** The update syntax for SPARQL Update, with extensions to help migrate the update language in the W3C submission */  
 //    private static final Syntax syntaxARQ_Update
@@ -73,17 +77,19 @@ public class Syntax extends Symbol
 
     public static TranslationTable<Syntax> querySyntaxNames = new TranslationTable<>(true) ;
     static {
-        querySyntaxNames.put("sparql",      syntaxSPARQL) ;
-        querySyntaxNames.put("sparql10",    syntaxSPARQL_10) ;
-        querySyntaxNames.put("sparql_10",   syntaxSPARQL_10) ;
-        querySyntaxNames.put("sparql11",    syntaxSPARQL_11) ;
-        querySyntaxNames.put("sparql_11",   syntaxSPARQL_11) ;
-        querySyntaxNames.put("arq",         syntaxARQ) ;
-        querySyntaxNames.put("alg",         syntaxAlgebra) ;
-        querySyntaxNames.put("op",          syntaxAlgebra) ;
+        querySyntaxNames.put("sparql",      	syntaxSPARQL) ;
+        querySyntaxNames.put("sparql10",    	syntaxSPARQL_10) ;
+        querySyntaxNames.put("sparql_10",   	syntaxSPARQL_10) ;
+        querySyntaxNames.put("sparql11",    	syntaxSPARQL_11) ;
+        querySyntaxNames.put("sparql_11",   	syntaxSPARQL_11) ;
+        querySyntaxNames.put("sparql_11_sim",   syntaxSPARQL_11_sim) ;
+        querySyntaxNames.put("arq",         	syntaxARQ) ;
+        querySyntaxNames.put("alg",         	syntaxAlgebra) ;
+        querySyntaxNames.put("op",          	syntaxAlgebra) ;
     }
 
     public static TranslationTable<Syntax> updateSyntaxNames = new TranslationTable<>(true) ;
+
     static {
         updateSyntaxNames.put("sparql",      syntaxSPARQL) ;
         updateSyntaxNames.put("sparql_11",   syntaxSPARQL_11) ;
@@ -100,12 +106,13 @@ public class Syntax extends Symbol
         
         Symbol sym = Symbol.create(uri) ;
         
-        if ( sym.equals(syntaxARQ) )         return syntaxARQ ;
+        if ( sym.equals(syntaxARQ) )         	return syntaxARQ ;
         
-        if ( sym.equals(syntaxSPARQL) )      return syntaxSPARQL ;
-        if ( sym.equals(syntaxSPARQL_10) )   return syntaxSPARQL_10 ;
-        if ( sym.equals(syntaxSPARQL_11) )   return syntaxSPARQL_11 ;
-        if ( sym.equals(syntaxAlgebra) )     return syntaxAlgebra ;
+        if ( sym.equals(syntaxSPARQL) )      	return syntaxSPARQL ;
+        if ( sym.equals(syntaxSPARQL_10) )   	return syntaxSPARQL_10 ;
+        if ( sym.equals(syntaxSPARQL_11) )   	return syntaxSPARQL_11 ;
+        if ( sym.equals(syntaxSPARQL_11_sim) )  return syntaxSPARQL_11_sim ;
+        if ( sym.equals(syntaxAlgebra) )     	return syntaxAlgebra ;
         return null ;
     }
     

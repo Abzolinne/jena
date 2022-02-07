@@ -9,6 +9,7 @@ import java.util.Objects;
 import org.apache.jena.atlas.iterator.Iter;
 import org.apache.jena.atlas.lib.PairOfSameType;
 import org.apache.jena.sparql.algebra.op.OpSimJoin;
+import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.engine.ExecutionContext;
 import org.apache.jena.sparql.engine.QueryIterator;
 import org.apache.jena.sparql.engine.binding.Binding;
@@ -29,6 +30,7 @@ public class QueryIterSimJoin extends QueryIter2 {
 	protected List<Binding> rightRows = null; 
 	
 	protected DistFunc distFunc;
+	protected Var distVar;
 	
     protected long s_countLHS = 0;
     protected long s_countRHS = 0;
@@ -136,5 +138,9 @@ public class QueryIterSimJoin extends QueryIter2 {
 
 	public Map<Expr, PairOfSameType<Number>> getMinMax() {
 		return minMax;
+	}
+
+	public Var getVar() {
+		return distVar;
 	}
 }

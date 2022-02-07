@@ -600,7 +600,8 @@ public class OpAsQuery {
 		public void visit(OpSimJoin opSimJoin) {
 			Element eLeft = asElement(opSimJoin.getLeft()) ;
             Element eRight = asElementGroup(opSimJoin.getRight()) ;
-            ElementSimJoin elSimJoin = new ElementSimJoin(eRight) ;
+            ElementSimJoin elSimJoin = new ElementSimJoin(eRight, opSimJoin.getLeftAttributes(), opSimJoin.getRightAttributes(), 
+            		opSimJoin.getTop(), opSimJoin.getWithin(), opSimJoin.getDistance(), opSimJoin.getAsVar()) ;
             ElementGroup g = currentGroup() ;
             if ( !emptyGroup(eLeft) )
                 g.addElement(eLeft) ;

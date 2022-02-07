@@ -24,7 +24,7 @@ public abstract class KNNSimJoinSolver extends SimJoinSolver {
 			currentSource = simjoin.getLeft().nextBinding();
 			getNextBatch(currentSource);
 		}
-		Binding r = consolidateKNN(currentSource, cache.poll());
+		Binding r = consolidateKNN(currentSource, cache.poll(), simjoin.getVar());
 		return r;
 	}
 

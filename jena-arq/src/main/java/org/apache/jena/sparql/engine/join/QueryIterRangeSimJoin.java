@@ -23,6 +23,7 @@ public class QueryIterRangeSimJoin extends QueryIterSimJoin {
 		this.distFunc = Distances.getDistance(op.getDistance());
 		this.minMax = op.getMinMax();
 		this.solver = new RangeSimJoinNestedLoopSolver(this);
+		this.distVar = op.getAsVar();
 		this.solver.setUp();
 	}
 

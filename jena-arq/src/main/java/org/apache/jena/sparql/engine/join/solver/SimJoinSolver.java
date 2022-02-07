@@ -34,14 +34,12 @@ public abstract class SimJoinSolver {
 	}
 	
 	
-	protected Binding consolidateRange(Pair<Pair<Binding,Binding>,Double> pair) {
-		return Algebra.joinRange(pair, Var.alloc("d"));
+	protected Binding consolidateRange(Pair<Pair<Binding,Binding>,Double> pair, Var var) {
+		return Algebra.joinRange(pair, var);
 	}
 	
-	protected Binding consolidateKNN(Binding l, Neighbor<Binding> n) {
-		if (n==null)
-			System.out.println(simjoin.getLeftRows());
-		return Algebra.joinKNN(l, n, Var.alloc("d"));
+	protected Binding consolidateKNN(Binding l, Neighbor<Binding> n, Var var) {
+		return Algebra.joinKNN(l, n, var);
 	}
 
 	public abstract void setUp();

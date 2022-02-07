@@ -20,8 +20,7 @@ public abstract class RangeSimJoinSolver extends SimJoinSolver {
 	@Override
 	public Binding nextBinding() {
 		Pair<Pair<Binding, Binding>, Double> next = cache.poll();
-		//System.out.println(next);
-		return consolidateRange(next);
+		return consolidateRange(next, simjoin.getVar());
 	}
 
 	@Override

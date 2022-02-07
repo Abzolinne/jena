@@ -306,7 +306,11 @@ public class AlgebraGenerator
             Op op = compileElementMinus(current, elt2);
             return op;
         }
-
+        if ( elt instanceof ElementSimJoin ) {
+        	ElementSimJoin elt2 = (ElementSimJoin) elt;
+        	Op op = compileElementSimJoin(elt2, current);
+        	return op;
+        }
         // All elements that simply "join" into the algebra.
         if ( elt instanceof ElementGroup || elt instanceof ElementNamedGraph || elt instanceof ElementService || elt instanceof ElementUnion
              || elt instanceof ElementSubQuery || elt instanceof ElementData || elt instanceof ElementTriplesBlock
@@ -397,6 +401,12 @@ public class AlgebraGenerator
         current = OpLeftJoin.create(current, op, exprs);
         return current;
     }
+    
+    protected Op compileElementSimJoin(ElementSimJoin e, Op left) {
+    	Element subElement = e.getSimJoinElement();
+    	Op right = compile(subElement);
+		return OpSimJoin.create(left, right, e.getLeftAttrs(), e.getRightAttrs(), e.getTop(), e.getWithin(), e.getDistFunc(), e.getV());
+	}
 
     protected Op compileBasicPattern(BasicPattern pattern) {
         return new OpBGP(pattern);

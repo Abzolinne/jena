@@ -23,6 +23,7 @@ public class QueryIterKNNSimJoin extends QueryIterSimJoin {
 		this.distFunc = Distances.getDistance(opKNNSimJoin.getDistance());
 		this.minMax= opKNNSimJoin.getMinMax();
 		this.solver = new KNNSimJoinNestedLoopSolver(this);
+		this.distVar = opKNNSimJoin.getAsVar();
 		solver.setUp();
 	}
 

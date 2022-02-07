@@ -1,13 +1,31 @@
 package org.apache.jena.sparql.syntax;
 
+import org.apache.jena.sparql.core.Var;
+import org.apache.jena.sparql.expr.ExprList;
 import org.apache.jena.sparql.util.NodeIsomorphismMap;
 
 public class ElementSimJoin extends Element {
 
 	private Element simJoinPart;
+	private ExprList leftAttrs;
+	private ExprList rightAttrs;
+	private int top;
+	private double within;
+	private String distFunc;
+	private Var v;
 
-	public ElementSimJoin(Element simJoinPart) {
+	public ElementSimJoin(Element simJoinPart, ExprList expr1, ExprList expr2, int t, double w, String dist, Var v) {
 		this.simJoinPart = simJoinPart;
+		this.leftAttrs = expr1;
+		this.rightAttrs = expr2;
+		this.top = t;
+		this.within = w;
+		this.distFunc = dist;
+		this.v = v;
+	}
+
+	public ElementSimJoin(Element elt1, ElementSimJoin el) {
+		this(elt1, el.leftAttrs, el.rightAttrs, el.top, el.within, el.distFunc, el.v);
 	}
 
 	@Override
@@ -17,6 +35,30 @@ public class ElementSimJoin extends Element {
 
 	public Element getSimJoinElement() {
 		return simJoinPart;
+	}
+
+	public ExprList getLeftAttrs() {
+		return leftAttrs;
+	}
+
+	public ExprList getRightAttrs() {
+		return rightAttrs;
+	}
+
+	public int getTop() {
+		return top;
+	}
+
+	public double getWithin() {
+		return within;
+	}
+
+	public String getDistFunc() {
+		return distFunc;
+	}
+
+	public Var getV() {
+		return v;
 	}
 
 	@Override

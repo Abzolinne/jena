@@ -3,10 +3,10 @@ package org.apache.jena.sparql.algebra.op;
 import java.util.Map;
 
 import org.apache.jena.atlas.lib.PairOfSameType;
-import org.apache.jena.query.Query;
 import org.apache.jena.sparql.algebra.Op;
 import org.apache.jena.sparql.algebra.OpVisitor;
 import org.apache.jena.sparql.algebra.Transform;
+import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.engine.ExecutionContext;
 import org.apache.jena.sparql.engine.QueryIterator;
 import org.apache.jena.sparql.expr.Expr;
@@ -18,17 +18,19 @@ public abstract class OpSimJoin extends Op2 {
 	protected String distance;
 	protected ExprList leftAttributes;
 	protected ExprList rightAttributes;
-	private Map<Expr, PairOfSameType<Number>> minMax;
+	protected Map<Expr, PairOfSameType<Number>> minMax;
+	protected Var v;
 
 	protected OpSimJoin(Op left, Op right) {
 		super(left, right);
 	}
 
-	public OpSimJoin(Op left, Op right, String distance, ExprList leftAttrs, ExprList rightAttrs) {
+	public OpSimJoin(Op left, Op right, String distance, ExprList leftAttrs, ExprList rightAttrs, Var v) {
 		super(left, right);
 		this.distance = distance.replace("'", "");
 		this.leftAttributes = leftAttrs;
 		this.rightAttributes = rightAttrs;
+		this.v = v;
 	}
 
 	@Override
@@ -50,19 +52,14 @@ public abstract class OpSimJoin extends Op2 {
 	@Override
 	public boolean equalTo(Op other, NodeIsomorphismMap labelMap) {
 		return false;
-	}
+	}	
 
-	public static Op create(Op left, Op right, Query q) {
-		if (q==null || !q.isSimilarityJoin()) {
-			return null;
-		}
-		String distance = q.getDistance();
-		ExprList leftAttrs = q.getLeftAttrs();
-		ExprList rightAttrs = q.getRightAttrs();
-		if(q.getTop()>0 && q.getWithin()==-1) {
-			return new OpKNNSimJoin(left, right, q.getTop(), distance, leftAttrs, rightAttrs);
-		} else if (q.getWithin()>0 && q.getTop()==-1) {
-			return new OpRangeSimJoin(left, right, q.getWithin(), distance, leftAttrs, rightAttrs);
+	public static Op create(Op left, Op right, ExprList leftAttrs, ExprList rightAttrs, int top, double within,
+			String distFunc, Var v) {
+		if(top > 0 && within == -1) {
+			return new OpKNNSimJoin(left, right, top, distFunc, leftAttrs, rightAttrs, v);
+		} else if (within > 0 && top == -1) {
+			return new OpRangeSimJoin(left, right, within, distFunc, leftAttrs, rightAttrs, v);
 		} 
 		return null;
 	}
@@ -99,6 +96,10 @@ public abstract class OpSimJoin extends Op2 {
 
 	public Map<Expr, PairOfSameType<Number>> getMinMax() {
 		return minMax;
+	}
+
+	public Var getAsVar() {
+		return v;
 	}
 
 }
