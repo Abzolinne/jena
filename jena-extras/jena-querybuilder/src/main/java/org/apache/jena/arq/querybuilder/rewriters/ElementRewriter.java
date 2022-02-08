@@ -210,7 +210,7 @@ public class ElementRewriter extends AbstractRewriter<Element> implements Elemen
     @Override
 	public void visit(ElementSimJoin el) {
 		el.getSimJoinElement().visit(this);
-		push(new ElementSimJoin(getResult()));
+		push(new ElementSimJoin(getResult(), el));
 	}
 
 }

@@ -379,7 +379,8 @@ public class OpRewriter implements OpVisitor {
     @Override
 	public void visit(OpSimJoin opSimJoin) {
 		final OpRewriter rewriter = new OpRewriter(securityEvaluator, graphIRI);
-		addOp(OpSimJoin.create(rewriteOp2(opSimJoin, rewriter), rewriter.getResult(), new Query()));
+		addOp(OpSimJoin.create(rewriteOp2(opSimJoin, rewriter), rewriter.getResult(), opSimJoin.getLeftAttributes(), 
+				opSimJoin.getRightAttributes(), opSimJoin.getTop(), opSimJoin.getWithin(), opSimJoin.getDistance(), opSimJoin.getAsVar()));
 	}
 
     /**

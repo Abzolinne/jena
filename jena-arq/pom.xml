@@ -119,7 +119,7 @@
     <dependency>
       <groupId>org.apache.thrift</groupId>
       <artifactId>libthrift</artifactId>
-    </dependency>
+	</dependency>
 
     <!--
          Intercept any uses of Jakarta Commons Logging
