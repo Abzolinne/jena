@@ -494,7 +494,7 @@ public class SPARQLParser11Sim extends SPARQLParser11SimBase implements SPARQLPa
     }
     jj_consume_token(AS);
     v = Var();
-    //getQuery().setClusterVar(v);
+    getQuery().setClusterVar(v);
     switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
     case WITH:
       ClusterWithClause();
@@ -508,17 +508,17 @@ public class SPARQLParser11Sim extends SPARQLParser11SimBase implements SPARQLPa
   final public void ClusterCondition() throws ParseException {
                             Var v ;
     v = Var();
-    //getQuery().addClusterBy(v) ;
+    getQuery().addClusterBy(v) ;
   }
 
   final public void ClusterWithClause() throws ParseException {
-                             String method = null; Element el = null ;
+                             Element el = null ;
     jj_consume_token(WITH);
     jj_consume_token(LPAREN);
           startTriplesBlock() ;
     el = TriplesBlock(null);
       endTriplesBlock() ;
-    //getQuery().setClusterParams(el);
+    getQuery().setClusterParams(el);
     jj_consume_token(RPAREN);
   }
 

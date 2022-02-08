@@ -19,6 +19,7 @@
 package org.apache.jena.query;
 
 import java.io.OutputStream ;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -34,12 +35,18 @@ import org.apache.jena.atlas.io.IndentedWriter ;
 import org.apache.jena.atlas.io.Printable ;
 import org.apache.jena.atlas.logging.Log ;
 import org.apache.jena.graph.Node ;
+import org.apache.jena.query.cluster.ClusterConfiguration;
+import org.apache.jena.query.cluster.DBSCANConfiguration;
+import org.apache.jena.query.cluster.KMeansConfiguration;
+import org.apache.jena.query.cluster.KMedoidsConfiguration;
 import org.apache.jena.sparql.ARQConstants ;
 import org.apache.jena.sparql.algebra.table.TableData ;
 import org.apache.jena.sparql.core.DatasetDescription;
+import org.apache.jena.sparql.core.PathBlock;
 import org.apache.jena.sparql.core.Prologue;
 import org.apache.jena.sparql.core.QueryCompare;
 import org.apache.jena.sparql.core.QueryHashCode;
+import org.apache.jena.sparql.core.TriplePath;
 import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.core.VarAlloc;
 import org.apache.jena.sparql.core.VarExprList;
@@ -52,6 +59,7 @@ import org.apache.jena.sparql.expr.aggregate.Aggregator ;
 import org.apache.jena.sparql.serializer.QuerySerializerFactory ;
 import org.apache.jena.sparql.serializer.SerializerRegistry ;
 import org.apache.jena.sparql.syntax.Element ;
+import org.apache.jena.sparql.syntax.ElementPathBlock;
 import org.apache.jena.sparql.syntax.PatternVars ;
 import org.apache.jena.sparql.syntax.Template ;
 import org.apache.jena.sparql.syntax.syntaxtransform.ElementTransform;
@@ -60,6 +68,8 @@ import org.apache.jena.sparql.syntax.syntaxtransform.ExprTransformApplyElementTr
 import org.apache.jena.sparql.syntax.syntaxtransform.QueryTransformOps;
 import org.apache.jena.sparql.util.FmtUtils ;
 import org.apache.jena.sys.JenaSystem ;
+import org.apache.jena.vocabulary.FNO;
+import org.apache.jena.vocabulary.SIM;
 
 /** The data structure for a query as presented externally.
  *  There are two ways of creating a query - use the parser to turn
@@ -517,6 +527,7 @@ public class Query extends Prologue implements Cloneable, Printable
         varExprList.add(v, expr) ;
     }
 
+    // GROUP BY / HAVING
     protected VarExprList groupVars = new VarExprList() ;
     protected List<Expr> havingExprs = new ArrayList<>() ;  // Expressions : Make an ExprList?
 
@@ -559,7 +570,56 @@ public class Query extends Prologue implements Cloneable, Printable
     {
         havingExprs.add(expr) ;
     }
+    
+    // CLUSTER BY
 
+    protected VarExprList clusterVars = new VarExprList();
+    protected Var clusterVar;
+    protected static Map<String, Class<? extends ClusterConfiguration>> clusterConfs = new HashMap<>();
+    static {
+    	clusterConfs.put(SIM.kmedoids.getURI(), KMedoidsConfiguration.class);
+    	clusterConfs.put(SIM.kmeans.getURI(), KMeansConfiguration.class);
+    	clusterConfs.put(SIM.dbscan.getURI(), DBSCANConfiguration.class);
+    }
+    
+    protected ClusterConfiguration clusterConf = new KMedoidsConfiguration(3);
+    
+    public boolean hasClusterBy() { return ! clusterVars.isEmpty();}
+    
+    public VarExprList getClusterBy() { return clusterVars; }
+    
+    public ClusterConfiguration getClusterConf() { return clusterConf; }
+    
+    public void addClusterBy(Node v) {
+    	_addVar(clusterVars, Var.alloc(v));
+    }
+    
+    public void setClusterVar(Var v) {
+    	clusterVar = v;
+    }
+    
+    public Var getClusterVar() {
+    	return clusterVar;
+    }
+    
+    public void setClusterParams(Element el) {
+    	if ( !(el instanceof ElementPathBlock) ) {
+			throw new QueryBuildException("Invalid configuration for CLUSTER BY");
+		}
+    	ElementPathBlock epb = (ElementPathBlock) el;
+    	PathBlock bgp = epb.getPattern();
+    	TriplePath executesTriple = bgp.getList().stream().filter(x->x.getPredicate().hasURI(FNO.executes.getURI()))
+    			.findFirst().get();
+		try {
+			ClusterConfiguration conf = clusterConfs.get(executesTriple.getObject().getURI()).getDeclaredConstructor().newInstance();
+			conf.setParameters(bgp);
+			clusterConf = conf;
+		} catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException |
+				NoSuchMethodException | SecurityException e) {
+			throw new QueryBuildException("Could not instanciate the cluster configuration");
+		}
+    }
+    
     // SELECT JSON
 
     private Map<String, Node> jsonMapping = new LinkedHashMap<>();

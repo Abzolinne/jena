@@ -220,7 +220,7 @@ void ClusterCondition() : { Var v ;}
   v = Var()
   { getQuery().addClusterBy(v) ; }
 }
-void ClusterWithClause() : { String method = null; Element el = null ; }
+void ClusterWithClause() : { Element el = null ; }
 {
   <WITH>
   <LPAREN>
