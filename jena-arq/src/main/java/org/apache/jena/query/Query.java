@@ -19,7 +19,15 @@
 package org.apache.jena.query;
 
 import java.io.OutputStream ;
-import java.util.* ;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
 
 import org.apache.jena.atlas.io.IndentedLineBuffer ;
 import org.apache.jena.atlas.io.IndentedWriter ;
@@ -28,11 +36,16 @@ import org.apache.jena.atlas.logging.Log ;
 import org.apache.jena.graph.Node ;
 import org.apache.jena.sparql.ARQConstants ;
 import org.apache.jena.sparql.algebra.table.TableData ;
-import org.apache.jena.sparql.core.* ;
+import org.apache.jena.sparql.core.DatasetDescription;
+import org.apache.jena.sparql.core.Prologue;
+import org.apache.jena.sparql.core.QueryCompare;
+import org.apache.jena.sparql.core.QueryHashCode;
+import org.apache.jena.sparql.core.Var;
+import org.apache.jena.sparql.core.VarAlloc;
+import org.apache.jena.sparql.core.VarExprList;
 import org.apache.jena.sparql.engine.binding.Binding ;
 import org.apache.jena.sparql.expr.Expr ;
 import org.apache.jena.sparql.expr.ExprAggregator ;
-import org.apache.jena.sparql.expr.ExprList;
 import org.apache.jena.sparql.expr.ExprTransform ;
 import org.apache.jena.sparql.expr.ExprVar ;
 import org.apache.jena.sparql.expr.aggregate.Aggregator ;
@@ -90,15 +103,6 @@ public class Query extends Prologue implements Cloneable, Printable
     public static final long  NOLIMIT = Long.MIN_VALUE ;
     private long resultLimit   = NOLIMIT ;
     private long resultOffset  = NOLIMIT ;
-    
-    //SIMILARITY JOIN
-    private boolean isSimilarityJoin = false;
-	private long top = -1;
-	private double within = -1;
-	private String distanceFunction = null;
-	private ExprList leftAttrs;
-	private ExprList rightAttrs;
-	private Var distVar;
 
     // ORDER BY
     private List<SortCondition> orderBy       = null ;
