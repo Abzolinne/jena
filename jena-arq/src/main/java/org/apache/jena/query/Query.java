@@ -609,8 +609,9 @@ public class Query extends Prologue implements Cloneable, Printable
     	ElementPathBlock epb = (ElementPathBlock) el;
     	PathBlock bgp = epb.getPattern();
     	TriplePath executesTriple = bgp.getList().stream().filter(x->x.getPredicate().hasURI(FNO.executes.getURI()))
-    			.findFirst().get();
+    			.findFirst().orElse(null);
 		try {
+			if (executesTriple == null) return;
 			ClusterConfiguration conf = clusterConfs.get(executesTriple.getObject().getURI()).getDeclaredConstructor().newInstance();
 			conf.setParameters(bgp);
 			clusterConf = conf;

@@ -6,10 +6,14 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.jena.datatypes.xsd.XSDDatatype;
+import org.apache.jena.graph.NodeFactory;
 import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.core.VarExprList;
 import org.apache.jena.sparql.engine.QueryIterator;
 import org.apache.jena.sparql.engine.binding.Binding;
+import org.apache.jena.sparql.engine.binding.BindingBuilder;
+import org.apache.jena.sparql.engine.binding.BindingFactory;
 import org.apache.jena.sparql.engine.iterator.BufferedQueryIteratorFactory;
 import org.apache.jena.sparql.engine.iterator.BufferedQueryIteratorFactory.BufferedQueryIterator;
 
@@ -42,7 +46,7 @@ public class DBSCANSolver implements ClusteringSolver {
         	List<Binding> neighbors = getNeighbors(current, factory.createBufferedQueryIterator(), clusterVars);
         	if (neighbors.size() >= minElements) {
 				clusters.add(new ArrayList<Binding>());
-				expandCluster(currentCluster, current, neighbors, factory, visited, clusterVars);
+				expandCluster(currentCluster, current, neighbors, factory, visited, clusterVars, clusterVar);
 				currentCluster++;
 			} else {
 				clusters.get(0).add(current);
@@ -51,7 +55,7 @@ public class DBSCANSolver implements ClusteringSolver {
 	}
 
 	private void expandCluster(int currentCluster, Binding e, List<Binding> neighbors,
-			BufferedQueryIteratorFactory factory, Set<Binding> visited, VarExprList clusterVars) {
+			BufferedQueryIteratorFactory factory, Set<Binding> visited, VarExprList clusterVars, Var clusterVar) {
 		clusters.get(currentCluster).add(e);
 		visited.add(e);
 		
@@ -77,6 +81,7 @@ public class DBSCANSolver implements ClusteringSolver {
 			}
 			index++;
 		}
+		addClusterToResults(clusters.get(currentCluster), currentCluster, clusterVar);
 	}
 
 	private List<Binding> getNeighbors(Binding e, BufferedQueryIterator elements,
@@ -89,6 +94,15 @@ public class DBSCANSolver implements ClusteringSolver {
 			}
 		}
 		return results;
+	}
+	
+	private void addClusterToResults(List<Binding> cluster, int c, Var clusterVar) {
+		for (Binding b : cluster) {
+    		BindingBuilder result = BindingFactory.builder();
+        	result.addAll(b);
+        	result.add(clusterVar, NodeFactory.createLiteralByValue(c, XSDDatatype.XSDinteger));
+        	results.add(result.build());
+    	}
 	}
 
 	@Override

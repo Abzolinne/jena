@@ -26,6 +26,7 @@ import org.apache.jena.graph.Node ;
 import org.apache.jena.query.ResultSet ;
 import org.apache.jena.query.ResultSetFormatter ;
 import org.apache.jena.query.SortCondition ;
+import org.apache.jena.query.cluster.ClusterConfiguration;
 import org.apache.jena.sparql.algebra.Algebra;
 import org.apache.jena.sparql.algebra.JoinType;
 import org.apache.jena.sparql.algebra.Table;
@@ -221,6 +222,13 @@ public class EvaluatorSimple implements Evaluator
         qIter = new QueryIterGroup(qIter, groupVars, aggregators, getExecContext()) ;
         return new TableN(qIter) ;
     }
+    
+    @Override
+	public Table clusterBy(Table table, VarExprList clusterVars, Var clusterVar, ClusterConfiguration conf) {
+		QueryIterator qIter = table.iterator(getExecContext()) ;
+        qIter = new QueryIterCluster(qIter, clusterVars, conf, clusterVar, getExecContext()) ;
+        return new TableN(qIter) ;
+	}
 
     @Override
     public Table project(Table table, List<Var> projectVars)

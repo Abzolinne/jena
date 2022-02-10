@@ -91,6 +91,8 @@ public class OpVisitorBase implements OpVisitor
     @Override public void visit(OpSlice opSlice)                {}
 
     @Override public void visit(OpGroup opGroup)                {}
+    
+    @Override public void visit(OpCluster opCluster)			{} 	
 
     @Override public void visit(OpTopN opTop)                   {}
     

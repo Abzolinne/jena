@@ -805,6 +805,11 @@ public class OpAsQuery {
         public void visit(OpGroup opGroup) {
             newLevel(opGroup) ;
         }
+        
+        @Override
+		public void visit(OpCluster opCluster) {
+			newLevel(opCluster);
+		}
 
         @Override
         public void visit(OpTopN opTop) {

@@ -250,6 +250,21 @@ public class ApplyTransformVisitor implements OpVisitorByTypeAndExpr, ExprVisito
             opGroup2 = OpGroup.create(opGroup.getSubOp(), varExpr2, aggs2) ;
         visit1(opGroup2) ;
     }
+    
+    @Override
+	public void visit(OpCluster opCluster) {
+		/*boolean changed = false ;
+
+        VarExprList varExpr = opCluster.getClusterVars() ;
+        VarExprList varExpr2 = collect(varExpr) ;
+        if ( varExpr != varExpr2 )
+            changed = true ;
+
+        OpCluster op2 = opCluster ;
+        if ( changed )
+            op2 = OpCluster.create(opCluster.getSubOp(), varExpr2) ;*/
+        visit1(opCluster) ;
+	}
 
     @Override
     public void visit0(Op0 op) {

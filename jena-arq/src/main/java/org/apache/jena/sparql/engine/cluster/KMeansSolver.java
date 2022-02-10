@@ -22,7 +22,6 @@ public class KMeansSolver implements ClusteringSolver {
 
 	protected int K;
 	protected int maxIter;
-	protected List<List<Binding>> clusters;
 	protected List<Binding> results;
 	protected double EPSILON = 1e-4;
 	
@@ -30,10 +29,6 @@ public class KMeansSolver implements ClusteringSolver {
 		assert K > 0;
 		this.K = K;
 		this.maxIter = maxIter;
-		clusters = new ArrayList<List<Binding>>(K);
-		for (int i=0; i<K; i++) {
-			clusters.add(new LinkedList<Binding>());
-		}
 		results = new LinkedList<Binding>();
 	}
 
@@ -41,35 +36,39 @@ public class KMeansSolver implements ClusteringSolver {
 	public void solve(QueryIterator iter, VarExprList clusterVars, Var clusterVar) {
 		BufferedQueryIteratorFactory factory = new BufferedQueryIteratorFactory(iter); 
         QueryIterator rewindable = factory.createBufferedQueryIterator();
-        List<Binding> centroids = new ArrayList<>(K);
+        List<Binding> centroids = new ArrayList<>();
         for (int i = 0; i < K; i++) {
 			if(rewindable.hasNext())
 				centroids.add(rewindable.nextBinding());
 			else
 				throw new QueryException("Query Set has less than K objects");
 		}
+        List<List<Binding>> clusters = null;
         for (int i=0; i < maxIter; i++) {
         	QueryIterator elements = factory.createBufferedQueryIterator();
-        	boolean done = false;
+        	clusters = new ArrayList<List<Binding>>(K);
+    		for (int t=0; t < K; t++) {
+    			clusters.add(new LinkedList<Binding>());
+    		}
         	while(elements.hasNext()) {
         		Binding current = elements.next();
         		double minDist = Double.MAX_VALUE;
         		int cluster = -1;
-        		for (int j=0; j < K; i++) {
+        		for (int j=0; j < K; j++) {
         			Binding c = centroids.get(j);
         			double dist = ClusterDistances.manhattan(current, c, clusterVars);
         			if (dist < minDist) {
+        				minDist = dist;
         				cluster = j;
         			}
         		}
         		clusters.get(cluster).add(current);
-        		List<Binding> oldCentroids = centroids;
-        		centroids = updateCentroids(clusterVars);
-        		if (converged(oldCentroids, centroids, clusterVars)) {
-        			done = true;
-        		}
         	}
-        	if (done) break;
+        	List<Binding> oldCentroids = centroids;
+    		centroids = updateCentroids(clusterVars, clusters);
+    		if (converged(oldCentroids, centroids, clusterVars)) {
+    			break;
+    		}
         }
         int c = 1;
         for (List<Binding> cluster : clusters) {
@@ -84,25 +83,25 @@ public class KMeansSolver implements ClusteringSolver {
 	}
 
 	private boolean converged(List<Binding> oldCentroids, List<Binding> centroids, VarExprList clusterVars) {
-		for (int i=0; i<K; i++) {
+		for (int i=0; i < K; i++) {
 			double d = ClusterDistances.manhattan(oldCentroids.get(i), centroids.get(i), clusterVars);
-			if (d>EPSILON) {
+			if (d < EPSILON) {
 				return true;
 			}
 		}
 		return false;
 	}
 
-	private List<Binding> updateCentroids(VarExprList clusterVars) {
+	private List<Binding> updateCentroids(VarExprList clusterVars, List<List<Binding>> clusters) {
 		List<Binding> newCentroids = new ArrayList<Binding>(K);
 		for (int i=0; i<K; i++) {
 			Map<Var, Double> sums = new HashMap<>();
 			for (Binding b : clusters.get(i)) {
 				for (Var v : clusterVars.getVars()) {
 					if (!sums.containsKey(v)) {
-						sums.put(v, (double) b.get(v).getLiteral().getValue());
+						sums.put(v, ((Number) b.get(v).getLiteral().getValue()).doubleValue());
 					} else {
-						sums.put(v, sums.get(v) + (double) b.get(v).getLiteral().getValue());
+						sums.put(v, sums.get(v) + ((Number) b.get(v).getLiteral().getValue()).doubleValue());
 					}
 				}
 			}

@@ -70,4 +70,5 @@ public interface Transform
     public Op transform(OpReduced opReduced, Op subOp) ;
     public Op transform(OpSlice opSlice, Op subOp) ;
     public Op transform(OpGroup opGroup, Op subOp) ;
+	public Op transform(OpCluster opCluster, Op subOp);
 }

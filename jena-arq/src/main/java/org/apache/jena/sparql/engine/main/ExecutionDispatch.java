@@ -315,6 +315,13 @@ class ExecutionDispatch implements OpVisitor
         QueryIterator qIter = opExecutor.execute(opGroup, input) ;
         push(qIter) ;
     }
+    
+    @Override
+	public void visit(OpCluster opCluster) {
+		QueryIterator input = pop() ;
+        QueryIterator qIter = opExecutor.execute(opCluster, input) ;
+        push(qIter) ;
+	}
 
     @Override
     public void visit(OpTopN opTop)

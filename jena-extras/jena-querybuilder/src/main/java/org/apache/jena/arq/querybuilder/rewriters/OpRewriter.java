@@ -29,6 +29,7 @@ import org.apache.jena.sparql.algebra.OpVisitor;
 import org.apache.jena.sparql.algebra.Table;
 import org.apache.jena.sparql.algebra.op.OpAssign;
 import org.apache.jena.sparql.algebra.op.OpBGP;
+import org.apache.jena.sparql.algebra.op.OpCluster;
 import org.apache.jena.sparql.algebra.op.OpConditional;
 import org.apache.jena.sparql.algebra.op.OpDatasetNames;
 import org.apache.jena.sparql.algebra.op.OpDiff;
@@ -362,6 +363,14 @@ class OpRewriter extends AbstractRewriter<Op> implements OpVisitor {
         }
         push(new OpGroup(pop(), groupVars, aggregators));
     }
+    
+    @Override
+	public void visit(OpCluster opCluster) {
+		opCluster.getSubOp().visit(this);
+		ExprRewriter expRewriter = new ExprRewriter(values);
+		VarExprList clusterVars = rewrite(opCluster.getClusterVars());
+		push(new OpCluster(pop(), clusterVars, opCluster.getClusterConf(), opCluster.getClusterVar()));
+	}
 
     @Override
     public void visit(OpTopN opTop) {

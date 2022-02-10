@@ -40,9 +40,9 @@ public class DBSCANConfiguration implements ClusterConfiguration {
 	public void setParameters(PathBlock bgp) {
 		for (final TriplePath triple : bgp.getList()) {
 			if (triple.getPredicate().hasURI(SIM.minDistance.getURI())) {
-				this.epsilon = (double) triple.getObject().getLiteral().getValue();
+				this.epsilon = ((Number) triple.getObject().getLiteral().getValue()).doubleValue();
 			} else if (triple.getPredicate().hasURI(SIM.minPoints.getURI())) {
-				this.minElements = (int) triple.getObject().getLiteral().getValue();
+				this.minElements = ((Number) triple.getObject().getLiteral().getValue()).intValue();
 			}
 		}
 		if (epsilon == 0.0) {

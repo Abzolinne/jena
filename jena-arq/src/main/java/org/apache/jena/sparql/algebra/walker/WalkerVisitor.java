@@ -308,4 +308,9 @@ public class WalkerVisitor implements OpVisitorByTypeAndExpr, ExprVisitorFunctio
 		visit2(opSimJoin);
 	}
     
+    @Override
+	public void visit(OpCluster opCluster) {
+		visit1(opCluster);
+	}
+    
 }

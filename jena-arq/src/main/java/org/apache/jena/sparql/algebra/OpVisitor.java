@@ -72,4 +72,5 @@ public interface OpVisitor
 
     public void visit(OpGroup opGroup) ;
     public void visit(OpTopN opTop) ;
+	public void visit(OpCluster opCluster);
 }

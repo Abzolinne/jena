@@ -21,6 +21,6 @@ public class FNO {
     public static final Resource NAMESPACE = m_model.createResource( NS );
     
     /** <p>A function execution</p> */
-    public static final Property executes = m_model.createProperty( "http://w3id.org/function/ontology##executes" );
+    public static final Property executes = m_model.createProperty( "http://w3id.org/function/ontology#executes" );
 	
 }

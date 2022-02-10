@@ -294,7 +294,7 @@ public class VarFinder
         
         @Override
 		public void visit(OpSimJoin opSimJoin) {
-			// TODO Auto-generated method stub
+			leftJoin(opSimJoin.getLeft(), opSimJoin.getRight(), null);
 		}
 
         @Override
@@ -409,6 +409,12 @@ public class VarFinder
             VarExprList varExprs = opGroup.getGroupVars() ;
             varExprs.forEachVar((v)->addVar(defines, v)) ;
         }
+        
+        @Override
+		public void visit(OpCluster opCluster) {
+			VarExprList varExprs = opCluster.getClusterVars() ;
+            varExprs.forEachVar((v)->addVar(defines, v)) ;
+		}
 
         @Override
         public void visit(OpDatasetNames dsNames) {

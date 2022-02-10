@@ -112,6 +112,8 @@ public class TransformCopy implements Transform
     public Op transform(OpSlice opSlice, Op subOp)                  { return xform(opSlice, subOp) ; }
     @Override
     public Op transform(OpGroup opGroup, Op subOp)                  { return xform(opGroup, subOp) ; }
+    @Override
+	public Op transform(OpCluster opCluster, Op subOp) 				{ return xform(opCluster, subOp); }
 
     private Op xform(Op0 op)
     {

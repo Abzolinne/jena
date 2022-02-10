@@ -152,5 +152,10 @@ public class OpWalker
 			visit2(opSimJoin);
 		}
         
+        @Override
+		public void visit(OpCluster opCluster) {
+			visit1(opCluster);
+		}
+        
     }
 }

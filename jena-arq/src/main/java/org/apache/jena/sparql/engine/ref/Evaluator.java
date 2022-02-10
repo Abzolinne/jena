@@ -22,6 +22,7 @@ import java.util.List ;
 
 import org.apache.jena.graph.Node ;
 import org.apache.jena.query.SortCondition ;
+import org.apache.jena.query.cluster.ClusterConfiguration;
 import org.apache.jena.sparql.algebra.Table ;
 import org.apache.jena.sparql.algebra.op.OpSimJoin;
 import org.apache.jena.sparql.core.BasicPattern ;
@@ -66,4 +67,6 @@ public interface Evaluator
     public Table distinct(Table table) ;
     public Table reduced(Table table) ;
     public Table slice(Table table, long start, long length) ;
+
+	public Table clusterBy(Table table, VarExprList clusterVars, Var clusterVar, ClusterConfiguration clusterConf);
 }

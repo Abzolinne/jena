@@ -441,6 +441,15 @@ public class WriterOp
             printOp(opGroup.getSubOp()) ;
             finish(opGroup) ;
         }
+        
+        @Override
+		public void visit(OpCluster opCluster) {
+			start(opCluster, NoNL) ;
+            writeNamedExprList(opCluster.getClusterVars()) ;
+            out.println() ;
+            printOp(opCluster.getSubOp()) ;
+            finish(opCluster) ;
+		}
 
         @Override
         public void visit(OpOrder opOrder) {

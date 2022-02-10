@@ -336,6 +336,14 @@ public class EvaluatorDispatch implements OpVisitor
     }
     
     @Override
+	public void visit(OpCluster opCluster) {
+		Table table = eval(opCluster.getSubOp()) ;
+        table = evaluator.clusterBy(table, opCluster.getClusterVars(), 
+        		opCluster.getClusterVar(), opCluster.getClusterConf()) ;
+        push(table) ;
+	}
+    
+    @Override
 	public void visit(OpSimJoin opSimJoin) {
 		Table left = eval(opSimJoin.getLeft()) ;
         Table right = eval(opSimJoin.getRight()) ;

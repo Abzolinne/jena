@@ -340,6 +340,14 @@ public class OpRewriter implements OpVisitor {
         }
         addOp(OpGroup.create(rewriteOp1(opGroup), opGroup.getGroupVars(), opGroup.getAggregators()));
     }
+    
+    @Override
+	public void visit(OpCluster opCluster) {
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Starting visiting OpGroup");
+		}
+		addOp(OpCluster.create(rewriteOp1(opCluster), opCluster.getClusterVars(), opCluster.getClusterConf(), opCluster.getClusterVar()));
+	}
 
     /**
      * Parses the joins and recursively calls the left and right parts

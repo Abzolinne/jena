@@ -473,6 +473,12 @@ public class AlgebraGenerator
         // Now do assignments from expressions
         // Must be after "group by" has introduced it's variables.
 
+     // ---- CLUSTER BY 
+        // cluster clause is excluding of group by
+        else if ( query.hasClusterBy() ) {
+        	op = OpCluster.create(op, query.getClusterBy(), query.getClusterConf(), query.getClusterVar());
+        }
+        
         // Look for assignments in SELECT expressions.
         if ( !projectVars.isEmpty() && !query.isQueryResultStar() ) {
             // Don't project for QueryResultStar so initial bindings show

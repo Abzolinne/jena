@@ -489,4 +489,11 @@ public class OpExecutor
     private static List<Binding> all(QueryIterator input) {
         return Iter.toList(input) ;
     }
+
+	public QueryIterator execute(OpCluster opCluster, QueryIterator input) {
+		QueryIterator qIter = exec(opCluster.getSubOp(), input) ;
+        qIter = new QueryIterCluster(qIter, opCluster.getClusterVars(), opCluster.getClusterConf(), 
+        		opCluster.getClusterVar(), execCxt) ;
+        return qIter ;
+	}
 }
