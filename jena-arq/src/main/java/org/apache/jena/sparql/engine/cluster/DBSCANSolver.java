@@ -15,7 +15,8 @@ import org.apache.jena.sparql.engine.binding.Binding;
 import org.apache.jena.sparql.engine.binding.BindingBuilder;
 import org.apache.jena.sparql.engine.binding.BindingFactory;
 import org.apache.jena.sparql.engine.iterator.BufferedQueryIteratorFactory;
-import org.apache.jena.sparql.engine.iterator.BufferedQueryIteratorFactory.BufferedQueryIterator;
+
+import com.eatthepath.jvptree.VPTree;
 
 public class DBSCANSolver implements ClusteringSolver {
 
@@ -35,18 +36,20 @@ public class DBSCANSolver implements ClusteringSolver {
 	@Override
 	public void solve(QueryIterator iter, VarExprList clusterVars, Var clusterVar) {
 		BufferedQueryIteratorFactory factory = new BufferedQueryIteratorFactory(iter); 
+        VPTree<Binding, Binding> vptree = new VPTree<Binding, Binding>(ClusterDistances.generateManhattan(clusterVars), 
+        		factory.createBufferedQueryIterator().consume());
         QueryIterator rewindable = factory.createBufferedQueryIterator();
-        Set<Binding> visited = new HashSet<>();
+        Set<Binding> visited = new HashSet<>(vptree.size());
         int currentCluster = 1;
         while(rewindable.hasNext()) {
         	Binding current = rewindable.next();
         	if (visited.contains(current)) {
 				continue;
 			}
-        	List<Binding> neighbors = getNeighbors(current, factory.createBufferedQueryIterator(), clusterVars);
+        	List<Binding> neighbors = vptree.getAllWithinDistance(current, epsilon);
         	if (neighbors.size() >= minElements) {
 				clusters.add(new ArrayList<Binding>());
-				expandCluster(currentCluster, current, neighbors, factory, visited, clusterVars, clusterVar);
+				expandCluster(currentCluster, current, neighbors, vptree, visited, clusterVar);
 				currentCluster++;
 			} else {
 				clusters.get(0).add(current);
@@ -55,7 +58,8 @@ public class DBSCANSolver implements ClusteringSolver {
 	}
 
 	private void expandCluster(int currentCluster, Binding e, List<Binding> neighbors,
-			BufferedQueryIteratorFactory factory, Set<Binding> visited, VarExprList clusterVars, Var clusterVar) {
+			VPTree<Binding, Binding> vptree, Set<Binding> visited, Var clusterVar) {
+		
 		clusters.get(currentCluster).add(e);
 		visited.add(e);
 		
@@ -67,7 +71,7 @@ public class DBSCANSolver implements ClusteringSolver {
 				index ++;
 				continue;
 			}
-			List<Binding> currentNeighbors = getNeighbors(current, factory.createBufferedQueryIterator(), clusterVars);
+			List<Binding> currentNeighbors = vptree.getAllWithinDistance(current, epsilon);
 			if (currentNeighbors.size() >= minElements) {
 				for (Binding b : currentNeighbors) {
 					if (! seeds.contains(b) ) {
@@ -82,18 +86,6 @@ public class DBSCANSolver implements ClusteringSolver {
 			index++;
 		}
 		addClusterToResults(clusters.get(currentCluster), currentCluster, clusterVar);
-	}
-
-	private List<Binding> getNeighbors(Binding e, BufferedQueryIterator elements,
-			VarExprList clusterVars) {
-		List<Binding> results = new ArrayList<Binding>();
-		while (elements.hasNext()) {
-			Binding b = elements.next();
-			if (!e.equals(b) && ClusterDistances.manhattan(e, b, clusterVars) < epsilon) {
-				results.add(b);
-			}
-		}
-		return results;
 	}
 	
 	private void addClusterToResults(List<Binding> cluster, int c, Var clusterVar) {

@@ -1,5 +1,7 @@
 package org.apache.jena.sparql.engine.iterator;
 
+import java.util.Collection;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Vector;
 
@@ -56,6 +58,15 @@ public class BufferedQueryIteratorFactory {
 
 		@Override
 		protected void requestCancel() {}
+
+		public Collection<Binding> consume() {
+			List<Binding> allBindings = new LinkedList<>();
+			while(this.hasNextBinding()) {
+				allBindings.add(this.moveToNextBinding());
+			}
+			this.closeIterator();
+			return allBindings;
+		}
 
 	}
 	
