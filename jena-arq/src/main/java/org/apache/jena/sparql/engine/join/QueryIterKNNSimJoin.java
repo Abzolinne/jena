@@ -8,7 +8,9 @@ import org.apache.jena.sparql.algebra.op.OpKNNSimJoin;
 import org.apache.jena.sparql.engine.ExecutionContext;
 import org.apache.jena.sparql.engine.QueryIterator;
 import org.apache.jena.sparql.engine.binding.Binding;
+import org.apache.jena.sparql.engine.join.solver.KNNSimJoinFLANNSolver;
 import org.apache.jena.sparql.engine.join.solver.KNNSimJoinNestedLoopSolver;
+import org.apache.jena.sparql.engine.join.solver.KNNSimJoinVPTreeSolver;
 
 public class QueryIterKNNSimJoin extends QueryIterSimJoin {
 	

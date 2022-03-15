@@ -55,6 +55,7 @@ public class DBSCANSolver implements ClusteringSolver {
 				clusters.get(0).add(current);
 			}
         }	
+        addClusterToResults(clusters.get(0), -1, clusterVar);
 	}
 
 	private void expandCluster(int currentCluster, Binding e, List<Binding> neighbors,

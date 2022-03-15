@@ -2,7 +2,6 @@ package org.apache.jena.sparql.engine.join.solver;
 
 import java.util.Iterator;
 import java.util.List;
-
 import org.apache.jena.atlas.lib.Pair;
 import org.apache.jena.graph.Node;
 import org.apache.jena.sparql.algebra.Algebra;
@@ -43,4 +42,5 @@ public abstract class SimJoinSolver {
 	}
 
 	public abstract void setUp();
+	
 }
