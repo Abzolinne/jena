@@ -42,24 +42,23 @@ import org.apache.jena.query.cluster.KMedoidsConfiguration;
 import org.apache.jena.sparql.ARQConstants ;
 import org.apache.jena.sparql.algebra.table.TableData ;
 import org.apache.jena.sparql.core.DatasetDescription;
-import org.apache.jena.sparql.core.PathBlock;
 import org.apache.jena.sparql.core.Prologue;
 import org.apache.jena.sparql.core.QueryCompare;
 import org.apache.jena.sparql.core.QueryHashCode;
-import org.apache.jena.sparql.core.TriplePath;
 import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.core.VarAlloc;
 import org.apache.jena.sparql.core.VarExprList;
 import org.apache.jena.sparql.engine.binding.Binding ;
 import org.apache.jena.sparql.expr.Expr ;
 import org.apache.jena.sparql.expr.ExprAggregator ;
+import org.apache.jena.sparql.expr.ExprFunction;
 import org.apache.jena.sparql.expr.ExprTransform ;
 import org.apache.jena.sparql.expr.ExprVar ;
+import org.apache.jena.sparql.expr.NodeValue;
 import org.apache.jena.sparql.expr.aggregate.Aggregator ;
 import org.apache.jena.sparql.serializer.QuerySerializerFactory ;
 import org.apache.jena.sparql.serializer.SerializerRegistry ;
 import org.apache.jena.sparql.syntax.Element ;
-import org.apache.jena.sparql.syntax.ElementPathBlock;
 import org.apache.jena.sparql.syntax.PatternVars ;
 import org.apache.jena.sparql.syntax.Template ;
 import org.apache.jena.sparql.syntax.syntaxtransform.ElementTransform;
@@ -68,7 +67,6 @@ import org.apache.jena.sparql.syntax.syntaxtransform.ExprTransformApplyElementTr
 import org.apache.jena.sparql.syntax.syntaxtransform.QueryTransformOps;
 import org.apache.jena.sparql.util.FmtUtils ;
 import org.apache.jena.sys.JenaSystem ;
-import org.apache.jena.vocabulary.FNO;
 import org.apache.jena.vocabulary.SIM;
 
 /** The data structure for a query as presented externally.
@@ -602,24 +600,35 @@ public class Query extends Prologue implements Cloneable, Printable
     	return clusterVar;
     }
     
-    public void setClusterParams(Element el) {
-    	if ( !(el instanceof ElementPathBlock) ) {
-			throw new QueryBuildException("Invalid configuration for CLUSTER BY");
+	public void setClusterFunction(Expr e) {
+		Class<? extends ClusterConfiguration> confClass;
+		String iri;
+		List<Expr> args = null;
+		if(e.isFunction()) {
+			ExprFunction fun = (ExprFunction) e;
+			iri = fun.getFunctionIRI();
+			confClass = clusterConfs.get(iri);
+			args = fun.getArgs();
+		} else if (e.isConstant() && ((NodeValue) e).isIRI()) {
+			iri = ((NodeValue) e).asNode().getURI();
+			confClass = clusterConfs.get(iri);
+		} else {
+			throw new QueryBuildException("Clustering expresion is not a function or IRI. Given: " + e);
 		}
-    	ElementPathBlock epb = (ElementPathBlock) el;
-    	PathBlock bgp = epb.getPattern();
-    	TriplePath executesTriple = bgp.getList().stream().filter(x->x.getPredicate().hasURI(FNO.executes.getURI()))
-    			.findFirst().orElse(null);
+		if (confClass == null) {
+			throw new QueryBuildException("Clustering algorithm not recognised. Given: " + iri);
+		}
 		try {
-			if (executesTriple == null) return;
-			ClusterConfiguration conf = clusterConfs.get(executesTriple.getObject().getURI()).getDeclaredConstructor().newInstance();
-			conf.setParameters(bgp);
+			ClusterConfiguration conf = confClass.getDeclaredConstructor().newInstance();
+			if(args != null) {
+				conf.setParameters(args);
+			}
 			clusterConf = conf;
-		} catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException |
-				NoSuchMethodException | SecurityException e) {
-			throw new QueryBuildException("Could not instanciate the cluster configuration");
+		} catch (InstantiationException | IllegalAccessException | IllegalArgumentException
+				| InvocationTargetException | NoSuchMethodException | SecurityException e1) {
+			throw new QueryBuildException("Could not instanciate the cluster configuration", e1);
 		}
-    }
+	}
     
     // SELECT JSON
 

@@ -202,34 +202,24 @@ void WhereClause() : { Element el ; }
 }
 void SolutionModifier() : { }
 {
+  ( ClusterClause() )?
   ( GroupClause() )?
   ( HavingClause() )?
   ( OrderClause() )?
   ( LimitOffsetClauses() )?
-  ( ClusterClause() )?
 }
-void ClusterClause() : { Var v; }
+void ClusterClause() : { Var v; Expr e;}
 {
   <CLUSTER> <BY> (ClusterCondition())+
+  <WITH> e = iriOrFunction()
+  { getQuery().setClusterFunction(e); }
   < AS > v = Var()
   { getQuery().setClusterVar(v); }
-  (ClusterWithClause())?
 }
 void ClusterCondition() : { Var v ;}
 {
   v = Var()
   { getQuery().addClusterBy(v) ; }
-}
-void ClusterWithClause() : { Element el = null ; }
-{
-  <WITH>
-  <LPAREN>
-	{ startTriplesBlock() ; }
-    el = TriplesBlock(null)
-    { endTriplesBlock() ;
-    getQuery().setClusterParams(el);
-  }
-  <RPAREN>
 }
 void GroupClause() : { }
 {
