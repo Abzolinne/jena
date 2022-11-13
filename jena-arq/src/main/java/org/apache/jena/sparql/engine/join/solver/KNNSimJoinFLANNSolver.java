@@ -8,11 +8,10 @@ import org.apache.jena.sparql.engine.join.Distances;
 import org.apache.jena.sparql.engine.join.QueryIterKNNSimJoin;
 import org.apache.jena.sparql.engine.join.QueryIterSimJoin;
 import org.apache.jena.sparql.engine.join.QueryIterSimJoin.Neighbor;
+import org.apache.jena.sparql.engine.join.flann.IndexKDTree;
+import org.apache.jena.sparql.engine.join.flann.IndexKDTree.SearchParams;
+import org.apache.jena.sparql.engine.join.flann.Metric;
 import org.apache.jena.sparql.expr.Expr;
-
-import flann.index.IndexKDTree;
-import flann.index.IndexKDTree.SearchParams;
-import flann.metric.Metric;
 
 public class KNNSimJoinFLANNSolver extends KNNSimJoinSolver {
 

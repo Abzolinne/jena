@@ -9,12 +9,11 @@ import org.apache.jena.atlas.lib.PairOfSameType;
 import org.apache.jena.datatypes.xsd.XSDDatatype;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.NodeFactory;
+import org.apache.jena.sparql.engine.join.flann.Metric;
 import org.apache.jena.sparql.expr.Expr;
 import org.apache.jena.sparql.expr.ExprList;
 
 import com.eatthepath.jvptree.DistanceFunction;
-
-import flann.metric.Metric;
 
 public class Distances {
 
