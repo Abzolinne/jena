@@ -2,8 +2,6 @@ package org.apache.jena.sparql.engine.join.flann;
 
 import java.util.Arrays;
 
-import flann.util.UniqueRandom;
-
 public class Utils {
 	// Generate a random number min <= x <= max.
 		public static int genRandomNumberInRange(int min, int max) {
