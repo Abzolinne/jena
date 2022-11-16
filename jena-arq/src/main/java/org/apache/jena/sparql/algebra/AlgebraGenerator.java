@@ -450,6 +450,7 @@ public class AlgebraGenerator
           *           having
           *             select expressions
           *               group
+          *                cluster
           */
 
         // Preparation: sort SELECT clause into assignments and projects.
@@ -459,6 +460,11 @@ public class AlgebraGenerator
         List<Var> vars = new ArrayList<>();     // projection variables
 
         Op op = pattern;
+        
+        // ---- CLUSTER BY 
+        if ( query.hasClusterBy() ) {
+        	op = OpCluster.create(op, query.getClusterBy(), query.getClusterConf(), query.getClusterVar());
+        }
 
         // ---- GROUP BY
 
@@ -472,12 +478,6 @@ public class AlgebraGenerator
         // HAVING)
         // Now do assignments from expressions
         // Must be after "group by" has introduced it's variables.
-
-     // ---- CLUSTER BY 
-        // cluster clause is excluding of group by
-        else if ( query.hasClusterBy() ) {
-        	op = OpCluster.create(op, query.getClusterBy(), query.getClusterConf(), query.getClusterVar());
-        }
         
         // Look for assignments in SELECT expressions.
         if ( !projectVars.isEmpty() && !query.isQueryResultStar() ) {
