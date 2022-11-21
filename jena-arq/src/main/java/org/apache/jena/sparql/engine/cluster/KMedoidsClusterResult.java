@@ -15,6 +15,8 @@ public class KMedoidsClusterResult {
 	private boolean converged = false;
 	VarExprList clusterVars;
 	
+	private final double EPSILON = 10e-3;
+	
 	public KMedoidsClusterResult(List<Binding> medoids, VarExprList clusterVars) {
 		this.clusters = new ArrayList<List<Binding>>();
 		this.medoids = medoids;
@@ -43,7 +45,8 @@ public class KMedoidsClusterResult {
 				for(Binding b2 : clusters.get(i)) {
 					currentCost += ClusterDistances.manhattan(b, b2, clusterVars);
 				}
-				if(currentCost < oldMedoidCost) {
+				//if(currentCost < oldMedoidCost) {
+				if(Math.abs(currentCost-oldMedoidCost) > EPSILON) {
 					this.medoids.set(i, b);
 					this.medoidCosts.set(i, currentCost);
 					this.converged = false;
