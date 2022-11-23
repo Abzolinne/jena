@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.apache.jena.query.QueryBuildException;
 import org.apache.jena.sparql.engine.cluster.ClusteringSolver;
+import org.apache.jena.sparql.engine.cluster.FASTPAMSolver;
 import org.apache.jena.sparql.engine.cluster.KMedoidsSolver;
 import org.apache.jena.sparql.expr.Expr;
 import org.apache.jena.vocabulary.SIM;
@@ -42,7 +43,8 @@ protected int nbOfClusters;
 
 	@Override
 	public ClusteringSolver getSolver() {
-		return new KMedoidsSolver(nbOfClusters);
+		//return new KMedoidsSolver(nbOfClusters);
+		return new FASTPAMSolver(nbOfClusters);
 	}
 
 }

@@ -45,8 +45,7 @@ public class KMedoidsClusterResult {
 				for(Binding b2 : clusters.get(i)) {
 					currentCost += ClusterDistances.manhattan(b, b2, clusterVars);
 				}
-				//if(currentCost < oldMedoidCost) {
-				if(currentCost <= EPSILON*oldMedoidCost) {
+				if(currentCost < oldMedoidCost) {
 					this.medoids.set(i, b);
 					this.medoidCosts.set(i, currentCost);
 					this.converged = false;
