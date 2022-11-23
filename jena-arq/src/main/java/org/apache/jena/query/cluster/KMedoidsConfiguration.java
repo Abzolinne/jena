@@ -11,7 +11,7 @@ import org.apache.jena.vocabulary.SIM;
 
 public class KMedoidsConfiguration implements ClusterConfiguration {
 
-protected int nbOfClusters;
+	protected int nbOfClusters;
 	
 	public KMedoidsConfiguration(int nbOfClusters) {
 		this.nbOfClusters = nbOfClusters;

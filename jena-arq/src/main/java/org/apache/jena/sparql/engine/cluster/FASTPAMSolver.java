@@ -41,7 +41,7 @@ public class FASTPAMSolver implements ClusteringSolver{
             while(inner.hasNext()) {
                 final Binding b2 = inner.next();
                 if(b1.equals(b2)) continue;
-                distSum += distances.get(new PairOfSameType<>(b1, b2));
+                distSum += distances.getOrDefault(new PairOfSameType<>(b1, b2), distances.getOrDefault(new PairOfSameType<>(b2, b1), 0.0));	
             }
             if (distSum < minDistSum) {
                 initialMedoid = Binding.builder().addAll(b1).build();
@@ -55,7 +55,7 @@ public class FASTPAMSolver implements ClusteringSolver{
         while (it.hasNext()) {
             final Binding b = it.next();
             if(b.equals(initialMedoid)) continue;
-            distanceToNearestMedoid.put(b, distances.get(new PairOfSameType<>(b, initialMedoid)));
+            distanceToNearestMedoid.put(b, distances.getOrDefault(new PairOfSameType<>(b, initialMedoid), distances.getOrDefault(new PairOfSameType<>(initialMedoid, b), 0.0)));
         }
         List<Binding> medoids = new ArrayList<>(K);
         medoids.add(initialMedoid);
@@ -71,7 +71,8 @@ public class FASTPAMSolver implements ClusteringSolver{
                 while (inner2.hasNext()) {
                     final Binding b2 = inner2.next();
                     if (medoids.contains(b2) || b1.equals(b2)) continue;
-                    double delta = distances.get(new PairOfSameType<>(b1, b2)) - distanceToNearestMedoid.get(b2);
+                    double delta = distances.getOrDefault(new PairOfSameType<>(b1, b2), distances.getOrDefault(new PairOfSameType<>(b2, b1), 0.0)) 
+                    		- distanceToNearestMedoid.get(b2);
                     if (delta < 0) minSumDiff += delta;
                 }
                 if (minSumDiff < currentMinDistSum) {
@@ -99,7 +100,7 @@ public class FASTPAMSolver implements ClusteringSolver{
                         Binding b2 = inner3.next();
                         if (medoids.contains(b2) && !b2.equals(m)) continue;
                         double delta;
-                        double distb1b2 = distances.getOrDefault(new PairOfSameType<>(b1, b2), 0.0);
+                        double distb1b2 = distances.getOrDefault(new PairOfSameType<>(b1, b2), distances.getOrDefault(new PairOfSameType<>(b2, b1), 0.0));
                         if (distb1b2 >= distanceToNearestMedoid.get(b2) && nearestMedoid.get(b2)!=mi) {
                             delta = 0;
                         } else if (distb1b2 < distanceToSecondMedoid.get(b2) && nearestMedoid.get(b2)==mi) {
@@ -146,7 +147,7 @@ public class FASTPAMSolver implements ClusteringSolver{
 					continue;
 				final double distance = ClusterDistances.manhattan(b1, b2, clusterVars);
 				distances.put(b1b2, distance);
-				distances.put(b2b1, distance);
+				//distances.put(b2b1, distance);
 			}
 		}
 		return distances;
@@ -167,7 +168,7 @@ public class FASTPAMSolver implements ClusteringSolver{
 			double secondMinDist = Double.MAX_VALUE;
 			int mi = 0;
 			for(final Binding m : medoids) {
-				double dist = distances.getOrDefault(new PairOfSameType<>(b, m), 0.0);
+				double dist = distances.getOrDefault(new PairOfSameType<>(b, m), distances.getOrDefault(new PairOfSameType<>(m, b),0.0));
 				if (dist < minDist) {
 					secondMinDist = minDist;
 					minDist = dist;
