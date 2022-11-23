@@ -30,22 +30,21 @@ public class FASTPAMSolver implements ClusteringSolver{
 	public void solve(QueryIterator iter, VarExprList clusterVars, Var clusterVar) {
 		final BufferedQueryIteratorFactory factory = new BufferedQueryIteratorFactory(iter);
         final Map<PairOfSameType<Binding>, Double> distances = computeDistances(factory, clusterVars);
-        System.out.println(distances.size());
         final QueryIterator outer = factory.createBufferedQueryIterator();
         Binding initialMedoid = null;
-        double minDistSum = Double.MAX_VALUE;
+        double TD = Double.MAX_VALUE;
         while(outer.hasNext()) {
             final Binding b1 = outer.next();
-            double distSum = 0;
+            double TDj = 0;
             final QueryIterator inner = factory.createBufferedQueryIterator();
             while(inner.hasNext()) {
                 final Binding b2 = inner.next();
                 if(b1.equals(b2)) continue;
-                distSum += distances.getOrDefault(new PairOfSameType<>(b1, b2), distances.getOrDefault(new PairOfSameType<>(b2, b1), 0.0));	
+                TDj += distances.getOrDefault(new PairOfSameType<>(b1, b2), distances.getOrDefault(new PairOfSameType<>(b2, b1), 0.0));	
             }
-            if (distSum < minDistSum) {
+            if (TDj < TD) {
                 initialMedoid = Binding.builder().addAll(b1).build();
-                minDistSum = distSum;
+                TD = TDj;
             }
         }
         final Map<Binding, Double> distanceToNearestMedoid = new HashMap<>();
@@ -61,70 +60,70 @@ public class FASTPAMSolver implements ClusteringSolver{
         medoids.add(initialMedoid);
         for (int i=1; i < K; i++) {
             Binding candidate = null;
-            double currentMinDistSum = Double.MAX_VALUE;
+            double deltaTDBest = Double.MAX_VALUE;
             final QueryIterator outer2 = factory.createBufferedQueryIterator();
             while (outer2.hasNext()) {
                 final Binding b1 = outer2.next();
                 if (medoids.contains(b1)) continue;
-                double minSumDiff = 0;
+                double deltaTD = 0;
                 final QueryIterator inner2 = factory.createBufferedQueryIterator();
                 while (inner2.hasNext()) {
                     final Binding b2 = inner2.next();
                     if (medoids.contains(b2) || b1.equals(b2)) continue;
                     double delta = distances.getOrDefault(new PairOfSameType<>(b1, b2), distances.getOrDefault(new PairOfSameType<>(b2, b1), 0.0)) 
                     		- distanceToNearestMedoid.get(b2);
-                    if (delta < 0) minSumDiff += delta;
+                    if (delta < 0) deltaTD += delta;
                 }
-                if (minSumDiff < currentMinDistSum) {
+                if (deltaTD < deltaTDBest) {
                     candidate = Binding.builder().addAll(b1).build();
-                    currentMinDistSum = minSumDiff;
+                    deltaTDBest = deltaTD;
                 }
             }
-            minDistSum += currentMinDistSum;
+            TD += deltaTDBest;
             medoids.add(candidate);
             updateCaches(factory, distances, distanceToNearestMedoid, distanceToSecondMedoid, nearestMedoid, medoids);
         }
         while(true) {
-            double maxDeltaDiff = Double.MAX_VALUE;
+            double deltaTDBest = Double.MAX_VALUE;
             int swapMedoid = 0;
             Binding swapObject = null;
-            int mi = 0;
-            for(Binding m : medoids) {
-                QueryIterator outer3 = factory.createBufferedQueryIterator();
-                while (outer3.hasNext()) {
-                    Binding b1 = outer3.next();
-                    if (medoids.contains(b1)) continue;
-                    double deltaDiff = 0;
-                    QueryIterator inner3 = factory.createBufferedQueryIterator();
-                    while(inner3.hasNext()) {
-                        Binding b2 = inner3.next();
-                        if (medoids.contains(b2) && !b2.equals(m)) continue;
-                        double delta;
-                        double distb1b2 = distances.getOrDefault(new PairOfSameType<>(b1, b2), distances.getOrDefault(new PairOfSameType<>(b2, b1), 0.0));
-                        if (distb1b2 >= distanceToNearestMedoid.get(b2) && nearestMedoid.get(b2)!=mi) {
-                            delta = 0;
-                        } else if (distb1b2 < distanceToSecondMedoid.get(b2) && nearestMedoid.get(b2)==mi) {
-                            delta = distb1b2 - distanceToNearestMedoid.get(b2);
-                        } else if (distb1b2 >= distanceToSecondMedoid.get(b2) && nearestMedoid.get(b2)==mi) {
-                            delta = distanceToSecondMedoid.get(b2) - distanceToNearestMedoid.get(b2);
-                        } else {
-                            delta = distb1b2 - distanceToNearestMedoid.get(b2);
-                        }
-                        deltaDiff += delta;
-                    }
-                    if (maxDeltaDiff > deltaDiff) {
-                        maxDeltaDiff = deltaDiff;
-                        swapMedoid = mi;
-                        swapObject = Binding.builder().addAll(b1).build();
+            List<Double> deltaTDmi = new ArrayList<>(K);
+            for (int i=0; i<K; i++) {
+            	final int j = i;
+            	deltaTDmi.add(nearestMedoid.entrySet().stream().filter(e->e.getValue()==j)
+            		.map(e->(distanceToSecondMedoid.get(e.getKey())-distanceToNearestMedoid.get(e.getKey())))
+            		.reduce(Double::sum).get());
+            }
+            QueryIterator outer3 = factory.createBufferedQueryIterator();
+            while (outer3.hasNext()) {
+                Binding b1 = outer3.next();
+                if (medoids.contains(b1)) continue;
+                List<Double> deltaTD = new ArrayList<>(deltaTDmi);
+                double deltaTDb1 = 0;
+                QueryIterator inner3 = factory.createBufferedQueryIterator();
+                while(inner3.hasNext()) {
+                    Binding b2 = inner3.next();
+                    double distb1b2 = distances.getOrDefault(new PairOfSameType<>(b1, b2), distances.getOrDefault(new PairOfSameType<>(b2, b1), 0.0));
+                    if (distb1b2 < distanceToNearestMedoid.get(b2)) {
+                        deltaTDb1 += distb1b2 - distanceToNearestMedoid.get(b2);
+                        deltaTD.set(nearestMedoid.get(b2), deltaTD.get(nearestMedoid.get(b2))+distanceToNearestMedoid.get(b2)-distanceToSecondMedoid.get(b2));
+                    } else if (distb1b2 < distanceToSecondMedoid.get(b2)) {
+                    	deltaTD.set(nearestMedoid.get(b2), deltaTD.get(nearestMedoid.get(b2))+distb1b2-distanceToSecondMedoid.get(b2));
                     }
                 }
-                mi++;
+                int i = deltaTD.indexOf(deltaTD.stream().min(Double::compareTo).get());
+                deltaTD.set(i, deltaTD.get(i)+deltaTDb1);
+                if (deltaTD.get(i) < deltaTDBest) {
+                    deltaTDBest = deltaTD.get(i);
+                    swapMedoid = i;
+                    swapObject = Binding.builder().addAll(b1).build();
+                }
             }
-            if (maxDeltaDiff >= 0) break;
-            medoids.set(swapMedoid, swapObject);
-            updateCaches(factory, distances, distanceToNearestMedoid, distanceToSecondMedoid, nearestMedoid, medoids);
-            minDistSum += maxDeltaDiff;
-		}
+	        if (deltaTDBest >= 0) break;
+	        medoids.set(swapMedoid, swapObject);
+	        updateCaches(factory, distances, distanceToNearestMedoid, distanceToSecondMedoid, nearestMedoid, medoids);
+	        TD += deltaTDBest;
+        }
         nearestMedoidResult = nearestMedoid.entrySet().stream().map(e -> makeBinding(e, clusterVar)).collect(Collectors.toList());
 	}
 	
