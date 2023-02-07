@@ -5,6 +5,7 @@ import java.util.List;
 import org.apache.jena.query.QueryBuildException;
 import org.apache.jena.sparql.engine.cluster.ClusteringSolver;
 import org.apache.jena.sparql.engine.cluster.DBSCANSolver;
+import org.apache.jena.sparql.engine.cluster.DBSCANSolver2;
 import org.apache.jena.sparql.expr.Expr;
 import org.apache.jena.vocabulary.SIM;
 
@@ -49,7 +50,7 @@ public class DBSCANConfiguration implements ClusterConfiguration {
 
 	@Override
 	public ClusteringSolver getSolver() {
-		return new DBSCANSolver(epsilon, minElements);
+		return new DBSCANSolver2(epsilon, minElements);
 	}
 
 }
