@@ -57,18 +57,21 @@ public class DBSCANSolver2 implements ClusteringSolver {
         	int index = 0;
         	while(index < seeds.size()) {
         		Binding n = seeds.get(index);
-        		if(current.equals(n)) continue;
+        		if(current.equals(n)) {index++; continue;}
         		if(clusters.get(0).contains(n)) {
         			clusters.get(0).remove(n);
         			clusters.get(currentCluster).add(n);
+        			index++;
+        			continue;
         		}
-        		if(anycontains(clusters, n)) continue;
+        		if(anycontains(clusters, n)) {index++; continue;}
         		List<Binding> moreNeighbors = vptree.getAllWithinDistance(n, epsilon);
         		clusters.get(currentCluster).add(n);
         		if(moreNeighbors.size() < minElements) continue;
-        		seeds.addAll(moreNeighbors);
+        		moreNeighbors.stream().forEach(x -> {if(!seeds.contains(x)) {seeds.add(x);}});
         		index++;
         	}
+        	addClusterToResults(clusters.get(currentCluster), currentCluster, clusterVar);
 			currentCluster++;
         }	
         addClusterToResults(clusters.get(0), -1, clusterVar);
