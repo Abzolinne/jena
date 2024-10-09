@@ -24,6 +24,8 @@ import java.util.Iterator ;
 import java.util.List ;
 import java.util.function.Function ;
 
+import org.apache.commons.collections4.ListValuedMap;
+import org.apache.commons.collections4.MultiMapUtils;
 import org.apache.jena.atlas.io.IndentedLineBuffer;
 import org.apache.jena.atlas.iterator.Iter ;
 import org.apache.jena.atlas.lib.Cache ;
@@ -31,9 +33,6 @@ import org.apache.jena.atlas.lib.CacheFactory ;
 import org.apache.jena.atlas.logging.Log ;
 import org.apache.jena.datatypes.RDFDatatype ;
 import org.apache.jena.datatypes.xsd.XSDDatatype ;
-import org.apache.jena.ext.com.google.common.base.Strings;
-import org.apache.jena.ext.com.google.common.collect.LinkedListMultimap;
-import org.apache.jena.ext.com.google.common.collect.ListMultimap;
 import org.apache.jena.graph.Graph ;
 import org.apache.jena.graph.Node ;
 import org.apache.jena.query.QueryBuildException ;
@@ -120,20 +119,17 @@ public class TextQueryPF extends PropertyFunctionBase {
      * into the execution context. This is the normal route because
      * {@link TextDatasetFactory} sets the text index in the dataset context.
      * Asking the dataset directly is only needed for the case of no context set,
-     * just in case of a unusually, progammatically constructed
+     * just in case of a unusually, programmatically constructed
      * {@code DatasetGraphText} is being used (a bug, or old code, probably).
      */
     private static TextIndex chooseTextIndex(ExecutionContext execCxt, DatasetGraph dsg) {
 
         Object obj = execCxt.getContext().get(TextQuery.textIndex) ;
 
-        if (obj != null) {
-            try {
-                return (TextIndex)obj ;
-            } catch (ClassCastException ex) {
-                Log.warn(TextQueryPF.class, "Context setting '" + TextQuery.textIndex + "'is not a TextIndex") ;
-            }
-        }
+        if ( obj instanceof TextIndex )
+            return (TextIndex)obj ;
+        if ( obj != null )
+            Log.warn(TextQueryPF.class, "Context setting '" + TextQuery.textIndex + "' is not a TextIndex") ;
 
         if (dsg instanceof DatasetGraphText) {
             DatasetGraphText x = (DatasetGraphText)dsg ;
@@ -147,19 +143,19 @@ public class TextQueryPF extends PropertyFunctionBase {
         String value = null;
         for (Node node : objArgs) {
             if (node.isLiteral()) {
-                String arg = node.getLiteral().toString();
+                String arg = node.getLiteral().getLexicalForm();
                 if (arg.startsWith(prefix + ":")) {
                     value = arg.substring(prefix.length()+1);
                     break;
                 }
             }
         }
-
         return value;
     }
 
     @Override
-    public QueryIterator exec(Binding binding, PropFuncArg argSubject, Node predicate, PropFuncArg argObject,
+    public QueryIterator exec(Binding binding,
+                              PropFuncArg argSubject, Node predicate, PropFuncArg argObject,
                               ExecutionContext execCxt) {
         if (log.isTraceEnabled()) {
             IndentedLineBuffer subjBuff = new IndentedLineBuffer() ;
@@ -267,7 +263,7 @@ public class TextQueryPF extends PropertyFunctionBase {
 
     private QueryIterator prepareQuery(Binding binding, Node subj, Node score, Node literal, Node graph, Node prop, StrMatch match, ExecutionContext execCxt) {
         log.trace("prepareQuery with subject: {}; params: {}", subj, match) ;
-        ListMultimap<String,TextHit> rezList;
+        ListValuedMap<String,TextHit> rezList;
 
         if (!Var.isVar(subj))
             match.setQueryLimit(-1);
@@ -287,7 +283,7 @@ public class TextQueryPF extends PropertyFunctionBase {
         return resultsToQueryIterator(binding, subj, score, literal, graph, prop, hits, execCxt);
     }
 
-    private ListMultimap<String,TextHit> query(Node subj, StrMatch match, ExecutionContext execCxt) {
+    private ListValuedMap<String,TextHit> query(Node subj, StrMatch match, ExecutionContext execCxt) {
         String graphURI = chooseGraphURI(execCxt);
 
         String qs = match.getQueryString();
@@ -300,21 +296,21 @@ public class TextQueryPF extends PropertyFunctionBase {
         if (textIndex.getDocDef().areQueriesCached()) {
             // Cache-key does not matter if lang or graphURI are null
             String cacheKey = subj + " " + limit + " " + match.getProps() + " " + qs + " " + lang + " " + graphURI ;
-            Cache<String, ListMultimap<String, TextHit>> queryCache = prepareCache(execCxt);
+            Cache<String, ListValuedMap<String, TextHit>> queryCache = prepareCache(execCxt);
 
             log.trace("Caching Text query: {} with key: >>{}<< in cache: {}", qs, cacheKey, queryCache) ;
 
-            return queryCache.getOrFill(cacheKey, ()->performQuery(subj, match, qs, graphURI, lang, limit, highlight));
+            return queryCache.get(cacheKey, (k)->performQuery(subj, match, qs, graphURI, lang, limit, highlight));
         } else {
             log.trace("Executing w/o cache Text query: {}", qs) ;
             return performQuery(subj, match, qs, graphURI, lang, limit, highlight);
         }
     }
 
-    private Cache<String, ListMultimap<String, TextHit>> prepareCache(ExecutionContext execCxt) {
+    private Cache<String, ListValuedMap<String, TextHit>> prepareCache(ExecutionContext execCxt) {
         @SuppressWarnings("unchecked")
-        Cache<String, ListMultimap<String, TextHit>> queryCache =
-                (Cache<String, ListMultimap<String, TextHit>>) execCxt.getContext().get(cacheSymbol);
+        Cache<String, ListValuedMap<String, TextHit>> queryCache =
+                (Cache<String, ListValuedMap<String, TextHit>>) execCxt.getContext().get(cacheSymbol);
         if (queryCache == null) {
             /* doesn't yet exist, need to create it */
             queryCache = CacheFactory.createCache(CACHE_SIZE);
@@ -349,14 +345,14 @@ public class TextQueryPF extends PropertyFunctionBase {
         return graphURI;
     }
 
-    private ListMultimap<String,TextHit> performQuery(Node subj, StrMatch match, String queryString, String graphURI, String lang, int limit, String highlight) {
+    private ListValuedMap<String,TextHit> performQuery(Node subj, StrMatch match, String queryString, String graphURI, String lang, int limit, String highlight) {
         List<TextHit> resultList = null ;
         resultList = textIndex.query(subj, match.getProps(), queryString, graphURI, lang, limit, highlight) ;
         return mapResult(resultList);
     }
 
-    private ListMultimap<String, TextHit> mapResult(List<TextHit> resultList) {
-        ListMultimap<String,TextHit> results = LinkedListMultimap.create();
+    private ListValuedMap<String, TextHit> mapResult(List<TextHit> resultList) {
+        ListValuedMap<String,TextHit> results = MultiMapUtils.newListValuedHashMap();
         for (TextHit result : resultList) {
             results.put(TextQueryFuncs.subjectToString(result.getNode()), result);
         }
@@ -406,8 +402,8 @@ public class TextQueryPF extends PropertyFunctionBase {
                     log.warn("Object to text query is not a string") ;
                     return null ;
                 }
+                lang = null;
             }
-            lang = Strings.emptyToNull(lang);
 
             String qs = o.getLiteralLexicalForm() ;
             return new StrMatch(props, qs, lang, -1, 0, null) ;
@@ -453,8 +449,8 @@ public class TextQueryPF extends PropertyFunctionBase {
                 log.warn("Text query is not a string " + list) ;
                 return null ;
             }
+            lang = null;
         }
-        lang = Strings.emptyToNull(lang);
 
         String queryString = x.getLiteralLexicalForm() ;
         idx++ ;

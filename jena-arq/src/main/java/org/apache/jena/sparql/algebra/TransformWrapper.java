@@ -66,6 +66,8 @@ public class TransformWrapper implements Transform
     public Op transform(OpAssign opAssign, Op subOp)        { return transform.transform(opAssign, subOp) ; }
     @Override
     public Op transform(OpExtend opExtend, Op subOp)        { return transform.transform(opExtend, subOp) ; }
+    @Override
+    public Op transform(OpUnfold opUnfold, Op subOp)        { return transform.transform(opUnfold, subOp) ; }
 
     @Override
     public Op transform(OpJoin opJoin, Op left, Op right)           { return transform.transform(opJoin, left, right) ; }
@@ -79,6 +81,8 @@ public class TransformWrapper implements Transform
     public Op transform(OpMinus opMinus, Op left, Op right)         { return transform.transform(opMinus, left, right) ; }
     @Override
     public Op transform(OpUnion opUnion, Op left, Op right)         { return transform.transform(opUnion, left, right) ; }
+    @Override
+    public Op transform(OpLateral opLateral, Op left, Op right)     { return transform.transform(opLateral, left, right) ; }
     @Override
     public Op transform(OpConditional opCond, Op left, Op right)    { return transform.transform(opCond, left, right) ; }
 

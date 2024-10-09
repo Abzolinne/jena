@@ -18,11 +18,18 @@
 
 package org.apache.jena.sparql.core;
 
+import java.util.Collection;
+import java.util.Objects;
+import java.util.stream.Stream;
+
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
 
-/** Match triples, quads, with wioldcar rules (null or {@link Node#ANY} are wildcards).  */
+/** Match triples, quads, with wildcard rules (null or {@link Node#ANY} are wildcards).  */
 public class Match {
+    /**
+     * Match a quad. A quad matches g/s/p/o if each component matches the corresponding node.
+     */
     public static boolean match(Quad quad, Node g, Node s, Node p, Node o) {
         return
             match(quad.getGraph(), g) &&
@@ -31,6 +38,9 @@ public class Match {
             match(quad.getObject(), o);
     }
 
+    /**
+     * Match a triple. A triple matches s/p/o if each component matches the corresponding node.
+     */
     public static boolean match(Triple triple, Node s, Node p, Node o) {
         return
             match(triple.getSubject(), s) &&
@@ -38,7 +48,40 @@ public class Match {
             match(triple.getObject(), o);
     }
 
+    /**
+     * Match a node (non-null) with a pattern node.
+     * Returns true if:
+     * <ul>
+     * <li>pattern is null
+     * <li>pattern is {@code Node.ANY}
+     * <li>pattern is concrete and .equals the node.
+     * </ul>
+     */
     public static boolean match(Node node, Node pattern) {
         return pattern == null || pattern == Node.ANY || pattern.equals(node);
+    }
+
+    /**
+     * Match a node (non-null) with a pattern node.
+     * Returns true if:
+     * <ul>
+     * <li>pattern is null
+     * <li>pattern is {@code Node.ANY}
+     * <li>pattern is concrete and sameValueAs the node.
+     * </ul>
+     */
+    public static boolean matchValue(Node node, Node pattern) {
+        Objects.requireNonNull(node);
+        return pattern == null || pattern == Node.ANY || pattern.sameValueAs(node);
+    }
+
+    /** Return a filter stream of matches for triples in the collection. */
+    public static Stream<Triple> match(Collection<Triple> triples, Node s, Node p, Node o) {
+        return triples.stream().filter(t -> match(t, s, p, o));
+    }
+
+    /** Return a filter stream of matches for quads in the collection. */
+    public static Stream<Quad> match(Collection<Quad> quads, Node g, Node s, Node p, Node o) {
+        return quads.stream().filter(q -> match(q, g, s, p, o));
     }
 }

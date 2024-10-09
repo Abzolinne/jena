@@ -54,12 +54,21 @@ public class SPARQLParserRegistry
             public boolean accept( Syntax syntax ) { return Syntax.syntaxSPARQL_11.equals(syntax) ; }
             @Override
             public SPARQLParser create( Syntax syntax ) { return new ParserSPARQL11() ; } }) ;
+            
         reg.add(Syntax.syntaxSPARQL_11_sim, 
                 new SPARQLParserFactory() {
             @Override
             public boolean accept( Syntax syntax ) { return Syntax.syntaxSPARQL_11_sim.equals(syntax) ; } 
             @Override
             public SPARQLParser create( Syntax syntax ) { return new ParserSPARQL11Sim() ; } }) ;
+
+        reg.add(Syntax.syntaxSPARQL_12,
+                new SPARQLParserFactory() {
+            @Override
+            public boolean accept( Syntax syntax ) { return Syntax.syntaxSPARQL_12.equals(syntax) ; }
+            @Override
+            public SPARQLParser create( Syntax syntax ) { return new ParserSPARQL12() ; } }) ;
+
         reg.add(Syntax.syntaxARQ,
                 new SPARQLParserFactory() {
             @Override

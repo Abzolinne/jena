@@ -18,63 +18,101 @@
 
 package org.apache.jena.sparql.graph;
 
-import org.apache.jena.graph.Factory ;
-import org.apache.jena.graph.Graph ;
-import org.apache.jena.graph.impl.GraphPlain ;
-import org.apache.jena.rdf.model.Model ;
-import org.apache.jena.rdf.model.ModelFactory ;
-import org.apache.jena.sparql.SystemARQ ;
-import org.apache.jena.sys.JenaSystem ;
+import org.apache.jena.graph.GraphMemFactory;
+import org.apache.jena.graph.Graph;
+import org.apache.jena.graph.impl.GraphPlain;
+import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.sparql.SystemARQ;
+import org.apache.jena.sys.JenaSystem;
 
 /** Ways to make graphs and models */
-public class GraphFactory
-{
-    static { JenaSystem.init(); }
-    
-    /** Create a graph that is a Jena memory graph 
+public class GraphFactory {
+    static {
+        JenaSystem.init();
+    }
+
+    private static boolean defaultSameTerm = true;
+    static {
+        // Initial setting.
+        String x = System.getProperty("jena:graphSameTerm");
+        if ( x != null && x.equalsIgnoreCase("true") )
+            defaultSameTerm = true;
+    }
+
+    /**
+     * Set the default mode for in-memory graphs : same term (true) or same value
+     * (false).
+     * <p>
+     * This is initially set with system property "jena:graphSameTerm"
+     * with the system default is same value (Jena4).
+     * <p>
+     * This affects {@link #createDefaultGraph}.
+     */
+    public static void setDftGraphSameTerm(boolean value) {
+        defaultSameTerm = value;
+    }
+
+    /**
+     * Create a graph that is a Jena memory graph.
+     * The created graph is <strong>not thread safe</strong>.
+     * Inappropriate use of graph iterators and streams may cause {@code ConcurrentModificationException}.
+     *
      * @see #createDefaultGraph
      */
-    public static Graph createGraphMem()
-    {
-        return Factory.createGraphMem() ;
+    public static Graph createGraphMem() {
+        return GraphMemFactory.createDefaultGraphSameTerm();
     }
 
-    /** Create a graph - ARQ-wide default type */
-    public static Graph createDefaultGraph()
-    {
-        // Normal usage is SystemARQ.UsePlainGraph = false and use createJenaDefaultGraph
-        return SystemARQ.UsePlainGraph ? createPlainGraph() : createJenaDefaultGraph() ;
+    /**
+     * Create an in-memory, thread-safe, transactional graph.
+     * <p>
+     * This fully supports transactions, including abort to roll-back changes. It
+     * provides "autocommit" if operations are performed outside a transaction. The
+     * implementation adds a begin/commit around each add or delete so overheads can
+     * accumulate).
+     */
+    public static GraphTxn createTxnGraph() {
+        return new GraphTxn();
     }
 
-    /** Create a graph - always the Jena default graph type */
-    public static Graph createJenaDefaultGraph()
-    {
-        return Factory.createDefaultGraph() ;
+    /**
+     * Create a graph - ARQ-wide default type.
+     *
+     * In Jena5, this is "same-term"
+     */
+    public static Graph createDefaultGraph() {
+        // Normal usage is SystemARQ.UsePlainGraph = false and use
+        // createJenaDefaultGraph
+        return SystemARQ.UsePlainGraph ? createPlainGraph() : createJenaDefaultGraph();
     }
-    
+
+    /** Create a graph - the Jena default graph for ARQ and RIOT */
+    public static Graph createJenaDefaultGraph() {
+        return GraphMemFactory.createDefaultGraph();
+    }
+
     /** Graph that uses same-term for find() and contains(). */
-    public static Graph createPlainGraph()
-    {
-        return GraphPlain.plain() ;
+    public static Graph createPlainGraph() {
+        return GraphPlain.plain();
     }
 
-    public static Graph sinkGraph()
-    {
-        return new GraphSink() ;
+    public static Graph sinkGraph() {
+        return new GraphSink();
     }
-    
+
     /** Guaranteed call-through to Jena's ModelFactory operation */
-    public static Model makeJenaDefaultModel() { return ModelFactory.createDefaultModel() ; }
-    
-    /** Create a model over a default graph (ARQ-wide for default graph type) */ 
-    public static Model makeDefaultModel()
-    {
-        return ModelFactory.createModelForGraph(createDefaultGraph()) ;
+    public static Model makeJenaDefaultModel() {
+        return ModelFactory.createDefaultModel();
     }
 
-    /** Create a model over a plain graph (small-scale use only) */ 
-    public static Model makePlainModel()
-    {
-        return ModelFactory.createModelForGraph(createPlainGraph()) ;
+    /** Create a model over a default graph (ARQ-wide for default graph type) */
+    public static Model makeDefaultModel() {
+        return ModelFactory.createModelForGraph(createDefaultGraph());
+    }
+
+    /** Create a model over a plain graph (small-scale use only) */
+    public static Model makePlainModel() {
+        return ModelFactory.createModelForGraph(createPlainGraph());
     }
 }

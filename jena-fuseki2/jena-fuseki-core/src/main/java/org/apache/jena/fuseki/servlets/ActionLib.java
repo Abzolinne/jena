@@ -28,9 +28,9 @@ import java.nio.charset.CharacterCodingException;
 import java.util.Objects;
 import java.util.function.BiConsumer;
 
-import javax.servlet.ServletContext;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import org.apache.jena.atlas.RuntimeIOException;
 import org.apache.jena.atlas.io.IO;
@@ -46,10 +46,7 @@ import org.apache.jena.fuseki.system.ConNeg;
 import org.apache.jena.fuseki.system.FusekiNetLib;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.riot.*;
-import org.apache.jena.riot.system.ErrorHandler;
-import org.apache.jena.riot.system.ErrorHandlerFactory;
-import org.apache.jena.riot.system.StreamRDF;
-import org.apache.jena.riot.system.StreamRDFLib;
+import org.apache.jena.riot.system.*;
 import org.apache.jena.riot.web.HttpNames;
 import org.apache.jena.shared.JenaException;
 import org.apache.jena.sparql.core.DatasetGraph;
@@ -59,45 +56,23 @@ import org.apache.jena.web.HttpSC;
 /** Operations related to servlets */
 
 public class ActionLib {
-    /**
-     * Get the datasets from an {@link HttpAction}
-     * that assumes the form /dataset/service.
-     * @param action the request
-     * @return the dataset
-     */
-    public static String mapRequestToDataset(HttpAction action) {
-         String uri = action.getActionURI();
-         return mapRequestToDataset(uri);
-     }
-
-    /** Map request to uri in the registry.
-     *  A possible implementation for mapRequestToDataset(String)
-     *  that assumes the form /dataset/service
-     *  Returning null means no mapping found.
-     *  The URI must be the action URI (no contact path)
-     */
-
-    public static String mapRequestToDataset(String uri) {
-        // Chop off trailing part - the service selector
-        // e.g. /dataset/sparql => /dataset
-        int i = uri.lastIndexOf('/');
-        if ( i == -1 )
-            return null;
-        if ( i == 0 ) {
-            // started with '/' - leave.
-            return uri;
-        }
-        return uri.substring(0, i);
-    }
 
     /** Calculate the operation, given action and data access point */
-    public static String mapRequestToEndpointName(HttpAction action, DataAccessPoint dsRef) {
-        if ( dsRef == null )
-            return "";
+    public static String mapRequestToEndpointName(HttpAction action, DataAccessPoint dataAccessPoint) {
         String uri = action.getActionURI();
-        String name = dsRef.getName();
+        return mapRequestToEndpointName(uri, dataAccessPoint);
+    }
+
+    /** Calculate the operation, given request URI and data access point */
+    public static String mapRequestToEndpointName(String uri, DataAccessPoint dataAccessPoint) {
+        if ( dataAccessPoint == null )
+            return "";
+        String name = dataAccessPoint.getName();
         if ( name.length() >= uri.length() )
             return "";
+        if ( name.equals("/") )
+            // Case "/" and uri "/service"
+            return uri.substring(1);
         return uri.substring(name.length()+1);   // Skip the separating "/"
     }
 
@@ -105,7 +80,7 @@ public class ActionLib {
      * Implementation of mapRequestToDataset(String) that looks for the longest match
      * in the registry. This includes use in direct naming GSP.
      */
-    public static String mapRequestToDatasetLongest$(String uri, DataAccessPointRegistry registry) {
+    public static String unused_mapRequestToDatasetLongest(String uri, DataAccessPointRegistry registry) {
         if ( uri == null )
             return null;
 
@@ -167,16 +142,17 @@ public class ActionLib {
 //      ServletContext cxt = this.getServletContext();
 //      Log.info(this, "ServletContext path     = '"+cxt.getContextPath()+"'");
 
+        String uri = request.getRequestURI();
         ServletContext servletCxt = request.getServletContext();
         if ( servletCxt == null )
             return request.getRequestURI();
 
         String contextPath = servletCxt.getContextPath();
-        String uri = request.getRequestURI();
         if ( contextPath == null )
             return uri;
         if ( contextPath.isEmpty())
             return uri;
+
         String x = uri;
         if ( uri.startsWith(contextPath) )
             x = uri.substring(contextPath.length());
@@ -294,10 +270,10 @@ public class ActionLib {
         Lang lang;
 
         if ( ct == null || ct.getContentTypeStr().isEmpty() ) {
-            // head "Content-type:", no value.
-            lang = RDFLanguages.TURTLE;
+            // "Content-type:" header - absent or no value. Guess!
+            lang = defaultLang;
         } else if ( ct.equals(WebContent.ctHTMLForm)) {
-            ServletOps.errorBadRequest("HTML Form data sent to SHACL valdiation server");
+            ServletOps.errorBadRequest("HTML Form data sent to SHACL validation server");
             return null;
         } else {
             lang = RDFLanguages.contentTypeToLang(ct.getContentTypeStr());
@@ -341,10 +317,19 @@ public class ActionLib {
         writeResponse(action, (out, fmt) -> RDFDataMgr.write(out, graph, fmt), format, contentType);
     }
 
-    /** Return the preferred {@link RDFFormat} for a given {@link Lang}. */
+    /**
+     * Return the preferred {@link RDFFormat} for a given {@link Lang}.
+    *
+     */
     public static RDFFormat getNetworkFormatForLang(Lang lang) {
         Objects.requireNonNull(lang);
-        return ( lang == Lang.RDFXML ) ? RDFFormat.RDFXML_PLAIN : RDFWriterRegistry.defaultSerialization(lang);
+        if ( lang == Lang.RDFXML )
+            return RDFFormat.RDFXML_PLAIN;
+        // Could prefer streaming over non-streaming but historically, output has been "pretty" for e.g. turtle
+//        RDFFormat fmt = StreamRDFWriter.defaultSerialization(lang);
+//        if ( fmt != null )
+//            return fmt;
+        return RDFWriterRegistry.defaultSerialization(lang);
     }
 
     /**
@@ -402,7 +387,8 @@ public class ActionLib {
         return values[0];
     }
 
-    /** Get the content type of an action or return the default.
+    /**
+     * Get the content type of an action.
      * @param  action
      * @return ContentType
      */

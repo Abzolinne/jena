@@ -24,7 +24,7 @@ import org.apache.jena.arq.junit.manifest.ManifestEntry;
 import org.apache.jena.atlas.io.IO;
 import org.apache.jena.atlas.lib.FileOps;
 import org.apache.jena.atlas.lib.IRILib;
-import org.apache.jena.riot.Lang ;
+import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RiotException;
 import org.apache.jena.riot.RiotNotFoundException;
 import org.apache.jena.riot.system.StreamRDF;
@@ -33,13 +33,19 @@ import org.apache.jena.shared.NotFoundException;
 
 public class RiotSyntaxTest implements Runnable {
 
-    final private boolean       expectLegalSyntax;
+    final private boolean expectLegalSyntax;
     final private ManifestEntry testEntry;
+    final private String testBase;
     final private Lang lang;
     final private String filename;
 
     public RiotSyntaxTest(ManifestEntry entry, Lang lang, boolean positiveTest) {
+        this(entry, null, lang, positiveTest);
+    }
+
+    public RiotSyntaxTest(ManifestEntry entry, String base, Lang lang, boolean positiveTest) {
         this.testEntry = entry;
+        this.testBase = base;
         this.expectLegalSyntax = positiveTest;
         this.filename = entry.getAction().getURI();
         this.lang = lang;
@@ -55,8 +61,13 @@ public class RiotSyntaxTest implements Runnable {
                 @Override public Throwable fillInStackTrace() { return this; }
             };
         }
+        String base = testBase;
+        if ( base == null )
+            base = filename;
+
         try {
-            ParseForTest.parse(stream, filename, lang, RiotTests.allowWarnings(testEntry));
+            boolean allowWarnings = RiotTests.allowWarnings(testEntry);
+            ParseForTest.parse(stream, filename, base, lang, allowWarnings);
             if (! expectLegalSyntax ) {
                 String s = IO.readWholeFileAsUTF8(fn);
                 System.err.println();

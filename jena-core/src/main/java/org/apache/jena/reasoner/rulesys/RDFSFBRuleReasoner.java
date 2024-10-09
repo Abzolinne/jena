@@ -26,23 +26,23 @@ import org.apache.jena.reasoner.ReasonerFactory ;
 
 /**
  * A backward chaining implementation of the RDFS closure rules
- * based upon the basic backward rule interpreter. 
+ * based upon the basic backward rule interpreter.
  */
 public class RDFSFBRuleReasoner extends FBRuleReasoner {
-    
+
     /** The location of the OWL rule definitions on the class path */
     public static final String RULE_FILE = "etc/rdfs-fb.rules";
-    
+
     /** The parsed rules */
     protected static List<Rule> ruleSet;
-    
+
     /**
      * Constructor
      */
     public RDFSFBRuleReasoner(ReasonerFactory parent) {
         super(loadRules(), parent);
     }
-    
+
     /**
      * Return the RDFS rule set, loading it in if necessary
      */
@@ -55,12 +55,10 @@ public class RDFSFBRuleReasoner extends FBRuleReasoner {
      * Return the Jena Graph Capabilities that the inference graphs generated
      * by this reasoner are expected to conform to.
      */
+    @Deprecated
     @Override
     public Capabilities getGraphCapabilities() {
-        if (capabilities == null) {
-            capabilities = new BaseInfGraph.InfFindSafeCapabilities();
-        }
-        return capabilities;
+        return BaseInfGraph.reasonerInfCapabilities;
     }
 
 }

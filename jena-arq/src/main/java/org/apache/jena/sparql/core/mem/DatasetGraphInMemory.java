@@ -36,13 +36,13 @@ import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.query.ReadWrite;
 import org.apache.jena.query.TxnType;
-import org.apache.jena.riot.other.G;
 import org.apache.jena.riot.system.PrefixMap;
 import org.apache.jena.riot.system.PrefixMapStd;
 import org.apache.jena.shared.Lock;
 import org.apache.jena.shared.LockMRPlusSW;
 import org.apache.jena.sparql.JenaTransactionException;
 import org.apache.jena.sparql.core.*;
+import org.apache.jena.system.G;
 import org.apache.jena.system.Txn;
 import org.slf4j.Logger;
 
@@ -65,6 +65,9 @@ public class DatasetGraphInMemory extends DatasetGraphTriplesQuads implements Tr
      * <p>
      * There are changes to be made to several datastructures and this
      * insures that they are made consistently.
+     * <p>
+     * Lock order must be writer lock, system lock.
+     * If a transaction takes the writerLock, it is a writer, and there is only one writer.
      */
     private final ReentrantLock systemLock = new ReentrantLock(true);
 
@@ -141,20 +144,14 @@ public class DatasetGraphInMemory extends DatasetGraphTriplesQuads implements Tr
     public boolean supportsTransactionAbort()   { return true; }
 
     @Override
-    public void begin(final ReadWrite readWrite) {
-        begin(TxnType.convert(readWrite));
-    }
-
-    @Override
     public void begin(TxnType txnType) {
         if (isInTransaction())
             throw new JenaTransactionException("Transactions cannot be nested!");
-        transactionType.set(txnType);
         _begin(txnType, TxnType.initial(txnType));
     }
 
     private void _begin(TxnType txnType, ReadWrite readWrite) {
-        // Takes transactionLock
+        // Takes Writer lock first, then system lock.
         startTransaction(txnType, readWrite);
         withLock(systemLock, () ->{
             quadsIndex().begin(readWrite);
@@ -203,7 +200,7 @@ public class DatasetGraphInMemory extends DatasetGraphTriplesQuads implements Tr
     private void _promote(boolean readCommited) {
         // Outside lock.
         if ( ! readCommited && version.get() != generation.get() )  {
-            // This tests for any commited writers since this transaction started.
+            // This tests for any committed writers since this transaction started.
             // This does not catch the case of a currently active writer
             // that has not gone to commit or abort yet.
             // The final test is after we obtain the transactionLock.
@@ -218,9 +215,14 @@ public class DatasetGraphInMemory extends DatasetGraphTriplesQuads implements Tr
                 transactionLock.leaveCriticalSection();
                 throw new JenaTransactionException("Concurrent writer changed the dataset : can't promote") ;
             }
-        // We have the lock and we have promoted!
-        transactionMode(WRITE);
-        _begin(transactionType(), ReadWrite.WRITE) ;
+        // We have the writer lock and we have promoted!
+        withLock(systemLock, ()->{
+            quadsIndex().begin(WRITE);
+            defaultGraph().begin(WRITE);
+            transactionMode(WRITE);
+            if ( readCommited )
+                version.set(generation.get());
+        });
     }
 
     @Override
@@ -326,14 +328,6 @@ public class DatasetGraphInMemory extends DatasetGraphTriplesQuads implements Tr
 
     private Iterator<Quad> triplesFinder(final Node s, final Node p, final Node o) {
         return G.triples2quadsDftGraph(defaultGraph().find(s, p, o).iterator());
-    }
-
-    @Override
-    public void setDefaultGraph(final Graph g) {
-        mutate(graph -> {
-            defaultGraph().clear();
-            graph.find().forEachRemaining(defaultGraph()::add);
-        }, g);
     }
 
     @Override

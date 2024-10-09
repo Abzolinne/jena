@@ -23,6 +23,7 @@ import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.UUID ;
+import java.util.function.Function;
 
 import javax.xml.datatype.DatatypeConstants;
 import javax.xml.datatype.DatatypeConstants.Field;
@@ -37,6 +38,7 @@ import org.apache.jena.irix.IRIs;
 import org.apache.jena.irix.IRIx;
 import org.apache.jena.query.ARQ;
 import org.apache.jena.rdf.model.impl.Util;
+import org.apache.jena.riot.out.NodeFmtLib;
 import org.apache.jena.riot.system.RiotLib;
 import org.apache.jena.sparql.expr.ExprEvalException ;
 import org.apache.jena.sparql.expr.ExprTypeException ;
@@ -77,8 +79,10 @@ public class NodeFunctions {
      * Check for string operations with primary first arg and second arg
      * (e.g. CONTAINS).  The arguments are not used in the same way and the check
      * operation is not symmetric.
+     * <ul>
      * <li> "abc"@en is compatible with "abc"
      * <li> "abc" is NOT compatible with "abc"@en
+     * </ul>
      */
     public static void checkTwoArgumentStringLiterals(String label, NodeValue arg1, NodeValue arg2) {
 
@@ -183,7 +187,7 @@ public class NodeFunctions {
                 && rdfTermEquals(t1.getObject(), t2.getObject());
         }
 
-        // Not both literal nor both tripel terms - .equals would have worked.
+        // Not both literal nor both triple terms - .equals would have worked.
         return false ;
     }
 
@@ -199,8 +203,16 @@ public class NodeFunctions {
             return node.getURI() ;
         if ( node.isBlank() && ! ARQ.isTrue(ARQ.strictSPARQL) )
              return RiotLib.blankNodeToIriString(node);
+        if ( node.isNodeTriple() && ! ARQ.isTrue(ARQ.strictSPARQL) ) {
+            Triple t = node.getTriple();
+            // Recursion. Assumes no cycles!
+            Function<Node, String> f = NodeFmtLib::strTTL;
+            return "<< " + f.apply(t.getSubject()) + " " + f.apply(t.getPredicate()) + " " + f.apply(t.getObject()) + " >>";
+        }
         if ( node.isBlank() )
             NodeValue.raise(new ExprEvalException("Blank node: " + node)) ;
+        if ( node.isNodeTriple())
+            NodeValue.raise(new ExprEvalException("Quoted triple: " + node)) ;
         NodeValue.raise(new ExprEvalException("Not valid for STR(): " + node)) ;
         return "[undef]" ;
     }
@@ -421,11 +433,14 @@ public class NodeFunctions {
         return NodeFactory.createURI(iri) ;
     }
 
-    //
     private static String resolveCheckIRI(String baseIRI, String iriStr) {
         try {
             IRIx iri = IRIx.create(iriStr);
+            if ( ! iri.isRelative() )
+                    return iriStr;
             IRIx base = ( baseIRI != null ) ? IRIx.create(baseIRI) : IRIs.getSystemBase();
+            if ( base.isRelative() /*&& iri.isRelative()*/ )
+                throw new ExprEvalException("Relative IRI for base: " + iriStr) ;
             IRIx result = base.resolve(iri);
             if ( ! result.isReference() )
                 throw new IRIException("Not suitable: "+result.str());
@@ -471,7 +486,7 @@ public class NodeFunctions {
         Node dt = v2.asNode() ;
         // Check?
 
-        Node n = NodeFactory.createLiteral(lex, NodeFactory.getType(dt.getURI())) ;
+        Node n = NodeFactory.createLiteralDT(lex, NodeFactory.getType(dt.getURI())) ;
         return NodeValue.makeNode(n) ;
     }
 
@@ -492,8 +507,8 @@ public class NodeFunctions {
     public static Duration duration(int seconds) {
         if ( seconds == 0 )
             return XSDFuncOp.zeroDuration;
-        Duration dur = NodeValue.xmlDatatypeFactory.newDuration(1000*seconds);
-        // Neaten the duration. Not all the fields ar zero.
+        Duration dur = NodeValue.xmlDatatypeFactory.newDuration(1000L*seconds);
+        // Neaten the duration. Not all the fields are zero.
         dur = NodeValue.xmlDatatypeFactory.newDuration(dur.getSign()>=0,
                                                        field(dur, DatatypeConstants.YEARS),
                                                        field(dur, DatatypeConstants.MONTHS),

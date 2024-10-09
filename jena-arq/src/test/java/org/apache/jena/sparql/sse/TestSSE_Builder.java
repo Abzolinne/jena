@@ -25,6 +25,7 @@ import static org.junit.Assert.assertTrue;
 
 import org.apache.jena.graph.Node;
 import org.apache.jena.sparql.algebra.Op ;
+import org.apache.jena.sparql.algebra.OpLib;
 import org.apache.jena.sparql.algebra.TableFactory;
 import org.apache.jena.sparql.algebra.op.OpLabel ;
 import org.apache.jena.sparql.algebra.op.OpNull ;
@@ -35,7 +36,7 @@ import org.apache.jena.sparql.expr.E_SameTerm ;
 import org.apache.jena.sparql.expr.Expr ;
 import org.apache.jena.sparql.graph.NodeConst;
 import org.apache.jena.sparql.sse.builders.BuilderNode ;
-import org.apache.jena.sparql.sse.builders.ExprBuildException;
+import org.apache.jena.sparql.sse.builders.SSE_ExprBuildException;
 import org.apache.jena.vocabulary.XSD;
 import org.junit.Test ;
 
@@ -56,7 +57,7 @@ public class TestSSE_Builder
     @Test public void testOp_02() { opSame("(null)", OpNull.create()) ; }
     @Test public void testOp_03() { opSame("(bgp [triple ?s ?p ?o])") ; }
 
-    @Test public void testOp_04() { opSame("(label 'ABC' (table unit))", OpLabel.create("ABC", OpTable.unit())) ; }
+    @Test public void testOp_04() { opSame("(label 'ABC' (table unit))", OpLabel.create("ABC", OpLib.unit())) ; }
 
     private static void opSame(String str) {
         opSame(str, SSE.parseOp(str)) ;
@@ -249,14 +250,14 @@ public class TestSSE_Builder
 
     @Test
     public void testBuildTable_01() {
-        Op expected = OpTable.unit();
+        Op expected = OpLib.unit();
         Op actual = SSE.parseOp("(table unit)");
         assertEquals(expected, actual);
     }
 
     @Test
     public void testBuildTable_02() {
-        Op expected = OpTable.empty();
+        Op expected = OpLib.empty();
         Op actual = SSE.parseOp("(table empty)");
         assertEquals(expected, actual);
     }
@@ -275,13 +276,13 @@ public class TestSSE_Builder
         SSE.parseOp("(table (vars ?x) (row (?x _:test)))");
     }
 
-    @Test(expected = ExprBuildException.class)
+    @Test(expected = SSE_ExprBuildException.class)
     public void testBuildTableBad_01() {
         SSE.parseOp("(table (vars ?x) (row (?x (table unit))))");
 
     }
 
-    @Test(expected = ExprBuildException.class)
+    @Test(expected = SSE_ExprBuildException.class)
     public void testBuildTableBad_02() {
         SSE.parseOp("(table (vars ?x) (row (?x _)))");
     }

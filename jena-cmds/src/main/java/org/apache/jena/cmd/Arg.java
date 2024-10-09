@@ -18,52 +18,49 @@
 
 package org.apache.jena.cmd;
 
-import java.util.ArrayList ;
-import java.util.List ;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Arg
 {
-    String name ;
-    String value ;                                      // Last seen
-    List<String> values = new ArrayList<>() ;     // All seen
-    
-    Arg() { name = null ; value = null ; }
-    
-    public Arg(String _name) { this() ; setName(_name) ; }
-    
-    Arg(String _name, String _value) { this() ; setName(_name) ; setValue(_value) ; }
-    
-    void setName(String n) { name = n ; }
-    
-    public void setValue(String v) { value = v ; }
-    public void addValue(String v) { values.add(v) ; }
-    
-    public String getName() { return name ; }
+    private String name;
+    private String value;                                // Last seen
+    private List<String> values = new ArrayList<>();     // All seen
+
+    /*package*/ Arg() { name = null; value = null; }
+
+    /*package*/ Arg(String _name) { this(); setName(_name); }
+
+    /*package*/ Arg(String _name, String _value) { this(); setName(_name); setValue(_value); }
+
+    void setName(String n) { name = n; }
+
+    public void setValue(String v) { value = v; }
+    public void addValue(String v) { values.add(v); }
+
+    public String getName() { return name; }
     public String getValue() { return value; }
     public List<String> getValues() { return values; }
-    
-    public boolean hasValue() { return value != null ; }
-    
-    public boolean matches(ArgDecl decl)
-    {
-        return decl.getNames().contains(name) ;
+
+    public boolean hasValue() { return value != null; }
+
+    public boolean matches(ArgDecl decl) {
+        return decl.getNames().contains(name);
     }
-    
+
     @Override
-    public String toString()
-    {
-        String base = (( name.length() == 1 )?"-":"--") + name ;
+    public String toString() {
+        String base = ((name.length() == 1 )?"-":"--") + name;
         if ( getValues().size() == 0 )
-            return base ;
+            return base;
 
-        String str = "" ;
-        String sep = "" ;
+        String str = "";
+        String sep = "";
 
-        for ( String v : getValues() )
-        {
+        for ( String v : getValues() ) {
             str = str + sep + base + "=" + v;
             sep = " ";
         }
-        return str ;
+        return str;
     }
 }

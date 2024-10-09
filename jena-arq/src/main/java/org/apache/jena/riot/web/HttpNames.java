@@ -20,8 +20,9 @@ package org.apache.jena.riot.web;
 
 public class HttpNames
 {
-    // Switch to org.apache.http.HttpHeaders
-    // or org.apache.jena.ext.com.google.common.net
+    // See also Guava com.google.common.net.HttpHeaders
+    // (org.apache.jena.ext.com.google.common.net.HttpHeaders)
+
     public static final String hAccept              = "Accept" ;
     public static final String hAcceptCharset       = "Accept-Charset" ;
     public static final String hAcceptRanges        = "Accept-Ranges" ;
@@ -29,6 +30,7 @@ public class HttpNames
 
     public static final String hAllow               = "Allow" ;
     public static final String hAuthorization       = "Authorization";
+    public static final String hWWWAuthenticate     = "WWW-Authenticate";
     public static final String hContentEncoding     = "Content-Encoding" ;
     public static final String hContentLength       = "Content-Length" ;
     public static final String hContentLocation     = "Content-Location" ;
@@ -58,14 +60,25 @@ public class HttpNames
     public static final String paramGraph           = "graph" ;
     public static final String paramGraphDefault    = "default" ;
 
+    // Special names for GSP targets (use in ?graph=)
+    public static final String graphTargetDefault   = "default" ;
+    public static final String graphTargetUnion     = "union" ;
+
+    public static final String paramUpdate          = "update" ;
+    public static final String paramRequest         = "request" ;
+    public static final String paramUsingGraphURI        = "using-graph-uri" ;
+    public static final String paramUsingNamedGraphURI   = "using-named-graph-uri" ;
+
+    // SPARQL parameter names
     public static final String paramQuery           = "query" ;
     public static final String paramQueryRef        = "query-ref" ;
     public static final String paramDefaultGraphURI = "default-graph-uri" ;
     public static final String paramNamedGraphURI   = "named-graph-uri" ;
     public static final String paramTarget          = "target" ;
 
-
+    // Jena parameter names (SPARQL protocol extensions)
     public static final String paramStyleSheet      = "stylesheet" ;
+    public static final String paramLang            = "lang" ;
     public static final String paramAccept          = "accept" ;
     public static final String paramOutput1         = "output" ;
     public static final String paramOutput2         = "format" ;        // Alternative name
@@ -73,11 +86,6 @@ public class HttpNames
     public static final String paramCallback        = "callback" ;
     public static final String paramForceAccept     = "force-accept" ;  // Force the accept header at the last moment
     public static final String paramTimeout         = "timeout" ;
-
-    public static final String paramUpdate          = "update" ;
-    public static final String paramRequest         = "request" ;
-    public static final String paramUsingGraphURI        = "using-graph-uri" ;
-    public static final String paramUsingNamedGraphURI   = "using-named-graph-uri" ;
 
     public static final String METHOD_DELETE        = "DELETE";
     public static final String METHOD_HEAD          = "HEAD";
@@ -91,8 +99,4 @@ public class HttpNames
 
     public static final String HEADER_IFMODSINCE    = "If-Modified-Since";
     public static final String HEADER_LASTMOD       = "Last-Modified";
-
-    // Special names for GSP targets (use in ?graph=)
-    public static final String graphTargetDefault   = "default" ;
-    public static final String graphTargetUnion     = "union" ;
 }

@@ -18,7 +18,9 @@
 
 package org.apache.jena.atlas.lib ;
 
-import org.apache.jena.atlas.lib.cache.* ;
+import org.apache.jena.atlas.lib.cache.*;
+
+import java.util.function.BiConsumer;
 
 public class CacheFactory {
     /**
@@ -28,15 +30,55 @@ public class CacheFactory {
      * The cache is thread-safe for single operations.
      */
     public static <Key, Value> Cache<Key, Value> createCache(int maxSize) {
-        return new CacheGuava<>(maxSize) ;
+        return createCache(maxSize, null) ;
     }
 
-    /** Create a null cache */
+    /**
+     * Create a cache which has space for up to a certain number of objects.
+     * This is an LRU cache, or similar.
+     * The cache returns null for a cache miss.
+     * The cache is thread-safe for single operations.
+     */
+    public static <Key, Value> Cache<Key, Value> createCache(int maxSize, BiConsumer<Key, Value> dropHandler) {
+        // Choice point. Add a Guava dependency and ...
+        //return new CacheGuava<>(maxSize, dropHandler) ;
+        return new CacheCaffeine<>(maxSize, dropHandler) ;
+    }
+
+    public static <Key, Value> Cache<Key, Value> createCache(int maxSize, double initialCapacityFactor) {
+        return new CacheCaffeine<>(maxSize, null, initialCapacityFactor) ;
+    }
+
+    /**
+     * Create a cache which has space for up to a certain number of objects and with a configurable initial capacity.
+     */
+    public static <Key, Value> Cache<Key, Value> createCache(int maxSize, BiConsumer<Key, Value> dropHandler,
+                                                             double initialCapacityFactor) {
+        return new CacheCaffeine<>(maxSize, dropHandler, initialCapacityFactor) ;
+    }
+
+    /** Wrap an existing Caffeine cache */
+    public static <Key, Value> Cache<Key, Value> wrap(com.github.benmanes.caffeine.cache.Cache<Key,Value> caffeine) {
+        // Use a configured and built Caffeine cache with this API.
+        return new CacheCaffeine<>(caffeine) ;
+    }
+
+    /**
+     * Create a null cache.
+     * <p>
+     * This cache never retains a value and always
+     * evaluates in {@link Cache#getOrFill}.
+     * <p>
+     * This cache is thread-safe.
+     */
     public static <Key, Value> Cache<Key, Value> createNullCache() {
         return new Cache0<>() ;
     }
 
-    /** Create a lightweight cache (e.g. slot replacement) */
+    /**
+     * Create a lightweight cache (e.g. slot replacement).
+     * This cache is not thread-safe.
+     */
     public static <Key, Value> Cache<Key, Value> createSimpleCache(int size) {
         return new CacheSimple<>(size) ;
     }
@@ -49,7 +91,7 @@ public class CacheFactory {
     /**
      * Create set-cache, rather than a map-cache.
      * The cache is thread-safe for single operations.
-     * 
+     *
      * @see Pool
      */
     public static <Obj> CacheSet<Obj> createCacheSet(int size) {
@@ -59,7 +101,7 @@ public class CacheFactory {
 
     /** Add a synchronization wrapper to an existing set-cache */
     public static <Obj> CacheSet<Obj> createSync(CacheSet<Obj> cache) {
-        if ( cache instanceof CacheSetSync<? > )
+        if ( cache instanceof CacheSetSync<Obj> )
             return cache ;
         return new CacheSetSync<>(cache) ;
     }

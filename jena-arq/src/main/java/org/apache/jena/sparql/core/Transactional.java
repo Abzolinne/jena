@@ -32,14 +32,15 @@ import org.apache.jena.system.Txn;
  * <p>The write lifecycle is:
  * <pre> begin(WRITE) ... abort() or commit() end()</pre>
  * <p>{@code end()} is optional for "write" but is preferred.
- * <p>
+ * </p>
  * <h4>Application use</h4>
  * Applications can conveniently execute the lifecycle with methods to read or write:
  * <pre>dataset.executeRead({@literal ()->} { ... sparql query ... });</pre>
  * <pre>dataset.executeWrite({@literal ()->} { ... sparql update ... });</pre>
- * Use one of <tt>calculateRead</tt> or <tt>calculateWrite</tt>
- * to return a value for the transaction block.
  * <p>
+ * Use one of {@code calculateRead} or {@code calculateWrite}
+ * to return a value for the transaction block.
+ * </p>
  * <h4>Core Functionality</h4>
  * Directly called, code might look like:
  * <pre>
@@ -115,7 +116,9 @@ public interface Transactional
     public void begin(TxnType type);
 
     /** Start either a READ or WRITE transaction. */
-    public void begin(ReadWrite readWrite) ;
+    public default void begin(ReadWrite readWrite) {
+        begin(TxnType.convert(readWrite));
+    }
 
     /**
      * Attempt to promote a transaction from "read" to "write" when the transaction
@@ -134,7 +137,6 @@ public interface Transactional
      * This method returns false if a {@code READ_PROMOTE} can't be promoted - the
      * transaction is still valid and in "read" mode. Any further calls to
      * {@code promote()} will also return false.
-     * <p>
      * <p>
      * This method returns false if there is an attempt to promote a "READ" transaction.
      */
@@ -188,7 +190,8 @@ public interface Transactional
     /** Finish the transaction - if a write transaction and commit() has not been called, then abort */
     public void end() ;
 
-    /** Return the current mode of the transaction - "read" or "write".
+    /**
+     * Return the current mode of the transaction - "read" or "write".
      * If the caller is not in a transaction, this method returns null.
      */
     public ReadWrite transactionMode();
@@ -252,7 +255,7 @@ public interface Transactional
     public default <X> X calculateRead(Supplier<X> r) { return Txn.calculateRead(this, r); }
 
     /** Execute the Runnable in a write transaction */
-    public default <T extends Transactional> void executeWrite(Runnable r) { Txn.executeWrite(this, r); }
+    public default void executeWrite(Runnable r) { Txn.executeWrite(this, r); }
 
     /** Execute and return a value in a write transaction. */
     public default <X> X calculateWrite(Supplier<X> r) { return Txn.calculateWrite(this, r); }

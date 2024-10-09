@@ -17,21 +17,14 @@
  */
 package org.apache.jena.geosparql.geo.topological;
 
+import static org.apache.jena.geosparql.geo.topological.QueryRewriteTestData.*;
+import static org.junit.Assert.assertEquals;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
 import org.apache.jena.geosparql.configuration.GeoSPARQLConfig;
-import static org.apache.jena.geosparql.geo.topological.QueryRewriteTestData.FEATURE_A;
-import static org.apache.jena.geosparql.geo.topological.QueryRewriteTestData.FEATURE_B;
-import static org.apache.jena.geosparql.geo.topological.QueryRewriteTestData.FEATURE_D;
-import static org.apache.jena.geosparql.geo.topological.QueryRewriteTestData.GEOMETRY_A;
-import static org.apache.jena.geosparql.geo.topological.QueryRewriteTestData.GEOMETRY_B;
-import static org.apache.jena.geosparql.geo.topological.QueryRewriteTestData.GEOMETRY_C_BLANK;
-import static org.apache.jena.geosparql.geo.topological.QueryRewriteTestData.GEOMETRY_D;
-import static org.apache.jena.geosparql.geo.topological.QueryRewriteTestData.GEOMETRY_F;
-import static org.apache.jena.geosparql.geo.topological.QueryRewriteTestData.GEO_FEATURE_Y;
-import static org.apache.jena.geosparql.geo.topological.QueryRewriteTestData.GEO_FEATURE_Z;
-import static org.apache.jena.geosparql.geo.topological.QueryRewriteTestData.TEST_SRS_URI;
 import org.apache.jena.geosparql.geo.topological.property_functions.simple_features.SfContainsPF;
 import org.apache.jena.geosparql.geo.topological.property_functions.simple_features.SfDisjointPF;
 import org.apache.jena.geosparql.implementation.index.IndexConfiguration.IndexOption;
@@ -39,24 +32,14 @@ import org.apache.jena.geosparql.implementation.index.QueryRewriteIndex;
 import org.apache.jena.geosparql.implementation.vocabulary.Geo;
 import org.apache.jena.geosparql.spatial.SpatialIndex;
 import org.apache.jena.geosparql.spatial.SpatialIndexException;
-import org.apache.jena.graph.BlankNodeId;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.NodeFactory;
-import org.apache.jena.query.Dataset;
-import org.apache.jena.query.QueryExecution;
-import org.apache.jena.query.QueryExecutionFactory;
-import org.apache.jena.query.QuerySolution;
-import org.apache.jena.query.ResultSet;
+import org.apache.jena.query.*;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.vocabulary.RDF;
-import org.junit.After;
-import org.junit.AfterClass;
-import static org.junit.Assert.assertEquals;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.*;
 
 /**
  *
@@ -133,7 +116,7 @@ public class GenericPropertyFunctionTest {
         Graph graph = model.getGraph();
 
         Boolean expResult = true;
-        BlankNodeId id = GEOMETRY_C_BLANK.asNode().getBlankNodeId();
+        String id = GEOMETRY_C_BLANK.asNode().getBlankNodeLabel();
         Node node = NodeFactory.createBlankNode(id);
 
         Boolean result = graph.contains(node, RDF.type.asNode(), Geo.GEOMETRY_NODE);
@@ -145,7 +128,6 @@ public class GenericPropertyFunctionTest {
      */
     @Test
     public void testQueryRewrite_geometry_geometry_disabled() {
-
         GeoSPARQLConfig.setup(IndexOption.MEMORY, Boolean.FALSE);
         Graph graph = model.getGraph();
         Node subject = GEOMETRY_A.asNode();
@@ -583,4 +565,37 @@ public class GenericPropertyFunctionTest {
         assertEquals(expResult, result);
     }
 
+    /**
+     * Test of execEvaluated method, of class GenericPropertyFunction.
+     * Geo extension: test lookup using geo-literal
+     */
+    @Test
+    public void testExecEvaluated_object_is_literal() {
+
+
+        String query = "PREFIX geo: <http://www.opengis.net/ont/geosparql#>\n"
+                + "\n"
+                + "SELECT ?subj\n"
+                + "WHERE{\n"
+                + "    BIND(\"<http://www.opengis.net/def/crs/EPSG/0/27700> POINT(6 7)\"^^geo:wktLiteral AS ?lit) \n"
+                + "    ?subj geo:sfContains ?lit .\n"
+                + "}ORDER by ?subj";
+
+        List<Resource> results = new ArrayList<>();
+        try (QueryExecution qe = QueryExecutionFactory.create(query, dataset)) {
+            ResultSet rs = qe.execSelect();
+            while (rs.hasNext()) {
+                QuerySolution qs = rs.nextSolution();
+
+                Resource result = qs.getResource("subj");
+                results.add(result);
+            }
+        }
+
+        List<Resource> expResults = Arrays.asList(FEATURE_A, GEOMETRY_A);
+
+        //
+        //
+        assertEquals(expResults, results);
+    }
 }

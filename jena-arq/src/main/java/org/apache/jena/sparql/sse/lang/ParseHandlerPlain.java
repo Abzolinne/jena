@@ -31,10 +31,7 @@ import org.apache.jena.riot.system.RiotLib;
 import org.apache.jena.sparql.ARQConstants;
 import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.core.VarAlloc;
-import org.apache.jena.sparql.sse.Item;
-import org.apache.jena.sparql.sse.ItemList;
-import org.apache.jena.sparql.sse.ItemLocation;
-import org.apache.jena.sparql.sse.SSEParseException;
+import org.apache.jena.sparql.sse.*;
 
 public class ParseHandlerPlain implements ParseHandler {
     private Deque<Node> tripleTermStack   = new ArrayDeque<>();
@@ -48,6 +45,7 @@ public class ParseHandlerPlain implements ParseHandler {
     private VarAlloc    varAlloc          = new VarAlloc(ARQConstants.allocSSEUnamedVars);
     private VarAlloc    varAllocND        = new VarAlloc(ARQConstants.allocSSEAnonVars);
     private VarAlloc    varAllocIntern    = new VarAlloc(ARQConstants.allocSSENamedVars);
+
     @Override
     public Item getItem() {
         return currentItem;
@@ -143,9 +141,9 @@ public class ParseHandlerPlain implements ParseHandler {
                 datatypeIRI = resolvePrefixedName(datatypePN, line, column);
 
             RDFDatatype dType = TypeMapper.getInstance().getSafeTypeByName(datatypeIRI);
-            n = NodeFactory.createLiteral(lexicalForm, dType);
+            n = NodeFactory.createLiteralDT(lexicalForm, dType);
         } else
-            n = NodeFactory.createLiteral(lexicalForm, langTag);
+            n = NodeFactory.createLiteralLang(lexicalForm, langTag);
         node(n, line, column);
     }
 
@@ -236,11 +234,10 @@ public class ParseHandlerPlain implements ParseHandler {
     }
 
     protected static void throwException(String msg, int line, int column) {
-        throw new SSEParseException("[" + line + ", " + column + "] " + msg, line, column);
+        throw new SSE_ParseException("[" + line + ", " + column + "] " + msg, line, column);
     }
 
     protected static void throwException(String msg, ItemLocation loc) {
         throwException(msg, loc.getLine(), loc.getColumn());
     }
-
 }

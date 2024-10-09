@@ -19,11 +19,11 @@
 package org.apache.jena.riot.system;
 
 import java.util.Iterator;
-import java.util.Objects;
 import java.util.regex.Pattern;
 
-import org.apache.jena.JenaRuntime;
 import org.apache.jena.datatypes.RDFDatatype;
+import org.apache.jena.datatypes.xsd.XSDDatatype;
+import org.apache.jena.datatypes.xsd.impl.RDFLangString;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.iri.IRI;
@@ -34,25 +34,33 @@ import org.apache.jena.irix.IRIs;
 import org.apache.jena.irix.SetupJenaIRI;
 import org.apache.jena.irix.SystemIRIx;
 import org.apache.jena.sparql.core.Quad;
-import org.apache.jena.sparql.graph.NodeConst;
 import org.apache.jena.util.SplitIRI;
 
 /**
  * Functions for checking nodes, triples and quads.
  * <p>
- * If the errorHandler is null, use the system wide handler.
+ * The "check..." functions have two basic signatures:<br>
+ * 1. {@code check...(<i>object</i>)}<br>
+ * 2. {@code check...(<i>object, errorHandler, line, col</i>)}
  * <p>
- * If the errorHandler line/columns numbers are -1, -1, messages do not include them.
- * <p>
- * Operations "<tt>checkXXX(<i>item</i>)</tt>" are for boolean testing
- * and do not generate output.
+ * The first type are for boolean testing and do not generate output. They call the
+ * second type with default values for the last 3 parameters: nullErrorHandler, -1L, -1L.
+ * The second type are for boolean testing and optionally generate error handling
+ * output.
+ * <ul>
+ * <li>Argument {@code errorHandler} - the {@link ErrorHandler} for output. If the errorHandler
+ * is null, use the system wide handler.
+ * <li>Argument {@code line} - code line number (a long integer) generating the check.
+ * <li>Argument {@code col} - code column number (a long integer) generating the check.
+ * </ul>
+ * If the errorHandler is null, the line and column numbers not used.
  */
 
 public class Checker {
 
     /** A node -- must be concrete node or a variable. */
     public static boolean check(Node node) {
-        return check(node, nullErrorHandler, -1, -1);
+        return check(node, nullErrorHandler, -1L, -1L);
     }
 
     /** A node -- must be a concrete node or a variable. */
@@ -77,7 +85,7 @@ public class Checker {
     // ==== IRIs
 
     public static boolean checkIRI(Node node) {
-        return checkIRI(node, nullErrorHandler, -1, -1);
+        return checkIRI(node, nullErrorHandler, -1L, -1L);
     }
 
     public static boolean checkIRI(Node node, ErrorHandler errorHandler, long line, long col) {
@@ -85,11 +93,11 @@ public class Checker {
             errorHandler(errorHandler).error("Not a URI: " + node, line, col);
             return false;
         }
-        return checkIRI(node.getURI(), errorHandler, -1, -1);
+        return checkIRI(node.getURI(), errorHandler, line, col);
     }
 
     public static boolean checkIRI(String iriStr) {
-        return checkIRI(iriStr, nullErrorHandler, -1, -1);
+        return checkIRI(iriStr, nullErrorHandler, -1L, -1L);
     }
 
     /** See also {@link IRIs#reference} */
@@ -104,7 +112,7 @@ public class Checker {
      * warnings (as warnings).
      */
     public static void iriViolations(IRI iri) {
-        iriViolations(iri, null, false, true, -1L, -1L);
+        iriViolations(iri, nullErrorHandler, false, true, -1L, -1L);
     }
 
     /**
@@ -147,7 +155,7 @@ public class Checker {
                     continue;
                 }
 
-                // Convert selected violations from ERROR to WARN for output/
+                // Convert selected violations from ERROR to WARN for output.
                 // There are cases where jena-iri always makes a violation an ERROR regardless of SetupJenaIRI
                 // PROHIBITED_COMPONENT_PRESENT
 //                if ( code == Violation.PROHIBITED_COMPONENT_PRESENT )
@@ -184,7 +192,7 @@ public class Checker {
     final static private Pattern langPattern = Pattern.compile("[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*");
 
     public static boolean checkLiteral(Node node) {
-        return checkLiteral(node, nullErrorHandler, -1, -1);
+        return checkLiteral(node, nullErrorHandler, -1L, -1L);
     }
 
     public static boolean checkLiteral(Node node, ErrorHandler errorHandler, long line, long col) {
@@ -204,38 +212,43 @@ public class Checker {
         return checkLiteral(lexicalForm, lang, null, errorHandler, line, col);
     }
 
-    public static boolean checkLiteral(String lexicalForm, String lang, RDFDatatype datatype, ErrorHandler errorHandler, long line,
-                                       long col) {
-        boolean hasLang = lang != null && !lang.equals("");
-        if ( !hasLang ) {
-            // Datatype check (and RDF 1.0 simple literals are always well formed)
-            if ( datatype != null )
-                return validateByDatatype(lexicalForm, datatype, errorHandler, line, col);
+    public static boolean checkLiteral(String lexicalForm, String lang, RDFDatatype datatype, ErrorHandler errorHandler, long line, long col) {
+        boolean hasLang = ( lang != null && !lang.isEmpty() );
+        boolean hasDatatype = datatype != null;
+
+        if ( !hasDatatype && !hasLang) {
+            // This will become an xsd:string or rdf:langString.
+            // No further checking needed.
             return true;
         }
 
-        // Has a language.
-        if ( JenaRuntime.isRDF11 ) {
-            if ( datatype != null && !Objects.equals(datatype.getURI(), NodeConst.rdfLangString.getURI()) ) {
-                errorHandler(errorHandler).error("Literal has language but wrong datatype", line, col);
+        // If the Literal has a language...
+        if ( hasLang ) {
+            // Test language tag format -- not a perfect test...
+            if ( !langPattern.matcher(lang).matches() ) {
+                errorHandler(errorHandler).warning("Language not valid: " + lang, line, col);
                 return false;
             }
-        } else {
-            if ( datatype != null ) {
-                errorHandler(errorHandler).error("Literal has datatype and language", line, col);
-                return false;
+
+            // No datatype is acceptable - NodeFactory deal with that case.
+            if ( hasDatatype ) {
+                // Jena is using the RDF 1.1 or later standard...
+                if ( ! datatype.equals( RDFLangString.rdfLangString ) ) {
+                    errorHandler(errorHandler).error("Literal has language but wrong datatype", line, col);
+                    return false;
+                }
             }
+            return true;
         }
 
-        // Test language tag format -- not a perfect test.
-        if ( !lang.isEmpty() && !langPattern.matcher(lang).matches() ) {
-            errorHandler(errorHandler).warning("Language not valid: " + lang, line, col);
-            return false;
-        }
-        return true;
+        // If the Literal has a datatype (but no language)...
+        if ( datatype.equals( XSDDatatype.XSDstring) )
+            // Simple literals are always well-formed...
+            return true;
+        return validateByDatatype(lexicalForm, datatype, errorHandler, line, col);
     }
 
-    // Whitespace.
+    // NOTE: Whitespace
     // XSD allows whitespace before and after the lexical forms of a literal but not inside.
     // Jena handles this correctly.
 
@@ -275,7 +288,7 @@ public class Checker {
     // ==== Blank nodes
 
     public static boolean checkBlankNode(Node node) {
-        return checkBlankNode(node, nullErrorHandler, -1, -1);
+        return checkBlankNode(node, nullErrorHandler, -1L, -1L);
     }
 
     public static boolean checkBlankNode(Node node, ErrorHandler errorHandler, long line, long col) {
@@ -287,7 +300,7 @@ public class Checker {
     }
 
     public static boolean checkBlankNode(String label) {
-        return checkBlankNode(label, null, -1, -1);
+        return checkBlankNode(label, null, -1L, -1L);
     }
 
     public static boolean checkBlankNode(String label, ErrorHandler errorHandler, long line, long col) {
@@ -301,7 +314,7 @@ public class Checker {
     // ==== Var
 
     public static boolean checkVar(Node node) {
-        return checkVar(node, nullErrorHandler, -1, -1);
+        return checkVar(node, nullErrorHandler, -1L, -1L);
     }
 
     public static boolean checkVar(Node node, ErrorHandler errorHandler, long line, long col) {
@@ -315,7 +328,7 @@ public class Checker {
     // ==== Triples
 
     public static boolean checkTriple(Triple triple) {
-        return checkTriple(triple, nullErrorHandler, -1, -1);
+        return checkTriple(triple, nullErrorHandler, -1L, -1L);
     }
 
     /** Check a triple - assumes individual nodes are legal */
@@ -348,7 +361,7 @@ public class Checker {
     // ==== Quads
 
     public static boolean checkQuad(Quad quad) {
-        return checkQuad(quad, nullErrorHandler, -1, -1);
+        return checkQuad(quad, nullErrorHandler, -1L, -1L);
     }
 
     /** Check a quad - assumes individual nodes are legal */

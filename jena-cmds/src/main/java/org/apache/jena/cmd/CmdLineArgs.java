@@ -21,26 +21,25 @@ package org.apache.jena.cmd;
 import java.util.*;
 
 import org.apache.jena.atlas.io.IO;
-import org.apache.jena.atlas.logging.Log ;
-
+import org.apache.jena.atlas.logging.Log;
 /**
  * Command line, using the common named/positional arguments paradigm
  * (also called options/arguments).
  */
 public class CmdLineArgs extends CommandLineBase {
     public CmdLineArgs(String[] args) {
-        super(args) ;
+        super(args);
     }
 
-    private boolean processedArgs = false ;
-    protected Map<String, ArgDecl> argMap = new HashMap<>() ;   // Map from string name to ArgDecl
-    protected Map<String, Arg> args = new HashMap<>() ;         // Name to Arg
-    protected List<String> positionals = new ArrayList<>() ;    // Positional arguments as strings.
+    private boolean processedArgs = false;
+    protected Map<String, ArgDecl> argMap = new HashMap<>();   // Map from string name to ArgDecl
+    protected Map<String, Arg> args = new HashMap<>();         // Name to Arg
+    protected List<String> positionals = new ArrayList<>();    // Positional arguments as strings.
 
     public void process() throws IllegalArgumentException
     {
-        processedArgs = true ;
-        apply(new ArgProcessor()) ;
+        processedArgs = true;
+        apply(new ArgProcessor());
     }
 
     // ---- Setting the ArgDecls
@@ -52,7 +51,7 @@ public class CmdLineArgs extends CommandLineBase {
      */
 
     public CmdLineArgs add(String argName, boolean hasValue) {
-        return add(new ArgDecl(hasValue, argName)) ;
+        return add(new ArgDecl(hasValue, argName));
     }
 
     /** Add an argument to those to be accepted on the command line.
@@ -63,7 +62,7 @@ public class CmdLineArgs extends CommandLineBase {
      */
 
     public CmdLineArgs add(boolean hasValue, String argName) {
-        return add(new ArgDecl(hasValue, argName)) ;
+        return add(new ArgDecl(hasValue, argName));
     }
 
     /** Add an argument object
@@ -73,12 +72,12 @@ public class CmdLineArgs extends CommandLineBase {
 
     public CmdLineArgs add(ArgDecl arg) {
         for (Iterator<String> iter = arg.names(); iter.hasNext();) {
-            String name = iter.next() ;
+            String name = iter.next();
             if ( argMap.containsKey(name) )
-                Log.warn(this, "Argument '" + name + "' already added") ;
-            argMap.put(name, arg) ;
+                Log.warn(this, "Argument '" + name + "' already added");
+            argMap.put(name, arg);
         }
-        return this ;
+        return this;
     }
 
     /**
@@ -87,8 +86,8 @@ public class CmdLineArgs extends CommandLineBase {
      * @return this object
      */
     public CmdLineArgs addPositional(String value) {
-        positionals.add(value) ;
-        return this ;
+        positionals.add(value);
+        return this;
     }
 
     /**
@@ -97,7 +96,7 @@ public class CmdLineArgs extends CommandLineBase {
      * @return this
      */
     public CmdLineArgs addArg(String name) {
-        return addArg(name, null) ;
+        return addArg(name, null);
     }
 
     /**
@@ -108,41 +107,37 @@ public class CmdLineArgs extends CommandLineBase {
      */
     public CmdLineArgs addArg(String name, String value) {
         if ( !args.containsKey(name) )
-            args.put(name, new Arg(name)) ;
-        Arg arg = args.get(name) ;
-        return addArgWorker(arg, value) ;
+            args.put(name, new Arg(name));
+        Arg arg = args.get(name);
+        return addArgWorker(arg, value);
     }
 
     private CmdLineArgs addArgWorker(Arg arg, String value) {
-        ArgDecl argDecl = argMap.get(arg.getName()) ;
-
+        ArgDecl argDecl = argMap.get(arg.getName());
         if ( !argDecl.takesValue() && value != null )
-            throw new IllegalArgumentException("No value for argument: " + arg.getName()) ;
-
+            throw new IllegalArgumentException("No value for argument: " + arg.getName());
         if ( argDecl.takesValue() ) {
             if ( value == null )
-                throw new IllegalArgumentException("No value for argument: " + arg.getName()) ;
-
-            arg.setValue(value) ;
-            arg.addValue(value) ;
+                throw new IllegalArgumentException("No value for argument: " + arg.getName());
+            arg.setValue(value);
+            arg.addValue(value);
         }
 
-        return this ;
+        return this;
     }
 
     // ---- Indirection
 
-    static final String DefaultIndirectMarker = "@" ;
+    static final String DefaultIndirectMarker = "@";
+    public boolean matchesIndirect(String s) { return matchesIndirect(s, DefaultIndirectMarker); }
+    public boolean matchesIndirect(String s, String marker) { return s.startsWith(marker); }
 
-    public boolean matchesIndirect(String s) { return matchesIndirect(s, DefaultIndirectMarker) ; }
-    public boolean matchesIndirect(String s, String marker) { return s.startsWith(marker) ; }
-
-    public String indirect(String s) { return indirect(s, DefaultIndirectMarker) ; }
+    public String indirect(String s) { return indirect(s, DefaultIndirectMarker); }
 
     public String indirect(String s, String marker) {
         if ( !matchesIndirect(s, marker) )
-            return s ;
-        s = s.substring(marker.length()) ;
+            return s;
+        s = s.substring(marker.length());
         String str = IO.readWholeFileAsUTF8(s);
         if ( str == null )
             throw new CmdException("Could not read from: " + s);
@@ -153,26 +148,26 @@ public class CmdLineArgs extends CommandLineBase {
 
     /** Test whether an argument was seen. */
 
-    public boolean contains(ArgDecl argDecl)    { return getArg(argDecl) != null ; }
+    public boolean contains(ArgDecl argDecl)    { return getArg(argDecl) != null; }
 
     /** Test whether an argument was seen. */
 
-    public boolean contains(String s)           { return getArg(s) != null ; }
+    public boolean contains(String s)           { return getArg(s) != null; }
 
     /** Test whether an argument was seen more than once */
-    public boolean containsMultiple(String s)   { return getValues(s).size() > 1 ; }
+    public boolean containsMultiple(String s)   { return getValues(s).size() > 1; }
 
     /** Test whether an argument was seen more than once */
-    public boolean containsMultiple(ArgDecl argDecl) { return getValues(argDecl).size() > 1 ; }
+    public boolean containsMultiple(ArgDecl argDecl) { return getValues(argDecl).size() > 1; }
 
-    public boolean hasArgs() { return args.size() > 0 ; }
+    public boolean hasArgs() { return args.size() > 0; }
 
     /** Test whether the command line had a particular argument
      *
      * @param argName
      * @return this object
      */
-    public boolean hasArg(String argName) { return getArg(argName) != null ; }
+    public boolean hasArg(String argName) { return getArg(argName) != null; }
 
     /** Test whether the command line had a particular argument
      *
@@ -180,7 +175,7 @@ public class CmdLineArgs extends CommandLineBase {
      * @return true or false
      */
 
-    public boolean hasArg(ArgDecl argDecl) { return getArg(argDecl) != null ; }
+    public boolean hasArg(ArgDecl argDecl) { return getArg(argDecl) != null; }
 
 
     /** Get the argument associated with the argument declaration.
@@ -190,15 +185,13 @@ public class CmdLineArgs extends CommandLineBase {
      */
 
     public Arg getArg(ArgDecl argDecl) {
-        Arg arg = null ;
-        for ( Arg a : args.values() )
-        {
-            if ( argDecl.matches( a ) )
-            {
+        Arg arg = null;
+        for ( Arg a : args.values() ) {
+            if ( argDecl.matches(a) ) {
                 arg = a;
             }
         }
-        return arg ;
+        return arg;
     }
 
     /** Get the argument associated with the argument name.
@@ -207,23 +200,26 @@ public class CmdLineArgs extends CommandLineBase {
      *  @return Last argument that matched.
      */
     public Arg getArg(String argName) {
-        argName = ArgDecl.canonicalForm(argName) ;
-        return args.get(argName) ;
+        argName = ArgDecl.canonicalForm(argName);
+        return args.get(argName);
     }
 
     /**
      * Returns the value (a string) for an argument with a value -
-     * returns null for no argument and no value.
+     * returns null for no use of the argument and for an argument with no value
+     * ({@code ArgDecl(false}}).
+     * These two cases can be distinguished with {@link #contains(ArgDecl)}.
+     *
      * @param argDecl
      * @return String
      */
     public String getValue(ArgDecl argDecl) {
-        Arg arg = getArg(argDecl) ;
+        Arg arg = getArg(argDecl);
         if ( arg == null )
-            return null ;
+            return null;
         if ( arg.hasValue() )
-            return arg.getValue() ;
-        return null ;
+            return arg.getValue();
+        return null;
     }
 
     /**
@@ -233,32 +229,32 @@ public class CmdLineArgs extends CommandLineBase {
      * @return String
      */
     public String getValue(String argName) {
-        Arg arg = getArg(argName) ;
+        Arg arg = getArg(argName);
         if ( arg == null )
-            return null ;
-        return arg.getValue() ;
+            return null;
+        return arg.getValue();
     }
 
     /** Is the value something that looks like "true" or "yes"? */
     public boolean hasValueOfTrue(ArgDecl argDecl) {
-        String x = getValue(argDecl) ;
+        String x = getValue(argDecl);
         if ( x == null )
-            return false ;
+            return false;
         if ( x.equalsIgnoreCase("true") || x.equalsIgnoreCase("t") ||
              x.equalsIgnoreCase("yes")  || x.equalsIgnoreCase("y") )
-            return true ;
-        return false ;
+            return true;
+        return false;
     }
 
     /** Is the value something that looks like "false" or "no"? */
     public boolean hasValueOfFalse(ArgDecl argDecl) {
-        String x = getValue(argDecl) ;
+        String x = getValue(argDecl);
         if ( x == null )
-            return false ;
+            return false;
         if ( x.equalsIgnoreCase("false") || x.equalsIgnoreCase("f") ||
              x.equalsIgnoreCase("no") || x.equalsIgnoreCase("n") )
-            return true ;
-        return false ;
+            return true;
+        return false;
     }
 
     /**
@@ -267,10 +263,10 @@ public class CmdLineArgs extends CommandLineBase {
      * @return List
      */
     public List<String> getValues(ArgDecl argDecl) {
-        Arg arg = getArg(argDecl) ;
+        Arg arg = getArg(argDecl);
         if ( arg == null )
-            return new ArrayList<>() ;
-        return arg.getValues() ;
+            return new ArrayList<>();
+        return arg.getValues();
     }
 
     /**
@@ -279,37 +275,37 @@ public class CmdLineArgs extends CommandLineBase {
      * @return List
      */
     public List<String> getValues(String argName) {
-        Arg arg = getArg(argName) ;
+        Arg arg = getArg(argName);
         if ( arg == null )
-            return new ArrayList<>() ;
-        return arg.getValues() ;
+            return new ArrayList<>();
+        return arg.getValues();
     }
 
-   // ---- Positional
+    // ---- Positional
     /** Get the i'th positional argument (indexed from 0)*/
     public String getPositionalArg(int i) {
-        return positionals.get(i) ;
+        return positionals.get(i);
     }
 
     /** Return the number of positional arguments */
     public int getNumPositional() {
-        return positionals.size() ;
+        return positionals.size();
     }
 
     public boolean hasPositional() {
-        return positionals.size() > 0 ;
+        return positionals.size() > 0;
     }
 
     public List<String> getPositional() {
-        return positionals ;
+        return positionals;
     }
 
     /** Return the positional arguments or "-" to indicate stdin */
     public List<String> getPositionalOrStdin() {
         if ( !positionals.isEmpty() )
-            return Collections.unmodifiableList(positionals) ;
-        List<String> x = Arrays.asList("-") ;
-        return Collections.unmodifiableList(x) ;
+            return Collections.unmodifiableList(positionals);
+        List<String> x = Arrays.asList("-");
+        return Collections.unmodifiableList(x);
     }
 
     // ----
@@ -319,39 +315,36 @@ public class CmdLineArgs extends CommandLineBase {
      * @param argStr The string image of the unrecognised argument
      */
     protected void handleUnrecognizedArg( String argStr ) {
-        throw new CmdException("Unknown argument: "+argStr) ;
+        throw new CmdException("Unknown argument: "+argStr);
     }
 
     @Override
     public String toString() {
         if ( !processedArgs )
-            return super.toString() ;
-        String str = "" ;
-        String sep = "" ;
-        for ( String k : args.keySet() )
-        {
-            Arg a = args.get( k );
+            return super.toString();
+        String str = "";
+        String sep = "";
+        for ( String k : args.keySet() ) {
+            Arg a = args.get(k);
             str = str + sep + a;
             sep = " ";
         }
-        sep = " -- " ;
-        for ( String v : positionals )
-        {
+        sep = " -- ";
+        for ( String v : positionals ) {
             str = str + sep + v;
             sep = " ";
         }
-        return str ;
+        return str;
     }
 
     // ---- Process arguments after low level parsing and after ArgDecls added.
     class ArgProcessor implements ArgProc {
-        boolean nextArgProcessed      = false ;
-        boolean positionalArgsStarted = false ;
-
+        boolean nextArgProcessed      = false;
+        boolean positionalArgsStarted = false;
         @Override
         public void startArgs() {
-            nextArgProcessed = false ;
-            positionalArgsStarted = false ;
+            nextArgProcessed = false;
+            positionalArgsStarted = false;
         }
 
         @Override
@@ -360,44 +353,43 @@ public class CmdLineArgs extends CommandLineBase {
         @Override
         public void arg(String argStr, int i) {
             if ( nextArgProcessed ) {
-                nextArgProcessed = false ;
-                return ;
+                nextArgProcessed = false;
+                return;
             }
 
             if ( positionalArgsStarted ) {
-                addPositional(argStr) ;
-                return ;
+                addPositional(argStr);
+                return;
             }
 
             if ( argStr.equals("-") || argStr.equals("--") ) {
-                positionalArgsStarted = true ;
-                return ;
+                positionalArgsStarted = true;
+                return;
             }
 
             if ( !argStr.startsWith("-") ) {
                 // End of flags, start of positional arguments
-                positionalArgsStarted = true ;
-                addPositional(argStr) ;
-                return ;
+                positionalArgsStarted = true;
+                addPositional(argStr);
+                return;
             }
 
-            argStr = ArgDecl.canonicalForm(argStr) ;
+            argStr = ArgDecl.canonicalForm(argStr);
             if ( !argMap.containsKey(argStr) ) {
-                handleUnrecognizedArg(argStr) ;
-                return ;
+                handleUnrecognizedArg(argStr);
+                return;
             }
 
             // Recognized flag
-            ArgDecl argDecl = argMap.get(argStr) ;
-
+            ArgDecl argDecl = argMap.get(argStr);
             if ( argDecl.takesValue() ) {
-                String val = getArg(i + 1) ;
+                String val = getArg(i + 1);
                 // Use first name as the canonical one.
-                String x = argDecl.getKeyName() ;
-                addArg(x, val) ;
-                nextArgProcessed = true ;
+                String x = argDecl.getKeyName();
+                addArg(x, val);
+                nextArgProcessed = true;
             } else
-                addArg(argStr) ;
+                addArg(argStr);
         }
     }
 }

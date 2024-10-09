@@ -27,11 +27,12 @@ import org.junit.runners.Suite ;
     , TestDatasetGraphMem.class
     , TestDatasetGraphMemTriplesQuads.class
     , TestDatasetGeneral.class
+    , TestQueryExecMem.class
     , TestDynamicDatasetMem.class
     , TestDatasetGraphsRegular.class
     , TestDatasetGraphLink.class
+    , TestDatasetGraphMap.class
     , TestDatasetGraphCopyAdd.class
-    , TestGraphOverDatasetMem.class
     , TestDatasetGraphViewGraphs.class
     , TestGraphView.class
 

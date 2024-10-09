@@ -34,13 +34,15 @@ import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.Transactional;
 import org.apache.jena.sparql.core.TransactionalLock;
 import org.apache.jena.sparql.engine.binding.Binding;
-import org.apache.jena.sparql.exec.QueryExec;
-import org.apache.jena.sparql.exec.QueryExecApp;
-import org.apache.jena.sparql.exec.QueryExecBuilder;
-import org.apache.jena.sparql.exec.RowSet;
+import org.apache.jena.sparql.exec.*;
+import org.apache.jena.sparql.exec.http.DSP;
 import org.apache.jena.sparql.exec.http.GSP;
+import org.apache.jena.sparql.exec.http.QueryExecHTTP;
 import org.apache.jena.sparql.exec.http.QueryExecHTTPBuilder;
-import org.apache.jena.sparql.exec.http.UpdateExecHTTP;
+import org.apache.jena.sparql.exec.http.QuerySendMode;
+import org.apache.jena.sparql.exec.http.UpdateExecHTTPBuilder;
+import org.apache.jena.sparql.exec.http.UpdateSendMode;
+import org.apache.jena.sparql.util.Context;
 import org.apache.jena.system.Txn;
 import org.apache.jena.update.UpdateFactory;
 import org.apache.jena.update.UpdateRequest;
@@ -79,6 +81,9 @@ public class RDFLinkHTTP implements RDFLink {
     // Whether to check SPARQL updates given as strings by parsing them.
     protected final boolean parseCheckUpdates;
 
+    protected final QuerySendMode querySendMode;
+    protected final UpdateSendMode updateSendMode;
+
     /** Create a {@link RDFLinkHTTPBuilder}. */
     public static RDFLinkHTTPBuilder newBuilder() {
         return new RDFLinkHTTPBuilder();
@@ -99,11 +104,12 @@ public class RDFLinkHTTP implements RDFLink {
 
     // Used by the builder.
     protected RDFLinkHTTP(Transactional txnLifecycle, HttpClient httpClient, String destination,
-                            String queryURL, String updateURL, String gspURL, RDFFormat outputQuads, RDFFormat outputTriples,
-                            String acceptDataset, String acceptGraph,
-                            String acceptSparqlResults,
-                            String acceptSelectResult, String acceptAskResult,
-                            boolean parseCheckQueries, boolean parseCheckUpdates) {
+                          String queryURL, String updateURL, String gspURL, RDFFormat outputQuads, RDFFormat outputTriples,
+                          String acceptDataset, String acceptGraph,
+                          String acceptSparqlResults,
+                          String acceptSelectResult, String acceptAskResult,
+                          boolean parseCheckQueries, boolean parseCheckUpdates,
+                          QuerySendMode querySendMode, UpdateSendMode updateSendMode) {
         // Any defaults.
         HttpClient hc =  httpClient!=null ? httpClient : HttpEnv.getDftHttpClient();
         if ( txnLifecycle == null )
@@ -124,6 +130,8 @@ public class RDFLinkHTTP implements RDFLink {
         this.acceptAskResult = acceptAskResult;
         this.parseCheckQueries = parseCheckQueries;
         this.parseCheckUpdates = parseCheckUpdates;
+        this.querySendMode = querySendMode;
+        this.updateSendMode = updateSendMode;
     }
 
     @Override
@@ -246,77 +254,127 @@ public class RDFLinkHTTP implements RDFLink {
         return createQExecBuilder();
     }
 
+    /** Create the QExec initialized with a query object or string. */
     private QueryExec queryExec(Query query, String queryString, QueryType queryType) {
+        QueryExecHTTPBuilderOverRDFLinkHTTP builder = createQExecBuilder();
+        if (queryString != null) {
+            builder.queryStringValidated(queryString, Syntax.defaultQuerySyntax, queryType);
+        }
+        if (query != null) {
+            builder.query(query);
+        }
+        return QueryExecApp.create(builder, null, query, queryString);
+    }
+
+    /**
+     * An internal subclass of {@link QueryExecHTTPBuilder} that overrides
+     * {@link #buildX(HttpClient, Query, String, Context)}
+     * in order to have the accept header field derived based on this {@link RDFLinkHTTP} configuration.
+     */
+    /* package */ class QueryExecHTTPBuilderOverRDFLinkHTTP
+        extends QueryExecHTTPBuilder
+    {
+        /** The query type. Never null. */
+        protected QueryType queryType = QueryType.UNKNOWN;
+
+        /** The parsed query is only needed for setting the appropriate HTTP header for construct quad queries. */
+        protected Query parsedQuery = null;
+
+        protected QueryExecHTTPBuilderOverRDFLinkHTTP() {
+            super();
+        }
+
+        /** This method wraps {@link #queryString(String)} and sets the additional attributes without further interpretation. */
+        protected QueryExecHTTPBuilder queryString(String queryString, QueryType queryType, Query parsedQuery) {
+            super.queryString(queryString);
+            this.queryType = queryType != null ? queryType : QueryType.UNKNOWN;
+            this.parsedQuery = parsedQuery;
+            return thisBuilder();
+        }
+
+        /** {@inheritDoc} */
+        @Override
+        public QueryExecHTTPBuilder queryString(String queryString) {
+             return queryString(queryString, null, null);
+        }
+
+        /** This method is far only called from RDFLinkHTTP. It validates the query string if parseCheckQueries is enabled.  */
+        protected QueryExecHTTPBuilder queryStringValidated(String queryString, Syntax syntax, QueryType fallbackQueryType) {
+            Query parsedQuery = parseCheck
+                    ? QueryFactory.create(queryString, syntax)
+                    : null;
+
+            QueryType finalQueryType = parsedQuery != null ? parsedQuery.queryType() : fallbackQueryType;
+            return queryString(queryString, finalQueryType, parsedQuery);
+        }
+
+        @Override
+        protected void setQuery(Query query, String queryStr) {
+            super.setQuery(query, queryStr);
+            parsedQuery = query;
+            queryType = query == null ? QueryType.UNKNOWN : query.queryType();
+        }
+
+        @Override
+        protected QueryExecHTTP buildX(HttpClient hClient, Query queryActual, String queryStringActual, Context cxt) {
+            // If the appAcceptHeader has not been explicitly set then derive it.
+            if (appAcceptHeader == null) {
+                String requestAcceptHeader = null;
+                // Use the most specific method.
+                switch(queryType) {
+                    case SELECT :
+                        if ( acceptSelectResult != null )
+                            requestAcceptHeader = RDFLinkHTTP.this.acceptSelectResult;
+                        break;
+                    case ASK :
+                        if ( acceptAskResult != null )
+                            requestAcceptHeader = RDFLinkHTTP.this.acceptAskResult;
+                        break;
+                    case DESCRIBE :
+                    case CONSTRUCT :
+                        // Best effort to handle construct quads. Requires a parsed query.
+                        if (parsedQuery != null && parsedQuery.isConstructQuad()) {
+                            if ( acceptDataset != null )
+                                requestAcceptHeader = RDFLinkHTTP.this.acceptDataset;
+                        } else {
+                            if ( acceptGraph != null )
+                                requestAcceptHeader = RDFLinkHTTP.this.acceptGraph;
+                        }
+                        break;
+                    case UNKNOWN:
+                        // All-purpose content type.
+                        if ( acceptSparqlResults != null ) {
+                            requestAcceptHeader = RDFLinkHTTP.this.acceptSparqlResults;
+                        } else {
+                            // No idea! Set an "anything" and hope.
+                            // (Reasonable chance this is going to end up as HTML though.)
+                            requestAcceptHeader = "*/*";
+                        }
+                        break;
+                    default :
+                        break;
+                }
+                // Make sure it was set somehow.
+                if ( requestAcceptHeader == null )
+                    throw new JenaConnectionException("No Accept header");
+
+                this.acceptHeader(requestAcceptHeader);
+            }
+
+            return super.buildX(hClient, queryActual, queryStringActual, cxt);
+        }
+    }
+
+    /**
+     * Create a builder, configured with the link setup.
+     *
+     * @param presetQueryType If non-null then the builder will force execution with this query type.
+     */
+    private QueryExecHTTPBuilderOverRDFLinkHTTP createQExecBuilder() {
         checkQuery();
-        if ( query == null && queryString == null )
-            throw new InternalErrorException("Both query and query string are null");
-        if ( query == null ) {
-            if ( parseCheckQueries )
-                // Don't retain the query.
-                QueryFactory.create(queryString);
-        }
-
-        // Use the query string as provided if possible, otherwise serialize the query.
-        String queryStringToSend = ( queryString != null ) ? queryString : query.toString();
-        return createQExec(query, queryStringToSend, queryType);
-    }
-
-    // Create the QExec
-
-    /** Create a builder, configured with the link setup. */
-    private QueryExecHTTPBuilder createQExecBuilder() {
-        return QueryExecHTTPBuilder.create()
-                    .endpoint(svcQuery)
-                    .httpClient(httpClient);
-    }
-
-    private QueryExec createQExec(Query query, String queryStringToSend, QueryType queryType) {
-        // [QExec] NO QUERY - delya parse?
-        QueryExecHTTPBuilder builder = createQExecBuilder().queryString(queryStringToSend);
-
-        // [QExec] Can this go in QueryExecHTTP at he point the query type is known?
-        QueryType qt = queryType;
-        if ( query != null && qt == null )
-            qt = query.queryType();
-        if ( qt == null )
-            qt = QueryType.UNKNOWN;
-        // Set the accept header - use the most specific method.
-        String requestAcceptHeader = null;
-        switch(qt) {
-            case SELECT :
-                if ( acceptSelectResult != null )
-                    requestAcceptHeader = acceptSelectResult;
-                break;
-            case ASK :
-                if ( acceptAskResult != null )
-                    requestAcceptHeader = acceptAskResult;
-                break;
-            case DESCRIBE :
-            case CONSTRUCT :
-                if ( acceptGraph != null )
-                    requestAcceptHeader = acceptGraph;
-                break;
-            case UNKNOWN:
-                // All-purpose content type.
-                if ( acceptSparqlResults != null )
-                    requestAcceptHeader = acceptSparqlResults;
-                else
-                    // No idea! Set an "anything" and hope.
-                    // (Reasonable chance this is going to end up as HTML though.)
-                    requestAcceptHeader = "*/*";
-            default :
-                break;
-        }
-
-        // Make sure it was set somehow.
-        if ( requestAcceptHeader == null )
-            throw new JenaConnectionException("No Accept header");
-        if ( requestAcceptHeader != null )
-            builder.acceptHeader(requestAcceptHeader);
-        // Delayed creation so QueryExecution.setTimeout works.
-
-        builder.queryString(queryStringToSend);
-        return QueryExecApp.create(builder, null, query, queryStringToSend);
+        QueryExecHTTPBuilderOverRDFLinkHTTP builder = new QueryExecHTTPBuilderOverRDFLinkHTTP();
+        builder.endpoint(svcQuery).httpClient(httpClient).sendMode(querySendMode).parseCheck(parseCheckQueries);
+        return builder;
     }
 
     private void acc(StringBuilder sBuff, String acceptString) {
@@ -325,6 +383,24 @@ public class RDFLinkHTTP implements RDFLink {
         if ( sBuff.length() != 0 )
             sBuff.append(", ");
         sBuff.append(acceptString);
+    }
+
+    /**
+     * Return a {@link UpdateExecBuilder} that is initially configured for this link
+     * setup and type. The update built will be set to go to the same dataset/remote
+     * endpoint as the other RDFLink operations.
+     *
+     * @return UpdateExecBuilder
+     */
+    @Override
+    public UpdateExecBuilder newUpdate() {
+        return createUExecBuilder();
+    }
+
+    /** Create a builder, configured with the link setup. */
+    private UpdateExecHTTPBuilder createUExecBuilder() {
+        return UpdateExecHTTPBuilder.create().endpoint(svcUpdate).httpClient(httpClient)
+                .sendMode(updateSendMode).parseCheck(parseCheckUpdates);
     }
 
     @Override
@@ -350,9 +426,7 @@ public class RDFLinkHTTP implements RDFLink {
         }
         // Use the update string as provided if possible, otherwise serialize the update.
         String updateStringToSend = ( updateString != null ) ? updateString  : update.toString();
-        UpdateExecHTTP.newBuilder()
-            .endpoint(svcUpdate)
-            .httpClient(httpClient)
+        createUExecBuilder()
             .updateString(updateStringToSend)
             .build()
             .execute();
@@ -376,7 +450,6 @@ public class RDFLinkHTTP implements RDFLink {
 //        throw ex;
 //    }
 
-    /** {@inheritDoc} */
     @Override
     public Graph get(Node graphName) {
         checkGSP();
@@ -446,18 +519,36 @@ public class RDFLinkHTTP implements RDFLink {
     private String ct(RDFFormat format) { return format.getLang().getHeaderString(); }
 
     private GSP gsp() {
-        return gspRequest().defaultGraph();
+        return gspRequest().acceptHeader(acceptGraph).defaultGraph();
     }
 
     private GSP gsp(Node graphName) {
         if ( LibRDFLink.isDefault(graphName) )
-            return gspRequest().defaultGraph();
+            return gspRequest().acceptHeader(acceptGraph).defaultGraph();
         else
-            return gspRequest().graphName(graphName);
+            return gspRequest().acceptHeader(acceptGraph).graphName(graphName);
     }
 
+    /**
+     * Create a GSP request. The HTTP headers are not set and
+     * the appropriate input or output headers need to be set.
+     */
     private GSP gspRequest() {
-        return GSP.service(svcGraphStore).httpClient(httpClient);
+        GSP gsp = GSP.service(svcGraphStore);
+        if ( httpClient != null )
+            gsp.httpClient(httpClient);
+        return gsp;
+    }
+
+    /**
+     * Create a DSP request. The HTTP headers are not set and
+     * the appropriate input or output headers need to be set.
+     */
+    private DSP dspRequest() {
+        DSP dsp = DSP.service(svcGraphStore);
+        if ( httpClient != null )
+            dsp.httpClient(httpClient);
+        return dsp;
     }
 
     @Override
@@ -475,31 +566,31 @@ public class RDFLinkHTTP implements RDFLink {
     @Override
     public DatasetGraph getDataset() {
         checkDataset();
-        return gspRequest().dataset().acceptHeader(acceptDataset).getDataset();
+        return dspRequest().acceptHeader(acceptDataset).GET();
     }
 
     @Override
     public void loadDataset(String file) {
         checkDataset();
-        gspRequest().dataset().postDataset(file);
+        dspRequest().contentType(outputQuads).POST(file);
     }
 
     @Override
     public void loadDataset(DatasetGraph dataset) {
         checkDataset();
-        gspRequest().dataset().postDataset(dataset);
+        dspRequest().contentType(outputQuads).POST(dataset);
     }
 
     @Override
     public void putDataset(String file) {
         checkDataset();
-        gspRequest().dataset().putDataset(file);
+        dspRequest().contentType(outputQuads).PUT(file);
     }
 
     @Override
     public void putDataset(DatasetGraph dataset) {
         checkDataset();
-        gspRequest().dataset().putDataset(dataset);
+        dspRequest().contentType(outputQuads).PUT(dataset);
     }
 
     // -- Internal.

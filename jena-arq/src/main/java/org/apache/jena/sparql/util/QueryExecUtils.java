@@ -29,7 +29,6 @@ import org.apache.jena.rdf.model.Model ;
 import org.apache.jena.rdf.model.RDFNode ;
 import org.apache.jena.riot.Lang ;
 import org.apache.jena.riot.RDFDataMgr ;
-import org.apache.jena.riot.resultset.rw.ResultsWriter;
 import org.apache.jena.shared.PrefixMapping ;
 import org.apache.jena.shared.impl.PrefixMappingImpl ;
 import org.apache.jena.sparql.ARQConstants ;
@@ -47,6 +46,7 @@ import org.apache.jena.sparql.exec.QueryExec;
 import org.apache.jena.sparql.exec.QueryExecutionAdapter;
 import org.apache.jena.sparql.resultset.RDFOutput ;
 import org.apache.jena.sparql.resultset.ResultsFormat ;
+import org.apache.jena.sparql.resultset.ResultsWriter;
 
 /** Some utilities for query processing. */
 public class QueryExecUtils {
@@ -61,6 +61,11 @@ public class QueryExecUtils {
         globalPrefixMap.setNsPrefix("" ,    "http://example/") ;
     }
     protected static Prologue      dftPrologue     = new Prologue(globalPrefixMap) ;
+
+    public static void exec(Query query, DatasetGraph dsg) {
+        QueryExec qExec = QueryExec.dataset(dsg).query(query).build();
+        exec(qExec);
+    }
 
     public static void exec(QueryExec queryExec) {
         exec(queryExec.getQuery(), queryExec) ;

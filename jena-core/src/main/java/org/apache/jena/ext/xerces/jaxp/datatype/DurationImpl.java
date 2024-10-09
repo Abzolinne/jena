@@ -17,10 +17,10 @@
 
 package org.apache.jena.ext.xerces.jaxp.datatype;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.RoundingMode;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
@@ -96,7 +96,6 @@ import org.apache.jena.ext.xerces.util.DatatypeMessageFormatter;
  * @version $Id: DurationImpl.java 944783 2010-05-16 09:45:19Z mukulg $
  * @see XMLGregorianCalendar#add(Duration)
  */
-@SuppressWarnings("all")
 class DurationImpl
     extends Duration
     implements Serializable {
@@ -677,8 +676,6 @@ class DurationImpl
      *   <li>{@link DatatypeConstants#INDETERMINATE} if a conclusive partial order relation cannot be determined</li>
      * </ul>
      *
-     * @param duration to compare
-     *
      * @return the relationship between <code>this</code> <code>Duration</code>and <code>duration</code> parameter as
      *   {@link DatatypeConstants#LESSER}, {@link DatatypeConstants#EQUAL}, {@link DatatypeConstants#GREATER}
      *   or {@link DatatypeConstants#INDETERMINATE}.
@@ -1187,9 +1184,9 @@ class DurationImpl
      * {@link #getField(DatatypeConstants.Field)} method.
      *
      * <p>
-     * Note that since this method returns <tt>int</tt>, this
+     * Note that since this method returns {@code int}, this
      * method will return an incorrect value for {@link Duration}s
-     * with the year field that goes beyond the range of <tt>int</tt>.
+     * with the year field that goes beyond the range of {@code int}.
      * Use <code>getField(YEARS)</code> to avoid possible loss of precision.</p>
      *
      * @return
@@ -1530,7 +1527,7 @@ class DurationImpl
             BigDecimal bd = getFieldAsBigDecimal(FIELDS[i]);
             bd = bd.multiply(factor).add(carry);
 
-            buf[i] = bd.setScale(0, BigDecimal.ROUND_DOWN);
+            buf[i] = bd.setScale(0, RoundingMode.DOWN);
 
             bd = bd.subtract(buf[i]);
             if (i == 1) {
@@ -1737,9 +1734,7 @@ class DurationImpl
 
                     // compute the number of unit that needs to be borrowed.
                     BigDecimal borrow =
-                        buf[i].abs().divide(
-                            FACTORS[i - 1],
-                            BigDecimal.ROUND_UP);
+                        buf[i].abs().divide(FACTORS[i - 1], RoundingMode.UP);
                     if (buf[i].signum() > 0) {
                         borrow = borrow.negate();
                     }
@@ -1813,10 +1808,10 @@ class DurationImpl
      * <code>(-X)-(-Y)=-(X-Y)</code>)</p>
      *
      * <p>Then two durations are subtracted field by field.
-     * If the sign of any non-zero field <tt>F</tt> is different from
+     * If the sign of any non-zero field {@code F} is different from
      * the sign of the most significant field,
-     * 1 (if <tt>F</tt> is negative) or -1 (otherwise)
-     * will be borrowed from the next bigger unit of <tt>F</tt>.</p>
+     * 1 (if {@code F} is negative) or -1 (otherwise)
+     * will be borrowed from the next bigger unit of {@code F}.</p>
      *
      * <p>This process is repeated until all the non-zero fields have
      * the same sign.</p>
@@ -1908,8 +1903,8 @@ class DurationImpl
      *
      * <p>
      * Note that because {@link Calendar#add(int, int)} is using
-     * <tt>int</tt>, {@link Duration} with values beyond the
-     * range of <tt>int</tt> in its fields
+     * {@code int}, {@link Duration} with values beyond the
+     * range of {@code int} in its fields
      * will cause overflow/underflow to the given {@link Calendar}.
      * {@link XMLGregorianCalendar#add(Duration)} provides the same
      * basic operation as this method while avoiding
@@ -1931,7 +1926,7 @@ class DurationImpl
 
         if (seconds != null) {
             BigDecimal fraction =
-                seconds.subtract(seconds.setScale(0, BigDecimal.ROUND_DOWN));
+                seconds.subtract(seconds.setScale(0, RoundingMode.DOWN));
             int millisec = fraction.movePointRight(3).intValue();
             calendar.add(Calendar.MILLISECOND, millisec * signum);
         }

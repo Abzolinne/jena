@@ -227,6 +227,15 @@ public class OpRewriter implements OpVisitor {
         }
     }
 
+    @Override
+    public void visit(OpLateral opLateral) {
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Starting visiting OpLateral");
+        }
+        final OpRewriter rewriter = new OpRewriter(securityEvaluator, graphIRI);
+        addOp(OpLateral.create(rewriteOp2(opLateral, rewriter), rewriter.getResult()));
+    }
+
     /**
      * Rewrite left and right
      */
@@ -304,6 +313,19 @@ public class OpRewriter implements OpVisitor {
             LOG.debug("Starting visiting OpExtend");
         }
         addOp(OpExtend.extend(rewriteOp1(opExtend), opExtend.getVarExprList()));
+    }
+
+    /**
+     * rewrites the subop of unfold.
+     */
+    @Override
+    public void visit(final OpUnfold opUnfold) {
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Starting visiting OpUnfold");
+        }
+        Op subOp = rewriteOp1(opUnfold);
+        OpUnfold opUnfold2 = new OpUnfold(subOp, opUnfold.getExpr(), opUnfold.getVar1(), opUnfold.getVar2());
+        addOp(opUnfold2);
     }
 
     /**

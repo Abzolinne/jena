@@ -30,6 +30,8 @@ import org.apache.jena.util.iterator.NullIterator ;
 /**
  * An extension to a standard map that supports one-to-many mappings: that is, there
  * may be zero, one or many values corresponding to a given key.
+ * <p>
+ * Legacy. old code retained for existing internal use only.
  */
 public class OneToManyMap<From, To> implements Map<From, To>
 {
@@ -56,8 +58,8 @@ public class OneToManyMap<From, To> implements Map<From, To>
      */
     public OneToManyMap() {
     }
-    
-    
+
+
     /**
      * <p>Construct a new one-to-many map whose contents are
      * initialised from the existing map.</p>
@@ -136,8 +138,8 @@ public class OneToManyMap<From, To> implements Map<From, To>
         }
         return false;
     }
-    
-    
+
+
     /**
      * Answer a set of the mappings in this map.  Each member of the set will
      * be a Map.Entry value.
@@ -281,7 +283,7 @@ public class OneToManyMap<From, To> implements Map<From, To>
 
 
     /**
-     * <p>Put all entries from one map into this map. Tests for m being a 
+     * <p>Put all entries from one map into this map. Tests for m being a
      * OneToManyMap, and, if so, copies all of the entries for each key.</p>
      * @param m The map whose contents are to be copied into this map
      */
@@ -337,7 +339,7 @@ public class OneToManyMap<From, To> implements Map<From, To>
      *
      * @param key The key object
      * @param value The value object
-     * @return {@code true} if an entry was removed. 
+     * @return {@code true} if an entry was removed.
      */
     @Override
     public boolean remove( Object key, Object value ) {
@@ -346,7 +348,7 @@ public class OneToManyMap<From, To> implements Map<From, To>
 
         if (entries != null) {
             entries.remove( value );
-            
+
             if (entries.isEmpty()) {
                 m_table.remove( key );
                 return true;
@@ -389,7 +391,8 @@ public class OneToManyMap<From, To> implements Map<From, To>
 
     /**
      * <p>Answer a string representation of this map. This can be quite a long string for
-     * large maps.<p>
+     * large maps.
+     * </p>
      */
     @Override public String toString() {
         StringBuffer buf = new StringBuffer( "OneToManyMap{" );
@@ -417,12 +420,12 @@ public class OneToManyMap<From, To> implements Map<From, To>
 
     // Internal implementation methods
     //////////////////////////////////////
-    
-    
-    // Inner classes 
+
+
+    // Inner classes
     //////////////////////////////////////
-    
-    
+
+
     //////////////////////////////////
 
 
@@ -455,12 +458,12 @@ public class OneToManyMap<From, To> implements Map<From, To>
          * Compares the specified object with this entry for equality. Returns true if the given
          * object is also a map entry and the two entries represent the same mapping.
          * More formally, two entries e1 and e2 represent the same mapping if
-         * <code><pre>
+         * <pre>
          *      (e1.getKey()==null ?
          *                         e2.getKey()==null : e1.getKey().equals(e2.getKey()))  &amp;&amp;
          *      (e1.getValue()==null ?
          *                         e2.getValue()==null : e1.getValue().equals(e2.getValue()))
-         * </pre></code>
+         * </pre>
          *
          * This ensures that the equals method works properly across different implementations of the Map.Entry interface.
          *

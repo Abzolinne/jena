@@ -40,11 +40,6 @@ public class Chars
         '9' , 'a' , 'b' , 'c' , 'd' , 'e' , 'f' };
 
 
-//         , 'g' , 'h' ,
-//        'i' , 'j' , 'k' , 'l' , 'm' , 'n' ,
-//        'o' , 'p' , 'q' , 'r' , 's' , 't' ,
-//        'u' , 'v' , 'w' , 'x' , 'y' , 'z'
-
     public static final Charset charsetUTF8 = StandardCharsets.UTF_8;
     public static final Charset charsetASCII = StandardCharsets.US_ASCII;
 
@@ -182,9 +177,9 @@ public class Chars
     // REPLACEMENT CHARACTER
     public static final char REPLACEMENT     = 0xFFFD ;
 
-    // Not a character
+    // "Not a character" - a Unicode noncharacter codepoint that is not legal in UTF-8.
     public static final char NotACharacter   = 0xFFFF ;
-    // Detect byte order by contrast (BOM reversed).
+    // Detect byte order by contrast (BOM reversed) - a Unicode noncharacter codepoint that is not legal in UTF-8.
     public static final char ReverseOrderBOM = 0xFFFE ;
 
     /** Undefined character (exact meaning depends on use) - not a Unicode codepoint */
@@ -224,6 +219,7 @@ public class Chars
     public static final char CH_AMPHERSAND   = '&' ;
     public static final char CH_AT           = '@' ;
     public static final char CH_QMARK        = '?' ;
+    public static final char CH_EMARK        = '!' ;
     public static final char CH_DOLLAR       = '$' ;
     public static final char CH_HASH         = '#' ;
     public static final char CH_PLUS         = '+' ;
@@ -233,6 +229,7 @@ public class Chars
     public static final char CH_RSLASH       = '\\' ;
     public static final char CH_PERCENT      = '%' ;
     public static final char CH_VBAR         = '|' ;
+    public static final char CH_TILDE        = '~' ;
 
     // Byte versions of the above
     public static final byte B_NL            = NL ;
@@ -271,6 +268,7 @@ public class Chars
     public static final byte B_RSLASH        = '\\' ;
     public static final byte B_PERCENT       = '%' ;
     public static final byte B_VBAR          = '|' ;
+    public static final byte B_TILDE         = '~' ;
 
     // String versions - a few compound "chars" as well.
     public static final String S_LBRACKET     = "[" ;
@@ -308,5 +306,5 @@ public class Chars
     public static final String S_RSLASH       = "\\" ;
     public static final String S_PERCENT      = "%" ;
     public static final String S_VBAR         = "|" ;
-
+    public static final String S_TILDE         = "~" ;
 }

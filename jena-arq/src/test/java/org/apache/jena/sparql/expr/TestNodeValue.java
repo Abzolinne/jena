@@ -23,7 +23,6 @@ import static org.junit.Assert.*;
 import java.math.BigDecimal ;
 import java.util.*;
 
-import org.apache.jena.JenaRuntime ;
 import org.apache.jena.datatypes.xsd.XSDDatatype ;
 import org.apache.jena.graph.Node ;
 import org.apache.jena.graph.NodeFactory ;
@@ -32,6 +31,7 @@ import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.sparql.expr.nodevalue.XSDFuncOp ;
 import org.apache.jena.sparql.sse.SSE;
+import org.apache.jena.sparql.util.NodeCmp;
 import org.apache.jena.sparql.util.NodeFactoryExtra ;
 import org.junit.AfterClass ;
 import org.junit.BeforeClass ;
@@ -100,6 +100,14 @@ public class TestNodeValue
     @Test
     public void testFloat3() {
         NodeValue v1 = NodeValue.makeNodeFloat(5.7f);
+        NodeValue v2 = NodeValue.makeFloat(5.7f);
+        assertTrue("Not same float: " + v1 + " & " + v2, v1.getFloat() == v2.getFloat());
+        assertTrue("Not same float as double: " + v1 + " & " + v2, v1.getDouble() == v2.getDouble());
+    }
+    
+    @Test
+    public void testFloat4() {
+        NodeValue v1 = NodeValue.makeNodeFloat("5.7");
         NodeValue v2 = NodeValue.makeFloat(5.7f);
         assertTrue("Not same float: " + v1 + " & " + v2, v1.getFloat() == v2.getFloat());
         assertTrue("Not same float as double: " + v1 + " & " + v2, v1.getDouble() == v2.getDouble());
@@ -237,11 +245,16 @@ public class TestNodeValue
         assertEquals("Not Calendar.equals: ", v0.getDateTime(), v1.getDateTime());
     }
 
+    private static NodeValue parse(String nodeString) {
+        Node n = SSE.parseNode(nodeString);
+        NodeValue nv = NodeValue.makeNode(n);
+        return nv;
+    }
+
     @Test
     public void testDateTimeStamp1() {
         // xsd:dateTimeStamp is a derived datatype of xsd:dateTime.
-        Node n = SSE.parseNode("'2000-01-01T00:00:00+00:00'^^xsd:dateTimeStamp");
-        NodeValue nv = NodeValue.makeNode(n);
+        NodeValue nv = parse("'2000-01-01T00:00:00+00:00'^^xsd:dateTimeStamp");
         assertTrue(nv.isDateTime());
         assertFalse(nv.isDate());
     }
@@ -737,14 +750,14 @@ public class TestNodeValue
     // EBV includes plain literals which includes language tagged literals.
     @Test
     public void testEBV7() {
-        Node x = NodeFactory.createLiteral("", "en");
+        Node x = NodeFactory.createLiteralLang("", "en");
         NodeValue v = NodeValue.makeNode(x);
         assertFalse("Not EBV false: " + v, XSDFuncOp.booleanEffectiveValue(v));
     }
 
     @Test
     public void testEBV8() {
-        Node x = NodeFactory.createLiteral("not empty", "en");
+        Node x = NodeFactory.createLiteralLang("not empty", "en");
         NodeValue v = NodeValue.makeNode(x);
         assertTrue("Not EBV true: " + v, XSDFuncOp.booleanEffectiveValue(v));
     }
@@ -768,7 +781,7 @@ public class TestNodeValue
         assertTrue ( ebvDouble(Double.POSITIVE_INFINITY) );
         assertTrue ( ebvDouble(Double.NEGATIVE_INFINITY) );
 
-        Node x = NodeFactory.createLiteral("NaN", XSDDatatype.XSDdouble);
+        Node x = NodeFactory.createLiteralDT("NaN", XSDDatatype.XSDdouble);
         NodeValue v = NodeValue.makeNode(x);
         assertFalse(XSDFuncOp.booleanEffectiveValue(v));
     }
@@ -792,7 +805,7 @@ public class TestNodeValue
         assertTrue ( ebvFloat(Float.POSITIVE_INFINITY) );
         assertTrue ( ebvFloat(Float.NEGATIVE_INFINITY) );
 
-        Node x = NodeFactory.createLiteral("NaN", XSDDatatype.XSDfloat);
+        Node x = NodeFactory.createLiteralDT("NaN", XSDDatatype.XSDfloat);
         NodeValue v = NodeValue.makeNode(x);
         assertFalse(XSDFuncOp.booleanEffectiveValue(v));
     }
@@ -810,14 +823,14 @@ public class TestNodeValue
     public void testFloatDouble1() {
         NodeValue v1 = NodeValue.makeNodeDouble("1.5");
         NodeValue v2 = NodeValue.makeNode("1.5", XSDDatatype.XSDfloat);
-        assertTrue("Should be equal: 1.5 float and 1.5 double", NodeValue.sameAs(v1, v2));
+        assertTrue("Should be equal: 1.5 float and 1.5 double", NodeValue.sameValueAs(v1, v2));
     }
 
     @Test
     public void testFloatDouble5() {
         NodeValue v1 = NodeValue.makeNodeDouble("1.3");
         NodeValue v2 = NodeValue.makeNode("1.3", XSDDatatype.XSDfloat);
-        assertFalse("Should not be equal: 1.3 float and 1.3 double", NodeValue.sameAs(v1, v2));
+        assertFalse("Should not be equal: 1.3 float and 1.3 double", NodeValue.sameValueAs(v1, v2));
     }
 
     // More effective boolean values - see TestExpressionARQ
@@ -850,16 +863,12 @@ public class TestNodeValue
 
     @Test
     public void testNodeString3() {
-        NodeValue v = NodeValue.makeNode("string", XSDDatatype.XSDstring); // XSD
-                                                                           // String
-                                                                           // literal
+        NodeValue v = NodeValue.makeNode("string", XSDDatatype.XSDstring);
         assertTrue("Not a string: " + v, v.isString());
         assertTrue("Not a node: " + v, v.hasNode());
         String actualStr = v.asQuotedString();
-        String rightAnswer = JenaRuntime.isRDF11
-            // RDF 1.1 -- appearance is a without ^^
-            ? "\"string\"" : "\"string\"^^<" + XSDDatatype.XSDstring.getURI() + ">";
-
+        // RDF 1.1 -- appearance is a without ^^
+        String rightAnswer = "\"string\"";
         assertEquals("Print form mismatch", rightAnswer, actualStr);
     }
 
@@ -892,7 +901,7 @@ public class TestNodeValue
         });
         List<String> result = new LinkedList<>();
         for (NodeValue nv : nodeValues) {
-            String s = nv.getNode().getLiteralLexicalForm();
+            String s = nv.asNode().getLiteralLexicalForm();
             result.add(s);
         }
         assertArrayEquals(ordered, result.toArray(new String[0]));
@@ -918,7 +927,7 @@ public class TestNodeValue
         });
         List<String> result = new LinkedList<>();
         for (NodeValue nv : nodeValues) {
-            String s = nv.getNode().getLiteralLexicalForm();
+            String s = nv.asNode().getLiteralLexicalForm();
             result.add(s);
         }
         assertArrayEquals(ordered, result.toArray(new String[0]));
@@ -976,55 +985,52 @@ public class TestNodeValue
         assertArrayEquals(ordered, result.toArray(new String[0]));
     }
 
-    // TODO testSameValueDecimal tests
-    // TODO sameValueAs mixed tests
-
     @Test
     public void testSameValue1() {
         NodeValue nv1 = NodeValue.makeInteger(5);
         NodeValue nv2 = NodeValue.makeInteger(7);
-        assertTrue("Same values (" + nv1 + "," + nv2 + ")", NodeValue.notSameAs(nv1, nv2));
-        assertFalse("Same values (" + nv1 + "," + nv2 + ")", NodeValue.sameAs(nv1, nv2));
+        assertTrue("Same values (" + nv1 + "," + nv2 + ")", NodeValue.notSameValueAs(nv1, nv2));
+        assertFalse("Same values (" + nv1 + "," + nv2 + ")", NodeValue.sameValueAs(nv1, nv2));
 
         NodeValue nv3 = NodeValue.makeInteger(5);
-        assertTrue("Different values (" + nv1 + "," + nv3 + ")", NodeValue.sameAs(nv1, nv3));
-        assertFalse("Different values - notNotSame (" + nv1 + "," + nv3 + ")", NodeValue.notSameAs(nv1, nv3));
+        assertTrue("Different values (" + nv1 + "," + nv3 + ")", NodeValue.sameValueAs(nv1, nv3));
+        assertFalse("Different values - notNotSame (" + nv1 + "," + nv3 + ")", NodeValue.notSameValueAs(nv1, nv3));
     }
 
     @Test
     public void testSameValue2() {
         NodeValue nv1 = NodeValue.makeInteger(5);
         NodeValue nv2 = NodeValue.makeNodeInteger(7);
-        assertTrue("Same values (" + nv1 + "," + nv2 + ")", NodeValue.notSameAs(nv1, nv2));
-        assertFalse("Same values (" + nv1 + "," + nv2 + ")", NodeValue.sameAs(nv1, nv2));
+        assertTrue("Same values (" + nv1 + "," + nv2 + ")", NodeValue.notSameValueAs(nv1, nv2));
+        assertFalse("Same values (" + nv1 + "," + nv2 + ")", NodeValue.sameValueAs(nv1, nv2));
 
         NodeValue nv3 = NodeValue.makeNodeInteger(5);
-        assertTrue("Different values (" + nv1 + "," + nv3 + ")", NodeValue.sameAs(nv1, nv3));
-        assertFalse("Different values - notNotSame (" + nv1 + "," + nv3 + ")", NodeValue.notSameAs(nv1, nv3));
+        assertTrue("Different values (" + nv1 + "," + nv3 + ")", NodeValue.sameValueAs(nv1, nv3));
+        assertFalse("Different values - notNotSame (" + nv1 + "," + nv3 + ")", NodeValue.notSameValueAs(nv1, nv3));
     }
 
     @Test
     public void testSameValue3() {
         NodeValue nv1 = NodeValue.makeDecimal("1.5");
         NodeValue nv2 = NodeValue.makeDecimal("1.6");
-        assertTrue("Same values (" + nv1 + "," + nv2 + ")", NodeValue.notSameAs(nv1, nv2));
-        assertFalse("Same values (" + nv1 + "," + nv2 + ")", NodeValue.sameAs(nv1, nv2));
+        assertTrue("Same values (" + nv1 + "," + nv2 + ")", NodeValue.notSameValueAs(nv1, nv2));
+        assertFalse("Same values (" + nv1 + "," + nv2 + ")", NodeValue.sameValueAs(nv1, nv2));
 
         NodeValue nv3 = NodeValue.makeDecimal("1.50");
-        assertTrue("Different values (" + nv1 + "," + nv3 + ")", NodeValue.sameAs(nv1, nv3));
-        assertFalse("Different values - notNotSame (" + nv1 + "," + nv3 + ")", NodeValue.notSameAs(nv1, nv3));
+        assertTrue("Different values (" + nv1 + "," + nv3 + ")", NodeValue.sameValueAs(nv1, nv3));
+        assertFalse("Different values - notNotSame (" + nv1 + "," + nv3 + ")", NodeValue.notSameValueAs(nv1, nv3));
     }
 
     @Test
     public void testSameValue4() {
         NodeValue nv1 = NodeValue.makeDecimal("3");
         NodeValue nv2 = NodeValue.makeInteger(4);
-        assertTrue("Same values (" + nv1 + "," + nv2 + ")", NodeValue.notSameAs(nv1, nv2));
-        assertFalse("Same values (" + nv1 + "," + nv2 + ")", NodeValue.sameAs(nv1, nv2));
+        assertTrue("Same values (" + nv1 + "," + nv2 + ")", NodeValue.notSameValueAs(nv1, nv2));
+        assertFalse("Same values (" + nv1 + "," + nv2 + ")", NodeValue.sameValueAs(nv1, nv2));
 
         NodeValue nv3 = NodeValue.makeInteger(3);
-        assertTrue("Different values (" + nv1 + "," + nv3 + ")", NodeValue.sameAs(nv1, nv3));
-        assertFalse("Different values - notNotSame (" + nv1 + "," + nv3 + ")", NodeValue.notSameAs(nv1, nv3));
+        assertTrue("Different values (" + nv1 + "," + nv3 + ")", NodeValue.sameValueAs(nv1, nv3));
+        assertFalse("Different values - notNotSame (" + nv1 + "," + nv3 + ")", NodeValue.notSameValueAs(nv1, nv3));
     }
 
     @Test
@@ -1032,75 +1038,149 @@ public class TestNodeValue
         NodeValue nv1 = NodeValue.makeDecimal("-1.5"); // Must be exact for
                                                        // double and decimal
         NodeValue nv2 = NodeValue.makeDouble(1.5);
-        assertTrue("Same values (" + nv1 + "," + nv2 + ")", NodeValue.notSameAs(nv1, nv2));
-        assertFalse("Same values (" + nv1 + "," + nv2 + ")", NodeValue.sameAs(nv1, nv2));
+        assertTrue("Same values (" + nv1 + "," + nv2 + ")", NodeValue.notSameValueAs(nv1, nv2));
+        assertFalse("Same values (" + nv1 + "," + nv2 + ")", NodeValue.sameValueAs(nv1, nv2));
 
         NodeValue nv3 = NodeValue.makeDouble(-1.5);
-        assertTrue("Different values (" + nv1 + "," + nv3 + ")", NodeValue.sameAs(nv1, nv3));
-        assertFalse("Different values - notNotSame (" + nv1 + "," + nv3 + ")", NodeValue.notSameAs(nv1, nv3));
+        assertTrue("Different values (" + nv1 + "," + nv3 + ")", NodeValue.sameValueAs(nv1, nv3));
+        assertFalse("Different values - notNotSame (" + nv1 + "," + nv3 + ")", NodeValue.notSameValueAs(nv1, nv3));
     }
 
     @Test
     public void testSameValue6() {
         NodeValue nv1 = NodeValue.makeNodeInteger(17);
         NodeValue nv2 = NodeValue.makeDouble(34);
-        assertTrue("Same values (" + nv1 + "," + nv2 + ")", NodeValue.notSameAs(nv1, nv2));
-        assertFalse("Same values (" + nv1 + "," + nv2 + ")", NodeValue.sameAs(nv1, nv2));
+        assertTrue("Same values (" + nv1 + "," + nv2 + ")", NodeValue.notSameValueAs(nv1, nv2));
+        assertFalse("Same values (" + nv1 + "," + nv2 + ")", NodeValue.sameValueAs(nv1, nv2));
 
         NodeValue nv3 = NodeValue.makeDouble(17);
-        assertTrue("Different values (" + nv1 + "," + nv3 + ")", NodeValue.sameAs(nv1, nv3));
-        assertFalse("Different values - notNotSame (" + nv1 + "," + nv3 + ")", NodeValue.notSameAs(nv1, nv3));
+        assertTrue("Different values (" + nv1 + "," + nv3 + ")", NodeValue.sameValueAs(nv1, nv3));
+        assertFalse("Different values - notNotSame (" + nv1 + "," + nv3 + ")", NodeValue.notSameValueAs(nv1, nv3));
     }
 
     @Test
     public void testSameValue7() {
         NodeValue nv1 = NodeValue.makeBoolean(true);
         NodeValue nv2 = NodeValue.makeString("a");
-        assertTrue("Same values (" + nv1 + "," + nv2 + ")", NodeValue.notSameAs(nv1, nv2));
-        assertFalse("Same values (" + nv1 + "," + nv2 + ")", NodeValue.sameAs(nv1, nv2));
+        assertTrue("Same values (" + nv1 + "," + nv2 + ")", NodeValue.notSameValueAs(nv1, nv2));
+        assertFalse("Same values (" + nv1 + "," + nv2 + ")", NodeValue.sameValueAs(nv1, nv2));
 
         NodeValue nv3 = NodeValue.makeNodeBoolean(true);
-        assertTrue("Different values (" + nv1 + "," + nv3 + ")", NodeValue.sameAs(nv1, nv3));
-        assertFalse("Different values - notNotSame (" + nv1 + "," + nv3 + ")", NodeValue.notSameAs(nv1, nv3));
+        assertTrue("Different values (" + nv1 + "," + nv3 + ")", NodeValue.sameValueAs(nv1, nv3));
+        assertFalse("Different values - notNotSame (" + nv1 + "," + nv3 + ")", NodeValue.notSameValueAs(nv1, nv3));
+    }
+
+    @Test
+    public void testSameValueNaN_double_1() {
+        NodeValue nv1 = NodeValue.makeNode("NaN", XSDDatatype.XSDdouble);
+        NodeValue nv2 = NodeValue.makeNode("NaN", XSDDatatype.XSDdouble);
+        assertEquals(nv1, nv2);
+        assertFalse(NodeValue.sameValueAs(nv1, nv2));
+        assertTrue(NodeValue.notSameValueAs(nv1, nv2));
+    }
+
+    @Test
+    public void testSameValueNaN_float_1() {
+        NodeValue nv1 = NodeValue.makeNode("NaN", XSDDatatype.XSDfloat);
+        NodeValue nv2 = NodeValue.makeNode("NaN", XSDDatatype.XSDfloat);
+        assertEquals(nv1, nv2);
+        assertFalse(NodeValue.sameValueAs(nv1, nv2));
+        assertTrue(NodeValue.notSameValueAs(nv1, nv2));
+        // NaN is weird.
+        assertFalse(NodeValue.sameValueAs(nv1, nv1));
+        assertTrue(NodeValue.notSameValueAs(nv1, nv1));
+    }
+
+    @Test
+    public void testSameValueNaN_double_2() {
+        NodeValue nv1 = NodeValue.makeDouble(Double.NaN);
+        NodeValue nv2 = NodeValue.makeDouble(Double.NaN);
+        assertEquals(nv1, nv2);
+        assertFalse(NodeValue.sameValueAs(nv1, nv2));
+        assertTrue(NodeValue.notSameValueAs(nv1, nv2));
+
+        assertFalse(NodeValue.sameValueAs(nv1, nv1));
+        assertTrue(NodeValue.notSameValueAs(nv1, nv1));
+    }
+
+    @Test
+    public void testSameValueNaN_float_2() {
+        NodeValue nv1 = NodeValue.makeFloat(Float.NaN);
+        NodeValue nv2 = NodeValue.makeFloat(Float.NaN);
+        assertEquals(nv1, nv2);
+        assertFalse(NodeValue.sameValueAs(nv1, nv2));
+        assertTrue(NodeValue.notSameValueAs(nv1, nv2));
+
+        assertFalse(NodeValue.sameValueAs(nv1, nv1));
+        assertTrue(NodeValue.notSameValueAs(nv1, nv1));
     }
 
     @Test
     public void testLang1() {
-        Node n1 = org.apache.jena.graph.NodeFactory.createLiteral("xyz", "en");
+        Node n1 = org.apache.jena.graph.NodeFactory.createLiteralLang("xyz", "en");
         NodeValue nv1 = NodeValue.makeNode(n1);
-        Node n2 = org.apache.jena.graph.NodeFactory.createLiteral("xyz", "en");
+        Node n2 = org.apache.jena.graph.NodeFactory.createLiteralLang("xyz", "en");
         NodeValue nv2 = NodeValue.makeNode(n2);
-        assertTrue(NodeValue.sameAs(nv1, nv2));
+        assertTrue(NodeValue.sameValueAs(nv1, nv2));
     }
 
     @Test
     public void testLang2() {
-        Node n1 = org.apache.jena.graph.NodeFactory.createLiteral("xyz", "en");
+        Node n1 = org.apache.jena.graph.NodeFactory.createLiteralLang("xyz", "en");
         NodeValue nv1 = NodeValue.makeNode(n1);
-        Node n2 = org.apache.jena.graph.NodeFactory.createLiteral("xyz", "EN");
+        Node n2 = org.apache.jena.graph.NodeFactory.createLiteralLang("xyz", "EN");
         NodeValue nv2 = NodeValue.makeNode(n2);
-        assertTrue(NodeValue.sameAs(nv1, nv2));
-        assertFalse(nv1.equals(nv2));
+        assertTrue(NodeValue.sameValueAs(nv1, nv2));
+        // Jena5 - langtags are formatted on creation so node are unique upto case.
+        assertTrue(nv1.equals(nv2));
     }
 
     @Test
     public void testLang3() {
-        Node n1 = org.apache.jena.graph.NodeFactory.createLiteral("xyz", "en");
+        Node n1 = org.apache.jena.graph.NodeFactory.createLiteralLang("xyz", "en");
         NodeValue nv1 = NodeValue.makeNode(n1);
-        Node n2 = org.apache.jena.graph.NodeFactory.createLiteral("xyz", "en");
+        Node n2 = org.apache.jena.graph.NodeFactory.createLiteralLang("xyz", "en");
         NodeValue nv2 = NodeValue.makeNode(n2);
-        assertFalse(NodeValue.notSameAs(nv1, nv2));
+        assertFalse(NodeValue.notSameValueAs(nv1, nv2));
     }
 
     @Test
     public void testLang4() {
-        Node n1 = org.apache.jena.graph.NodeFactory.createLiteral("xyz", "en");
-        NodeValue nv1 = NodeValue.makeNode(n1);
-        Node n2 = org.apache.jena.graph.NodeFactory.createLiteral("xyz", "EN");
-        NodeValue nv2 = NodeValue.makeNode(n2);
-        assertFalse(NodeValue.notSameAs(nv1, nv2));
-        assertFalse(nv1.equals(nv2));
+        NodeValue nv1 = parse("'xyz'@en");
+        NodeValue nv2 = parse("'xyz'@EN");
+        assertFalse(NodeValue.notSameValueAs(nv1, nv2));
+        // Jena5 - langtags are formatted on creation so node are unique upto case.
+        assertTrue(nv1.equals(nv2));
     }
+
+    //Compare value first and then language tag
+    @Test
+    public void testLangCompareAlways1() {
+        // @de before @en => "'abc'@en" > "'bcd'@de" => +1
+        NodeValue nv1 = parse("'abc'@en");
+        NodeValue nv2 = parse("'bcd'@de");
+        assertEquals(Expr.CMP_GREATER, NodeCmp.compareRDFTerms(nv1.getNode(), nv2.getNode()));
+        assertEquals(Expr.CMP_GREATER, NodeValue.compareAlways(nv1, nv2));
+    }
+
+    //Language tag comparison ignore case first, then case sensitive
+    @Test
+    public void testLangCompareAlways2() {
+        // @FR before @it. => "'abc'@it" > "'abc'@FR" => +1
+        NodeValue nv1 = parse("'abc'@it");
+        NodeValue nv2 = parse("'abc'@FR");
+        assertEquals(Expr.CMP_GREATER, NodeCmp.compareRDFTerms(nv1.getNode(), nv2.getNode()));
+        assertEquals(Expr.CMP_GREATER, NodeValue.compareAlways(nv1, nv2));
+    }
+
+    public void testLangCompareAlways3() {
+        // @FR after @en. => "'abc'@en" < "'abc'@FR" => -1
+        NodeValue nv1 = parse("'abc'@en");
+        NodeValue nv2 = parse("'abc'@FR");
+        assertEquals(Expr.CMP_LESS, NodeCmp.compareRDFTerms(nv1.getNode(), nv2.getNode()));
+        assertEquals(Expr.CMP_LESS, NodeValue.compareAlways(nv1, nv2));
+    }
+
 
     @Test
     public void testEquals1() {
@@ -1147,7 +1227,7 @@ public class TestNodeValue
     @Test
     public void testNotEquals3() { // Literals and URIs are different.
         NodeValue nv1 = NodeValue.makeNode(org.apache.jena.graph.NodeFactory.createURI("http://example"));
-        NodeValue nv2 = NodeValue.makeNode(org.apache.jena.graph.NodeFactory.createLiteral("http://example"));
+        NodeValue nv2 = NodeValue.makeNode(org.apache.jena.graph.NodeFactory.createLiteralString("http://example"));
         assertFalse("NodeValue.equals()", nv1.equals(nv2));
     }
 
@@ -1174,12 +1254,13 @@ public class TestNodeValue
 
     @Test
     public void testTripleTerms3() {
+        // Jena 4.6.0 :: 'abc' < before 123
         Node n1 = SSE.parseNode("<<:s :p 123>>");
         Node n2 = SSE.parseNode("<<:s :p 'abc'>>");
         NodeValue nv1 = NodeValue.makeNode(n1);
         NodeValue nv2 = NodeValue.makeNode(n2);
         int x = NodeValue.compareAlways(nv1, nv2);
-        assertEquals(Expr.CMP_LESS, x);
+        assertEquals(Expr.CMP_GREATER, x);
     }
 
 }

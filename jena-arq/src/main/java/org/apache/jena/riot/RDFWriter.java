@@ -77,7 +77,7 @@ public class RDFWriter {
      * @param graph     A {@link Graph}.
      * @return RDFWriterBuilder
      */
-    public static RDFWriterBuilder create(Graph graph) {
+    public static RDFWriterBuilder source(Graph graph) {
         return create().source(graph);
     }
 
@@ -85,7 +85,7 @@ public class RDFWriter {
      * @param model     A {@link Model}.
      * @return RDFWriterBuilder
      */
-    public static RDFWriterBuilder create(Model model) {
+    public static RDFWriterBuilder source(Model model) {
         return create().source(model);
     }
 
@@ -93,7 +93,7 @@ public class RDFWriter {
      * @param dataset     A {@link DatasetGraph}.
      * @return RDFWriterBuilder
      */
-    public static RDFWriterBuilder create(DatasetGraph dataset) {
+    public static RDFWriterBuilder source(DatasetGraph dataset) {
         return create().source(dataset);
     }
 
@@ -101,7 +101,7 @@ public class RDFWriter {
      * @param dataset     A {@link Dataset}.
      * @return RDFWriterBuilder
      */
-    public static RDFWriterBuilder create(Dataset dataset) {
+    public static RDFWriterBuilder source(Dataset dataset) {
         return create().source(dataset);
     }
 
@@ -124,7 +124,8 @@ public class RDFWriter {
         return format;
     }
 
-    /** Write and return as a string.
+    /**
+     * Write and return the output as a string.
      * <p>
      * The {@code Lang} or {@code RDFFormat} must have been set.
      */
@@ -137,7 +138,18 @@ public class RDFWriter {
         } catch (IOException ex) { IO.exception(ex); return null; }
     }
 
-    /** Write the source to the {@code OutputStream}.
+    /**
+     * Write and return the output as a string.
+     * This is the same as {@link #asString()}.
+     * <p>
+     * The {@code Lang} or {@code RDFFormat} must have been set.
+     */
+    @Override
+    public String toString() {
+        return asString();
+    }
+
+        /** Write the source to the {@code OutputStream}.
      * <p>
      * The {@code Lang} or {@code RDFFormat} must have been set.
      * @param output
@@ -157,6 +169,14 @@ public class RDFWriter {
         output(javaWriter, format);
     }
 
+    /** Write the source to a Java {@link StringWriter}.
+     * <p>
+     * The {@code Lang} or {@code RDFFormat} must have been set.
+     * @param javaWriter
+     */
+    public void output(StringWriter javaWriter) {
+        output(javaWriter, format);
+    }
 
     /** Write the source to the file.
      * <p>

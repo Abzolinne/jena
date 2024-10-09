@@ -19,7 +19,6 @@
 package org.apache.jena.sparql.expr;
 
 import org.apache.jena.graph.Node ;
-import org.apache.jena.graph.Node_Triple;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.sparql.ARQInternalErrorException ;
 import org.apache.jena.sparql.algebra.optimize.ExprTransformConstantFold ;
@@ -203,17 +202,15 @@ public class ExprLib
     }
 
     private static ExprVisitor exprVisitorCheckForNonFunctions = new ExprVisitorBase() {
-        @Override
-        public void visit(ExprFunction0 func) {
-            if ( func instanceof E_Random ||
-                func instanceof E_UUID ||
-                func instanceof E_StrUUID)
-                throw new ExprUnstable() ;
-        }
-        @Override
-        public void visit(ExprFunctionN func) {
-            if (func instanceof E_BNode )
-                throw new ExprUnstable() ;
+        @Override public void visit(ExprFunction0 func) { check(func); }
+        @Override public void visit(ExprFunction1 func) { check(func); }
+        @Override public void visit(ExprFunction2 func) { check(func); }
+        @Override public void visit(ExprFunction3 func) { check(func); }
+        @Override public void visit(ExprFunctionN func) { check(func); }
+
+        private void check(ExprFunction exprFn) {
+            if ( exprFn instanceof Unstable )
+                throw new ExprUnstable();
         }
     } ;
 
@@ -228,10 +225,8 @@ public class ExprLib
     public static Expr nodeToExpr(Node n) {
         if ( n.isVariable() )
             return new ExprVar(n) ;
-        if ( n.isNodeTriple() ) {
-            Node_Triple tripleTerm = (Node_Triple)n;
-            return new ExprTripleTerm(tripleTerm);
-        }
+        if ( n.isNodeTriple() )
+            return new ExprTripleTerm(n);
         return NodeValue.makeNode(n) ;
     }
 
@@ -239,6 +234,6 @@ public class ExprLib
         Expr e1 = nodeToExpr(t.getSubject());
         Expr e2 = nodeToExpr(t.getPredicate());
         Expr e3 = nodeToExpr(t.getObject());
-        return new E_TripleTerm(e1, e2, e3);
+        return new E_TripleFn(e1, e2, e3);
     }
 }

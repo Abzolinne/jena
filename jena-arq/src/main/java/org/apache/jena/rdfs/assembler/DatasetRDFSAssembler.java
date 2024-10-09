@@ -19,33 +19,32 @@
 package org.apache.jena.rdfs.assembler;
 
 import static org.apache.jena.sparql.util.graph.GraphUtils.getAsStringValue;
-import static org.apache.jena.sparql.util.graph.GraphUtils.getResourceValue;
+
+import java.util.Map;
 
 import org.apache.jena.assembler.Assembler;
-import org.apache.jena.assembler.Mode;
-import org.apache.jena.assembler.assemblers.AssemblerBase;
 import org.apache.jena.assembler.exceptions.AssemblerException;
 import org.apache.jena.graph.Graph;
-import org.apache.jena.query.Dataset;
-import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdfs.DatasetGraphRDFS;
 import org.apache.jena.rdfs.RDFSFactory;
 import org.apache.jena.rdfs.SetupRDFS;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.sparql.core.DatasetGraph;
+import org.apache.jena.sparql.core.assembler.AssemblerUtils;
+import org.apache.jena.sparql.core.assembler.NamedDatasetAssembler;
 
-public class DatasetRDFSAssembler extends AssemblerBase implements Assembler {
+public class DatasetRDFSAssembler extends NamedDatasetAssembler {
 
     public static Resource getType() {
         return VocabRDFS.tDatasetRDFS;
     }
 
+    public DatasetRDFSAssembler() {}
+
     @Override
-    public Object open(Assembler a, Resource root, Mode mode) {
-        DatasetGraph dsg = createDataset(a, root, mode) ;
-        Dataset ds = DatasetFactory.wrap(dsg);
-        return ds ;
+    public Map<String, DatasetGraph> pool() {
+        return sharedDatasetPool;
     }
 
     /**
@@ -56,19 +55,20 @@ public class DatasetRDFSAssembler extends AssemblerBase implements Assembler {
      *      .
      *
      * &lt;#baseDS&gt; rdf:type ja:MemoryDataset ;
+     *     ja:name "TIM database"  # optional: this is need if the base database is accessed directly.
      *     ja:data "data1.trig";
      *     ## ja:data "data2.trig";
+     *
      *     .
      * </pre>
      */
 
-    public DatasetGraph createDataset(Assembler a, Resource root, Mode mode) {
+    @Override
+    public DatasetGraph createDataset(Assembler a, Resource root) {
 
-        Resource dataset = getResourceValue(root, VocabRDFS.pDataset) ;
-        if ( dataset == null )
+        DatasetGraph base = super.createBaseDataset(root, VocabRDFS.pDataset);
+        if ( base == null )
             throw new AssemblerException(root, "Required base dataset missing: "+VocabRDFS.pDataset) ;
-
-        Dataset base = (Dataset)Assembler.general.open(dataset);
 
         String schemaFile = getAsStringValue(root, VocabRDFS.pRdfsSchemaFile);
         if ( schemaFile == null )
@@ -76,7 +76,8 @@ public class DatasetRDFSAssembler extends AssemblerBase implements Assembler {
 
         Graph schema = RDFDataMgr.loadGraph(schemaFile);
         SetupRDFS setup = RDFSFactory.setupRDFS(schema);
-        DatasetGraph dsg = new DatasetGraphRDFS(base.asDatasetGraph(), setup);
+        DatasetGraph dsg = new DatasetGraphRDFS(base, setup);
+        AssemblerUtils.mergeContext(root, dsg.getContext());
         return dsg;
     }
 }

@@ -20,15 +20,14 @@
   <modelVersion>4.0.0</modelVersion>
   <artifactId>jena-arq</artifactId>
   <packaging>jar</packaging>
-  <name>Apache Jena - ARQ (SPARQL 1.1 Query Engine)</name>
+  <name>Apache Jena - ARQ</name>
   <parent>
     <groupId>org.apache.jena</groupId>
     <artifactId>jena</artifactId>
-    <version>4.4.0-SNAPSHOT</version>
-    <relativePath>..</relativePath>
+    <version>5.2.0-SNAPSHOT</version>
   </parent>
 
-  <description>ARQ is a SPARQL 1.1 query engine for Apache Jena</description>
+  <description>SPARQL 1.1 query engine and RDF parsers for Apache Jena</description>
 
   <properties>
     <build.time.xsd>${maven.build.timestamp}</build.time.xsd>
@@ -40,14 +39,14 @@
     <dependency>
       <groupId>org.apache.jena</groupId>
       <artifactId>jena-core</artifactId>
-      <version>4.4.0-SNAPSHOT</version>
+      <version>5.2.0-SNAPSHOT</version>
     </dependency>
 
     <dependency>
       <groupId>org.apache.jena</groupId>
       <artifactId>jena-core</artifactId>
       <classifier>tests</classifier>
-      <version>4.4.0-SNAPSHOT</version>
+      <version>5.2.0-SNAPSHOT</version>
       <scope>test</scope>
     </dependency>
 
@@ -55,18 +54,18 @@
       <groupId>org.apache.jena</groupId>
       <artifactId>jena-base</artifactId>
       <classifier>tests</classifier>
-      <version>4.4.0-SNAPSHOT</version>
+      <version>5.2.0-SNAPSHOT</version>
       <scope>test</scope>
     </dependency>
 
     <dependency>
-      <groupId>org.apache.httpcomponents</groupId>
-      <artifactId>httpclient</artifactId>
-    </dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+    </dependency>    
 
     <dependency>
-      <groupId>com.github.jsonld-java</groupId>
-      <artifactId>jsonld-java</artifactId>
+      <groupId>org.slf4j</groupId>
+      <artifactId>jcl-over-slf4j</artifactId>
     </dependency>
 
 	<dependency>
@@ -95,22 +94,6 @@
     </dependency>
     <!-- End Titanium JSON-LD 1.1 -->
     
-    <!-- See parent POM. Our choice of version here. -->
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-core</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId>
-    </dependency>
-
-    <!-- replace that used via jsonld-java -->
-    <dependency>
-      <groupId>org.apache.httpcomponents</groupId>
-      <artifactId>httpclient-cache</artifactId>
-    </dependency>
-
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
@@ -120,15 +103,6 @@
       <groupId>org.apache.thrift</groupId>
       <artifactId>libthrift</artifactId>
 	</dependency>
-
-    <!--
-         Intercept any uses of Jakarta Commons Logging
-         e.g. Apache Common HTTP client.
-    -->
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>jcl-over-slf4j</artifactId>
-    </dependency>
 
     <dependency>
       <groupId>org.apache.commons</groupId>
@@ -148,14 +122,20 @@
     </dependency>
 
     <dependency>
-      <groupId>org.python</groupId>
-      <artifactId>jython-standalone</artifactId>
+      <groupId>org.junit.vintage</groupId>
+      <artifactId>junit-vintage-engine</artifactId>
       <scope>test</scope>
     </dependency>
 
     <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-params</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.platform</groupId>
+      <artifactId>junit-platform-suite-engine</artifactId>
       <scope>test</scope>
     </dependency>
 
@@ -167,29 +147,13 @@
 
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
-      <artifactId>log4j-slf4j-impl</artifactId>
+      <artifactId>log4j-slf4j2-impl</artifactId>
       <scope>test</scope>
     </dependency>
 
   </dependencies>
 
   <build>
-    <resources>
-      <resource>
-        <filtering>true</filtering>
-        <directory>src/main/resources</directory>
-        <includes>
-          <include>org/apache/jena/arq/arq-properties.xml</include>
-        </includes>
-      </resource>
-      <resource>
-        <filtering>false</filtering>
-        <directory>src/main/resources</directory>
-        <excludes>
-          <exclude>org/apache/jena/arq/arq-properties.xml</exclude>
-        </excludes>
-      </resource>
-    </resources>
 
     <plugins>
 
@@ -198,6 +162,11 @@
         <artifactId>maven-compiler-plugin</artifactId>
       </plugin>
 
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-resources-plugin</artifactId>
+      </plugin>
+      
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
@@ -217,36 +186,7 @@
 
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-source-plugin</artifactId>
-
-        <executions>
-          <execution>
-            <id>attach-sources</id>
-            <!-- <phase>package</phase> package is the default -->
-            <goals>
-              <goal>jar-no-fork</goal>
-            </goals>
-          </execution>
-          <execution>
-            <id>attach-sources-test</id>
-            <goals>
-              <goal>test-jar-no-fork</goal>
-            </goals>
-          </execution>
-        </executions>
-
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
-        <configuration>
-          <archive>
-            <manifestEntries>
-              <Automatic-Module-Name>${automatic.module.name}</Automatic-Module-Name>
-            </manifestEntries>
-          </archive>
-        </configuration>
         <executions>
           <execution>
             <goals>
@@ -258,15 +198,23 @@
 
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-source-plugin</artifactId>
+        <executions> 
+          <execution>
+            <id>attach-sources-test</id> 
+            <goals>
+              <goal>test-jar-no-fork</goal> 
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-javadoc-plugin</artifactId>
         <configuration>
-          <version>true</version>
-          <show>public</show>
-          <quiet>true</quiet>
-          <encoding>UTF-8</encoding>
           <windowtitle>Apache Jena ARQ</windowtitle>
-          <doctitle>Apache Jena ARQ ${project.version}</doctitle>
-          <excludePackageNames>arq:arq.*:riotcmd:riotcmd.*</excludePackageNames>
+          <doctitle>Apache Jena - ARQ ${project.version}</doctitle>
           <groups>
             <group>
               <title>SPARQL Query and Update</title>
@@ -277,14 +225,9 @@
               <packages>org.apache.jena.riot</packages>
             </group>
           </groups>
-          <bottom>Licenced under the Apache License, Version 2.0</bottom>
         </configuration>
       </plugin>
     </plugins>
   </build>
-
-  <reporting>
-    <!-- <outputDirectory>${project.build.directory}/site</outputDirectory> -->
-  </reporting>
 
 </project>

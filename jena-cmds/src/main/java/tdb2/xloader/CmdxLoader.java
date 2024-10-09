@@ -18,10 +18,17 @@
 
 package tdb2.xloader;
 
-import org.apache.jena.atlas.lib.FileOps;
-import org.apache.jena.tdb.store.bulkloader.BulkLoader;
-import org.apache.jena.tdb2.xloader.BulkLoaderX;
+import java.io.IOException;
+import java.io.InputStream;
 
+import org.apache.jena.atlas.io.IO;
+import org.apache.jena.atlas.io.IOX;
+import org.apache.jena.atlas.lib.FileOps;
+import org.apache.jena.sparql.core.DatasetGraph;
+import org.apache.jena.tdb1.store.bulkloader.BulkLoader;
+import org.apache.jena.tdb2.DatabaseMgr;
+import org.apache.jena.tdb2.sys.TDBInternal;
+import org.apache.jena.tdb2.xloader.BulkLoaderX;
 
 /**
  * A version of xloader/TDB2 that runs in a single JVM.
@@ -36,71 +43,102 @@ import org.apache.jena.tdb2.xloader.BulkLoaderX;
  */
 public class CmdxLoader extends AbstractCmdxLoad {
 
-       public static void main(String... args) {
-           new CmdxLoader("AIO", args).mainRun();
-       }
+    public static void main(String... args) {
+        new CmdxLoader("AIO", args).mainRun();
+    }
 
-       protected CmdxLoader(String stageName, String[] argv) {
-           super(stageName, argv);
-       }
+    protected CmdxLoader(String stageName, String[] argv) {
+        super(stageName, argv);
+    }
 
-       @Override
-       protected void setCmdArgs() {
-           super.add(argLocation,  "--loc=", "Database location");
-           super.add(argTmpdir,    "--tmpdir=", "Temporary directory (defaults to --loc)");
-       }
+    @Override
+    protected void setCmdArgs() {
+        super.add(argLocation,      "--loc=", "Database location");
+        super.add(argTmpdir,        "--tmpdir=", "Temporary directory (defaults to --loc)");
+        super.add(argSortThreads,   "--threads=", "Number of threads; passed as an argument to sort(1)");
+    }
 
-       @Override
-       protected String getSummary() {
-           return getCommandName()+" "+getArgsSummary();
-       }
+    @Override
+    protected String getSummary() {
+        return getCommandName()+" "+getArgsSummary();
+    }
 
-       @Override
-       protected void subCheckArgs() {}
+    @Override
+    protected void subCheckArgs() {}
 
-       @Override
-       protected String getCommandName() {
-           return "cmd-xloader";
-       }
+    @Override
+    protected String getCommandName() {
+        return "cmd-xloader";
+    }
 
-       @Override
-       protected void exec() {
-           // Java code to do all the steps.
-           String TMPDIR = super.tmpdir;
-           String DIR = super.location;
-           String datafile = super.filenames.get(0);
+    private String TMPDIR;
+    private String DIR;
+    private String datafile;
 
-           FileOps.ensureDir(TMPDIR);
-           FileOps.clearAll(TMPDIR);
+    @Override
+    protected void exec() {
+        TMPDIR = super.tmpdir;
+        DIR = super.location;
+        datafile = super.filenames.get(0);
 
-           if ( !TMPDIR.equals(DIR) ) {
-               FileOps.ensureDir(DIR);
-               FileOps.clearAll(DIR);
-           }
+        FileOps.ensureDir(TMPDIR);
+        FileOps.clearAll(TMPDIR);
 
-           BulkLoaderX.DataTick = 100_000;
-           BulkLoader.DataTickPoint = BulkLoaderX.DataTick;
+        if ( !TMPDIR.equals(DIR) ) {
+            FileOps.ensureDir(DIR);
+            FileOps.clearAll(DIR);
+        }
 
-           long maxMemory = Runtime.getRuntime().maxMemory();
-           System.out.printf("RAM = %,d\n", maxMemory);
+        BulkLoaderX.DataTick = 100_000;
+        BulkLoader.DataTickPoint = BulkLoaderX.DataTick;
 
-           System.out.println("STEP 1 - load node table");
-           CmdxBuildNodeTable.main("--loc=" + DIR, datafile);
+        long maxMemory = Runtime.getRuntime().maxMemory();
+        // Java code to do all the steps.
+        System.out.printf("RAM = %,d\n", maxMemory);
 
-           System.out.println("STEP 2 - ingest triples and quads");
-           CmdxIngestData.main("--loc=" + DIR, datafile);
+        System.out.println("STEP 1 - load node table");
+        step(() -> CmdxBuildNodeTable.main("--loc=" + DIR, "--threads=" + super.sortThreads, datafile));
 
-           System.out.println("STEP 3 - build indexes");
-           CmdxBuildIndex.main("--loc=" + DIR, "--index=SPO");
-           CmdxBuildIndex.main("--loc=" + DIR, "--index=POS");
-           CmdxBuildIndex.main("--loc=" + DIR, "--index=OSP");
+        System.out.println("STEP 2 - ingest triples and quads");
+        step(() -> CmdxIngestData.main("--loc=" + DIR, datafile));
 
-           CmdxBuildIndex.main("--loc=" + DIR, "--index=GSPO");
-           CmdxBuildIndex.main("--loc=" + DIR, "--index=GPOS");
-           CmdxBuildIndex.main("--loc=" + DIR, "--index=GOSP");
+        System.out.println("STEP 3 - build indexes");
 
-           CmdxBuildIndex.main("--loc=" + DIR, "--index=SPOG");
-           CmdxBuildIndex.main("--loc=" + DIR, "--index=POSG");
-           CmdxBuildIndex.main("--loc=" + DIR, "--index=OSPG");
-       }
-   }
+        if ( !isEmptyFile(loaderFiles.triplesFile) ) {
+            step(() -> CmdxBuildIndex.main("--loc=" + DIR, "--threads=" + super.sortThreads, "--index=SPO"));
+            step(() -> CmdxBuildIndex.main("--loc=" + DIR, "--threads=" + super.sortThreads, "--index=POS"));
+            step(() -> CmdxBuildIndex.main("--loc=" + DIR, "--threads=" + super.sortThreads, "--index=OSP"));
+        }
+
+        if ( !isEmptyFile(loaderFiles.quadsFile) ) {
+            step(() -> CmdxBuildIndex.main("--loc=" + DIR, "--threads=" + super.sortThreads, "--index=GSPO"));
+            step(() -> CmdxBuildIndex.main("--loc=" + DIR, "--threads=" + super.sortThreads, "--index=GPOS"));
+            step(() -> CmdxBuildIndex.main("--loc=" + DIR, "--threads=" + super.sortThreads, "--index=GOSP"));
+
+            step(() -> CmdxBuildIndex.main("--loc=" + DIR, "--threads=" + super.sortThreads, "--index=SPOG"));
+            step(() -> CmdxBuildIndex.main("--loc=" + DIR, "--threads=" + super.sortThreads, "--index=POSG"));
+            step(() -> CmdxBuildIndex.main("--loc=" + DIR, "--threads=" + super.sortThreads, "--index=OSPG"));
+        }
+        expel();
+    }
+
+    // Compression - empty file != zero size
+    private boolean isEmptyFile(String filename) {
+        try (InputStream in = IO.openFile(filename)) {
+            int b = in.read();
+            return (b == -1);
+        } catch (IOException ex) {
+            throw IOX.exception(ex);
+        }
+    }
+
+    private void step(Runnable action) {
+        // expel();
+        action.run();
+    }
+
+    private void expel() {
+        DatasetGraph dsg = DatabaseMgr.connectDatasetGraph(DIR);
+        TDBInternal.expel(dsg);
+    }
+}

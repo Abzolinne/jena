@@ -70,7 +70,7 @@ class QuadIteratorBuilder implements ElementVisitor {
 
     /**
      * Constructor.
-     * 
+     *
      * @param defaultGraph the default graph name.
      */
     QuadIteratorBuilder(Node defaultGraph) {
@@ -110,6 +110,12 @@ class QuadIteratorBuilder implements ElementVisitor {
     }
 
     @Override
+    public void visit(ElementUnfold el) {
+        throw new QueryParseException("unfold not permitted in data quad", -1, -1);
+
+    }
+
+    @Override
     public void visit(ElementData el) {
         throw new QueryParseException("element data not permitted in data quad", -1, -1);
     }
@@ -119,6 +125,11 @@ class QuadIteratorBuilder implements ElementVisitor {
         for (final Element e : el.getElements()) {
             e.visit(this);
         }
+    }
+
+    @Override
+    public void visit(ElementLateral el) {
+        throw new QueryParseException("lateral not permitted in data quad", -1, -1);
     }
 
     @Override
@@ -174,6 +185,8 @@ class QuadIteratorBuilder implements ElementVisitor {
 	@Override
 	public void visit(ElementSimJoin el) {
 		throw new QueryParseException("optional not permitted in data quad", -1, -1);
-	}
+
+    }
 
 }
+

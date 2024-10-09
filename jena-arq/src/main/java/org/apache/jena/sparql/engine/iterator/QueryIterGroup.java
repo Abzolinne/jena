@@ -23,11 +23,11 @@ import java.util.Collection ;
 import java.util.Iterator ;
 import java.util.List ;
 
+import org.apache.commons.collections4.MultiMapUtils;
+import org.apache.commons.collections4.MultiValuedMap;
 import org.apache.jena.atlas.iterator.Iter ;
 import org.apache.jena.atlas.iterator.IteratorDelayedInitialization ;
 import org.apache.jena.atlas.lib.Pair ;
-import org.apache.jena.ext.com.google.common.collect.Multimap;
-import org.apache.jena.ext.com.google.common.collect.MultimapBuilder;
 import org.apache.jena.graph.Node ;
 import org.apache.jena.sparql.core.Var ;
 import org.apache.jena.sparql.core.VarExprList ;
@@ -90,7 +90,7 @@ public class QueryIterGroup extends QueryIterPlainWrapper
                         return Iter.nullIterator() ;
                     if ( ! hasAggregators ) {
                         // No GROUP BY, no aggregators. One result row of no columns.
-                        return Iter.singleton(BindingFactory.binding());
+                        return Iter.singletonIterator(BindingFactory.binding());
                     }
                     // No GROUP BY, has aggregators. Insert default values.
                     BindingBuilder builder = Binding.builder();
@@ -101,12 +101,12 @@ public class QueryIterGroup extends QueryIterPlainWrapper
                         Var v = agg.getVar();
                         builder.add(v, value);
                     }
-                    return Iter.singleton(builder.build());
+                    return Iter.singletonIterator(builder.build());
                 }
 
                 // Case: there is input.
                 // Phase 1 : Create keys and aggregators per key, and pump bindings through the aggregators.
-                Multimap<Binding, Pair<Var, Accumulator>> accumulators = MultimapBuilder.hashKeys().arrayListValues().build();
+                MultiValuedMap<Binding, Pair<Var, Accumulator>> accumulators = MultiMapUtils.newListValuedHashMap();
                 while (iter.hasNext()) {
                     Binding b = iter.nextBinding();
                     Binding key = genKey(groupVarExpr, b, execCxt);

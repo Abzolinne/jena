@@ -34,6 +34,8 @@ import org.apache.jena.shacl.engine.ValidationContext;
 import org.apache.jena.shacl.parser.Constraint;
 import org.apache.jena.shacl.parser.ConstraintVisitor;
 import org.apache.jena.shacl.parser.Shape;
+import org.apache.jena.shacl.validation.event.ConstraintEvaluatedOnPathNodesEvent;
+import org.apache.jena.shacl.validation.event.ConstraintEvaluatedOnSinglePathNodeEvent;
 import org.apache.jena.shacl.vocabulary.SHACL;
 import org.apache.jena.sparql.path.Path;
 
@@ -65,18 +67,25 @@ public class UniqueLangConstraint implements Constraint {
             return;
         Set<String> results = new HashSet<>();
         Set<String> seen = new HashSet<>();
+        boolean passed = true;
         for ( Node obj : pathNodes) {
             if ( Util.isLangString(obj) ) {
                 String tag = obj.getLiteralLanguage().toLowerCase();
                 // Valid?
                 //LangTag.check(tag);
                 if ( seen.contains(tag) && ! results.contains(tag)) {
+                    passed = false;
                     String msg = toString()+" Duplicate langtag: "+obj.getLiteralLanguage();
+                    vCxt.notifyValidationListener(() -> new ConstraintEvaluatedOnSinglePathNodeEvent(vCxt, shape,  focusNode, this, path, obj,
+                                    false));
                     vCxt.reportEntry(msg, shape, focusNode, path, null, this);
                     results.add(tag);
                 }
                 seen.add(tag);
             }
+        }
+        if (passed){
+            vCxt.notifyValidationListener(() -> new ConstraintEvaluatedOnPathNodesEvent(vCxt, shape,  focusNode, this, path, pathNodes,true));
         }
     }
 
@@ -111,9 +120,8 @@ public class UniqueLangConstraint implements Constraint {
             return true;
         if ( obj == null )
             return false;
-        if ( !(obj instanceof UniqueLangConstraint) )
+        if ( !(obj instanceof UniqueLangConstraint other) )
             return false;
-        UniqueLangConstraint other = (UniqueLangConstraint)obj;
         return Objects.equals(flag, other.flag);
     }
 }

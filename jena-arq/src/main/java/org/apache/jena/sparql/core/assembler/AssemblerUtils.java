@@ -22,6 +22,8 @@ import org.apache.jena.assembler.Assembler ;
 import org.apache.jena.assembler.ConstAssembler ;
 import org.apache.jena.assembler.JA ;
 import org.apache.jena.assembler.assemblers.AssemblerGroup ;
+import org.apache.jena.graph.Node;
+import org.apache.jena.graph.NodeFactory;
 import org.apache.jena.query.* ;
 import org.apache.jena.rdf.model.Model ;
 import org.apache.jena.rdf.model.ModelFactory ;
@@ -30,12 +32,14 @@ import org.apache.jena.rdf.model.ResourceFactory ;
 import org.apache.jena.riot.RDFDataMgr ;
 import org.apache.jena.shared.PrefixMapping ;
 import org.apache.jena.sparql.ARQException ;
+import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.util.Context ;
 import org.apache.jena.sparql.util.MappingRegistry ;
 import org.apache.jena.sparql.util.Symbol ;
 import org.apache.jena.sparql.util.TypeNotUniqueException ;
 import org.apache.jena.sparql.util.graph.GraphUtils ;
 import org.apache.jena.sys.JenaSystem ;
+import org.apache.jena.system.Txn;
 import org.apache.jena.vocabulary.RDFS ;
 import static org.apache.jena.sparql.core.assembler.DatasetAssemblerVocab.*;
 
@@ -59,21 +63,25 @@ public class AssemblerUtils
         if ( initialized )
             return ;
         initialized = true ;
-        registerDataset(tDataset,         new DatasetAssembler());
+        registerDataset(tDataset,         new DatasetAssemblerGeneral());
         registerDataset(tDatasetOne,      new DatasetOneAssembler());
         registerDataset(tDatasetZero,     new DatasetNullAssembler(tDatasetZero));
         registerDataset(tDatasetSink,     new DatasetNullAssembler(tDatasetSink));
         registerDataset(tMemoryDataset,   new InMemDatasetAssembler());
         registerDataset(tDatasetTxnMem,   new InMemDatasetAssembler());
+        registerDataset(tDatasetView,     new ViewDatasetAssembler());
 
         registerModel(tViewGraph,          new ViewGraphAssembler());
     }
 
     private static Model modelExtras = ModelFactory.createDefaultModel() ;
 
+    // Legacy. Supports assemblers using a general "rdf:type ja:dataset"
+    private static Resource datasetAssemblerType = DatasetAssemblerVocab.tDataset ;
+
     /** Register an assembler that creates a dataset */
     static public void registerDataset(Resource r, Assembler a) {
-        register(ConstAssembler.general(), r, a, DatasetAssembler.getType()) ;
+       register(ConstAssembler.general(), r, a, datasetAssemblerType) ;
     }
 
     /** Register an assembler that creates a dataset */
@@ -163,6 +171,36 @@ public class AssemblerUtils
         return context;
     }
 
+    /**
+     * Process {@code ja:data}.
+     * <p>
+     * The object value refers to a file, either by string name or a {@code file:}
+     * URI. If it is a string, a relative filename will be relative to the JVM
+     * current directory. If it is a {@code file:} URI, a relative filename will be
+     * relative to the assembler file and it's base URI.
+     */
+    public static void loadData(DatasetGraph dataset, Resource root) {
+      Txn.executeWrite(dataset, ()->{
+          // Load data into the default graph
+          // This also loads quads into the dataset.
+          GraphUtils.multiValueAsFilename(root, JA.data)
+              .forEach(filename -> RDFDataMgr.read(dataset, filename));
+
+          // load data into named graphs
+          GraphUtils.multiValueResource(root, DatasetAssemblerVocab.pNamedGraph).forEach(namedGraphResource -> {
+              final String graphName = GraphUtils.getAsStringValue(namedGraphResource, DatasetAssemblerVocab.pGraphName);
+              if (namedGraphResource.hasProperty(JA.data)) {
+                  GraphUtils.multiValueAsFilename(namedGraphResource, JA.data)
+                      .forEach(filename -> {
+                          Node gn = NodeFactory.createURI(graphName);
+                          RDFDataMgr.read(dataset.getGraph(gn), filename);
+                      });
+              }
+          });
+      });
+    }
+
+
     /** Look for and merge in context declarations.
      * e.g.
      * <pre>
@@ -177,7 +215,7 @@ public class AssemblerUtils
         String qs = "PREFIX ja: <"+JA.getURI()+">\nSELECT * { ?x ja:context [ ja:cxtName ?name ; ja:cxtValue ?value ] }" ;
         QuerySolutionMap qsm = new QuerySolutionMap() ;
         qsm.add("x", r) ;
-        QueryExecution qExec = QueryExecutionFactory.create(qs, r.getModel(), qsm) ;
+        QueryExecution qExec = QueryExecution.model(r.getModel()).query(qs).substitution(qsm).build();
         ResultSet rs = qExec.execSelect() ;
         while ( rs.hasNext() )
         {

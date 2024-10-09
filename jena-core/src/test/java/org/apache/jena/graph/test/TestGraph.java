@@ -23,57 +23,73 @@ package org.apache.jena.graph.test;
     and reifier test suites.
 */
 
-import junit.framework.Test ;
-import junit.framework.TestSuite ;
-import org.apache.jena.graph.Factory ;
-import org.apache.jena.graph.Graph ;
-import org.apache.jena.graph.impl.WrappedGraph ;
-import org.apache.jena.mem.GraphMem ;
+import junit.framework.Test;
+import junit.framework.TestSuite;
+import org.apache.jena.graph.Graph;
+import org.apache.jena.graph.GraphMemFactory;
+import org.apache.jena.graph.impl.WrappedGraph;
+import org.apache.jena.mem.GraphMem;
+import org.apache.jena.mem2.GraphMem2Fast;
+import org.apache.jena.mem2.GraphMem2Legacy;
+import org.apache.jena.mem2.GraphMem2Roaring;
 
+@SuppressWarnings("deprecation")
 public class TestGraph extends GraphTestBase
-    { 
+    {
 	public TestGraph( String name )
 		{ super( name ); }
-        
+
     /**
         Answer a test suite that runs the Graph tests on GraphMem and on
         WrappedGraphMem, the latter standing in for testing WrappedGraph.
      */
     public static TestSuite suite()
-        { 
-        TestSuite result = new TestSuite( TestGraph.class );
-        result.addTest( suite( MetaTestGraph.class, GraphMem.class ) );
-        result.addTest( suite( TestReifier.class, GraphMem.class ) );
-        result.addTest( suite( MetaTestGraph.class, WrappedGraphMem.class ) );
-        result.addTest( suite( TestReifier.class, WrappedGraphMem.class ) );
-        result.addTest( TestGraphListener.suite() );
-        result.addTestSuite( TestRegisterGraphListener.class );
+        {
+        TestSuite result = new TestSuite(TestGraph.class);
+
+        result.addTest(suite(MetaTestGraph.class, GraphMem.class));
+        result.addTest(suite(TestReifier.class, GraphMem.class));
+
+        result.addTest(suite(MetaTestGraph.class, WrappedGraphMem.class));
+        result.addTest(suite(TestReifier.class, WrappedGraphMem.class));
+
+        result.addTest(suite(MetaTestGraph.class, GraphMem2Fast.class));
+        result.addTest(suite(TestReifier.class, GraphMem2Fast.class));
+
+        result.addTest(suite(MetaTestGraph.class, GraphMem2Legacy.class));
+        result.addTest(suite(TestReifier.class, GraphMem2Legacy.class));
+
+        result.addTest(suite(MetaTestGraph.class, GraphMem2Roaring.class));
+        result.addTest(suite(TestReifier.class, GraphMem2Roaring.class));
+
+        result.addTest(TestGraphListener.suite());
+        result.addTestSuite(TestRegisterGraphListener.class);
         return result;
         }
-        
+
     public static TestSuite suite( Class<? extends Test> classWithTests, Class<? extends Graph> graphClass )
         { return MetaTestGraph.suite( classWithTests, graphClass ); }
-        
+
     /**
         Trivial [incomplete] test that a Wrapped graph pokes through to the underlying
-        graph. Really want something using mock classes. Will think about it. 
+        graph. Really want something using mock classes. Will think about it.
     */
     public void testWrappedSame()
         {
-        Graph m = Factory.createGraphMem();
+        Graph m = GraphMemFactory.createGraphMem();
         Graph w = new WrappedGraph( m );
         graphAdd( m, "a trumps b; c eats d" );
         assertIsomorphic( m, w );
         graphAdd( w, "i write this; you read that" );
         assertIsomorphic( w, m );
-        }        
-        
+        }
+
     /**
-        Class to provide a constructor that produces a wrapper round a GraphMem.    
+        Class to provide a constructor that produces a wrapper round a GraphMem.
     */
     public static class WrappedGraphMem extends WrappedGraph
         {
-        public WrappedGraphMem( ) 
-            { super( Factory.createGraphMem( ) ); }  
-        }    
+        public WrappedGraphMem( )
+            { super( GraphMemFactory.createGraphMem( ) ); }
+        }
     }

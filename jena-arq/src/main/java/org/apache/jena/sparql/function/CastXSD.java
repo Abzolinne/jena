@@ -40,6 +40,7 @@ import org.apache.jena.sparql.expr.ExprEvalTypeException;
 import org.apache.jena.sparql.expr.ExprException;
 import org.apache.jena.sparql.expr.NodeValue;
 import org.apache.jena.sparql.expr.nodevalue.XSDFuncOp;
+import org.apache.jena.sparql.util.XSDNumUtils;
 
 /**
  * Code for all casting between XSD datatypes.
@@ -61,7 +62,7 @@ public class CastXSD {
     public static NodeValue cast(NodeValue nv, XSDDatatype castType) {
         // https://www.w3.org/TR/xpath-functions/#casting
         /*
-            Casting
+          19 Casting
             19.1 Casting from primitive types to primitive types
                 19.1.1 Casting to xs:string and xs:untypedAtomic
                 19.1.2 Casting to numeric types
@@ -153,6 +154,7 @@ public class CastXSD {
     }
 
     private static NodeValue castToNumber(NodeValue nv, XSDDatatype castType) {
+        // xsd:integer is considered to be primitive datatypes.
         if ( castType.equals(XSDDatatype.XSDdecimal) ) {
             // Number to decimal.
             if ( isDouble(nv) || isFloat(nv) ) {
@@ -196,7 +198,12 @@ public class CastXSD {
                 throw exception(nv, castType);
             } else if ( nv.isBoolean() ) {
                 boolean b = nv.getBoolean();
-                return b ? NodeValue.nvONE : NodeValue.nvZERO;
+                // And cast to specific type.
+                if ( castType.equals(XSDDatatype.XSDinteger))
+                    return b ? NodeValue.nvONE : NodeValue.nvZERO;
+                // 19.3.4 Casting across the type hierarchy
+                // Step 3 : Cast the value down to the TT
+                return cast$( ( b ? "1" : "0" ) , castType);
             } else {
                 // Integer derived type -> integer derived type.
                 return castByLex(nv, castType);
@@ -214,6 +221,8 @@ public class CastXSD {
 
     private static NodeValue castToDuration(NodeValue nv, XSDDatatype castType) {
         // Duration cast.
+        //   19.3.1 Casting to derived types
+        //   xsd:dayTimeDuration and xsd:yearMonthDuration are considered to be primitive datatypes
         // yearMonthDuration and TT is xs:dayTimeDuration -> 0.0S
         // xs:dayTimeDuration and TT is yearMonthDuration -> P0M
 
@@ -264,7 +273,7 @@ public class CastXSD {
         if ( nv.isBoolean() )
             return nv;
         if ( nv.isNumber() ) {
-            if ( NodeValue.sameAs(nv, nvZERO) || NodeValue.sameAs(nv, nvNaN) || NodeValue.sameAs(nv, nvNegZERO) )
+            if ( NodeValue.sameValueAs(nv, nvZERO) || NodeValue.sameValueAs(nv, nvNaN) || NodeValue.sameValueAs(nv, nvNegZERO) )
                 return NodeValue.FALSE;
             return NodeValue.TRUE;
         }
@@ -288,7 +297,7 @@ public class CastXSD {
         // https://www.w3.org/TR/xpath-functions/#casting-to-string
         if ( isDecimal(nv) ) {
             BigDecimal bd = nv.getDecimal();
-            String str = XSDFuncOp.canonicalDecimalStrNoIntegerDot(bd);
+            String str = XSDNumUtils.canonicalDecimalStrNoIntegerDot(bd);
             return NodeValue.makeString(str);
         }
 
@@ -318,7 +327,7 @@ public class CastXSD {
             if ( inSmallAboluteRange(dValue)) {
                 // Convert to decimal
                 BigDecimal bd = BigDecimal.valueOf(dValue);
-                return NodeValue.makeString(XSDFuncOp.canonicalDecimalStrNoIntegerDot(bd));
+                return NodeValue.makeString(XSDNumUtils.canonicalDecimalStrNoIntegerDot(bd));
             }
             // Canonical lexical.
             return castByLex(nv, castType);

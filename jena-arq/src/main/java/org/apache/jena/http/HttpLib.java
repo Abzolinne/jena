@@ -24,6 +24,7 @@ import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.http.HttpClient;
+import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublisher;
 import java.net.http.HttpRequest.BodyPublishers;
@@ -45,6 +46,7 @@ import java.util.zip.InflaterInputStream;
 import org.apache.jena.atlas.RuntimeIOException;
 import org.apache.jena.atlas.io.IO;
 import org.apache.jena.atlas.lib.IRILib;
+import org.apache.jena.atlas.logging.FmtLog;
 import org.apache.jena.atlas.web.HttpException;
 import org.apache.jena.atlas.web.TypedInputStream;
 import org.apache.jena.http.auth.AuthEnv;
@@ -56,6 +58,8 @@ import org.apache.jena.riot.web.HttpNames;
 import org.apache.jena.sparql.exec.http.Params;
 import org.apache.jena.sparql.util.Context;
 import org.apache.jena.web.HttpSC;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Operations related to SPARQL HTTP requests - Query, Update and Graph Store protocols.
@@ -63,7 +67,12 @@ import org.apache.jena.web.HttpSC;
  */
 public class HttpLib {
 
+    // JDK HTTP debug:
+    // -Djdk.httpclient.HttpClient.log=errors,requests,headers,frames[:control:data:window:all..],content,ssl,trace,channel
+
     private HttpLib() {}
+
+    private static Logger LOG = LoggerFactory.getLogger(HttpLib.class.getPackageName()+".HTTP");
 
     public static BodyHandler<Void> noBody() { return BodyHandlers.discarding(); }
 
@@ -92,6 +101,34 @@ public class HttpLib {
      */
     public static String basicAuth(String username, String password) {
         return "Basic " + Base64.getEncoder().encodeToString((username + ":" + password).getBytes(StandardCharsets.UTF_8));
+    }
+
+    public static String BEARER = "Bearer";
+    public static String BEARER_PREFIX = BEARER+" ";
+
+    /**
+     * Calculate bearer auth header value.
+     * The token supplied is expected to already be in base 64.
+     * Use with header "Authorization" (constant {@link HttpNames#hAuthorization}).
+     */
+    public static String bearerAuthHeader(String tokenBase64) {
+        Objects.requireNonNull(tokenBase64);
+        if ( tokenBase64.indexOf(' ') >= 0 )
+            throw new IllegalArgumentException("Base64 token contains a space");
+        return BEARER_PREFIX + tokenBase64;
+    }
+
+    /**
+     * Extract the token, without decoding,
+     * The token supplied is expected to already be in base 64.
+     * Use with header "Authorization" (constant {@link HttpNames#hAuthorization}).
+     */
+    public static String bearerAuthTokenFromHeader(String authHeaderString) {
+        Objects.requireNonNull(authHeaderString);
+        if ( ! authHeaderString.startsWith(BEARER_PREFIX) ) {
+            throw new IllegalArgumentException("Auth headerString does not start 'Bearer ...'");
+        }
+        return authHeaderString.substring("Bearer ".length()).trim();
     }
 
     /**
@@ -211,24 +248,29 @@ public class HttpLib {
         try {
             return IO.readWholeFileAsUTF8(input);
         } catch (RuntimeIOException e) { throw new HttpException(e); }
+        finally { IO.close(input); }
     }
 
+    /**
+     * Clear up and generate an exception - used for 4xx and 5xx.
+     * This consumes the response body.
+     */
     static HttpException exception(HttpResponse<InputStream> response, int httpStatusCode) {
-
         URI uri = response.request().uri();
-
-        //long length = HttpLib.getContentLength(response);
-        // Not critical path code. Read body regardless.
         InputStream in = response.body();
-        String msg;
+        if ( in == null )
+            return new HttpException(httpStatusCode, HttpSC.getMessage(httpStatusCode));
         try {
-            msg = IO.readWholeFileAsUTF8(in);
-            if ( msg.isBlank())
+            String msg;
+            try {
+                msg = IO.readWholeFileAsUTF8(in);
+                if ( msg.isBlank())
+                    msg = null;
+            } catch (RuntimeIOException e) {
                 msg = null;
-        } catch (RuntimeIOException e) {
-            msg = null;
-        }
-        return new HttpException(httpStatusCode, HttpSC.getMessage(httpStatusCode), msg);
+            }
+            return new HttpException(httpStatusCode, HttpSC.getMessage(httpStatusCode), msg);
+        } finally { IO.close(in); }
     }
 
     private static long getContentLength(HttpResponse<InputStream> response) {
@@ -277,7 +319,7 @@ public class HttpLib {
         if (SKIP_BYTE_BUFFER == null) {
             SKIP_BYTE_BUFFER = new byte[SKIP_BUFFER_SIZE];
         }
-        int bytesRead = 0; // Informational
+        long bytesRead = 0; // Informational
         try {
             for(;;) {
                 // See https://issues.apache.org/jira/browse/IO-203 for why we use read() rather than delegating to skip()
@@ -308,13 +350,8 @@ public class HttpLib {
 
     // Terminology:
     // RFC 2616:   Request-Line   = Method SP Request-URI SP HTTP-Version CRLF
-
     // RFC 7320:   request-line   = method SP request-target SP HTTP-version CRLF
     // https://datatracker.ietf.org/doc/html/rfc7230#section-3.1.1
-
-    // request-target:
-    // https://datatracker.ietf.org/doc/html/rfc7230#section-5.3
-    // When it is for the origin server ==> absolute-path [ "?" query ]
 
     // EndpointURI: URL for a service, no query string.
 
@@ -328,11 +365,13 @@ public class HttpLib {
     }
 
     /**
-     * Return a string (assumed to be a URI) without query string or fragment.
+     * Return a string (assumed to be an absolute URI) without query string or fragment.
      */
     public static String endpoint(String uriStr) {
         int idx1 = uriStr.indexOf('?');
-        int idx2 = uriStr.indexOf('#');
+        // Assuming a well-formed URI string, it is path-query-fragment
+        // so if there is a query string, don't need to look for a fragment.
+        int idx2 = (idx1<0) ? uriStr.indexOf('#') : -1;
 
         if ( idx1 < 0 && idx2 < 0 )
             return uriStr;
@@ -347,27 +386,38 @@ public class HttpLib {
         return uriStr.substring(0, idx);
     }
 
-    /** RFC7320 "request-target", used in digest authentication. */
-    public static String requestTarget(URI uri) {
-        String path = uri.getRawPath();
-        if ( path == null || path.isEmpty() )
-            path = "/";
-        String qs = uri.getQuery();
-        if ( qs == null || qs.isEmpty() )
-            return path;
-        return path+"?"+qs;
-    }
-
     /** URI, without query string and fragment. */
     public static URI endpointURI(URI uri) {
         if ( uri.getRawQuery() == null && uri.getRawFragment() == null )
             return uri;
         try {
-            // Same URI except without query strinf an fragment.
+            // Same URI components except without query string and fragment.
             return new URI(uri.getScheme(), uri.getRawAuthority(), uri.getRawPath(), null, null);
         } catch (URISyntaxException x) {
             throw new IllegalArgumentException(x.getMessage(), x);
         }
+    }
+
+    /**
+     * The "request target" for digest auth. The server-side name of a resource - no
+     * authority (the host part).
+     * <p>
+     * RFC 7616 (digest auth), section 3.4 The Effective Request URI (Section 5.5 of RFC7230).
+     * <p>
+     * For SPARQL, the target is the service, not a resource
+     * named by the uri+query string.
+     * <p>
+     * This makes query-by-GET and query-by-POST work the same way.
+     */
+    public static String requestTargetServer(URI uri) {
+        // RFC 7230 5.5
+        //   If the request-target is in authority-form or asterisk-form, the
+        //   effective request URI's combined path and query component is
+        //   empty.
+        String path = uri.getRawPath();
+        if ( path == null || path.isEmpty() )
+            path = "/";
+        return path;
     }
 
     /** Return a HttpRequest */
@@ -392,7 +442,9 @@ public class HttpLib {
     public static String urlEncodeQueryString(String str) {
         // java.net.URLEncoder is excessive - it encodes / and : which
         // is not necessary in a query string or fragment.
-        return IRILib.encodeUriQueryFrag(str);
+        String x1 = IRILib.encodeUriQueryFrag(str);
+        String x2 = IRILib.encodeNonASCII(x1);
+        return x2;
     }
 
     /** Query string is assumed to already be encoded. */
@@ -400,7 +452,7 @@ public class HttpLib {
         if ( queryString == null || queryString.isEmpty() )
             // Empty string. Don't add "?"
             return url;
-        String sep =  url.contains("?") ? "&" : "?";
+        String sep = url.contains("?") ? "&" : "?";
         String requestURL = url+sep+queryString;
         return requestURL;
     }
@@ -511,7 +563,6 @@ public class HttpLib {
      * @param bodyHandler
      * @return HttpResponse
      */
-    public
     /*package*/ static <X> HttpResponse<X> execute(HttpClient httpClient, HttpRequest httpRequest, BodyHandler<X> bodyHandler) {
         // To run with no jena-supplied authentication handling.
         if ( false )
@@ -522,24 +573,47 @@ public class HttpLib {
         AuthEnv authEnv = AuthEnv.get();
 
         if ( uri.getUserInfo() != null ) {
-            String[] up = uri.getUserInfo().split(":");
-            if ( up.length == 2 ) {
+            String[] userpasswd = uri.getUserInfo().split(":");
+            if ( userpasswd.length == 2 ) {
+                // User info in the URI is not a good idea.
                 // Only if "user:password@host", not "user@host"
                 key = HttpLib.endpointURI(uri);
-                // The auth key will be with u:p making it specific.
-                authEnv.registerUsernamePassword(key, up[0], up[1]);
+                // The auth key will include user:password making it specific.
+                authEnv.registerUsernamePassword(key, userpasswd[0], userpasswd[1]);
             }
         }
         try {
             return AuthLib.authExecute(httpClient, httpRequest, bodyHandler);
         } finally {
             if ( key != null )
+                // The AuthEnv is "per tenant".
+                // Temporary registration within the AuthEnv of the
+                // user:password is acceptable.
                 authEnv.unregisterUsernamePassword(key);
         }
     }
 
     /**
-     * Execute request and return a response without authentication challenge handling.
+     * Execute request and return a {@code HttpResponse<InputStream>} response.
+     * Status codes have not been handled. The response can be passed to
+     * {@link #handleResponseInputStream(HttpResponse)} which will convert non-2xx
+     * status code to {@link HttpException HttpExceptions}.
+     *
+     * @param httpClient
+     * @param httpRequest
+     * @return HttpResponse
+     */
+    public static HttpResponse<InputStream> executeJDK(HttpClient httpClient, HttpRequest httpRequest) {
+        return execute(httpClient, httpRequest, BodyHandlers.ofInputStream());
+    }
+
+    /**
+     * Execute request and return a response without authentication challenge
+     * handling. Status codes have not been handled. This is a call to
+     * {@code HttpClient.send} converting exceptions to {@link HttpException}.
+     * request and responses are logged as "debug" to logger
+     * {@code org.apache.jena.http.HTTP}.
+     *
      * @param httpClient
      * @param httpRequest
      * @param bodyHandler
@@ -579,8 +653,8 @@ public class HttpLib {
     }
 
     // Worker
-    /*package*/ static HttpResponse<InputStream> httpPushWithResponse(HttpClient httpClient, Push style, String url,
-                                                                      Consumer<HttpRequest.Builder> modifier, BodyPublisher body) {
+    public static HttpResponse<InputStream> httpPushWithResponse(HttpClient httpClient, Push style, String url,
+                                                                 Consumer<HttpRequest.Builder> modifier, BodyPublisher body) {
         URI uri = toRequestURI(url);
         HttpRequest.Builder builder = requestBuilderFor(url);
         builder.uri(uri);
@@ -591,15 +665,12 @@ public class HttpLib {
         return response;
     }
 
-
     /** Request */
     private static void logRequest(HttpRequest httpRequest) {
-        // Uses the SystemLogger which defaults to JUL.
-        // Add org.apache.jena.logging:log4j-jpl
-        // (java11 : 11.0.9, if using log4j-jpl, logging prints the request as {0} but response OK)
-//        httpRequest.uri();
-//        httpRequest.method();
-//        httpRequest.headers();
+        if ( LOG.isDebugEnabled() ) {
+            FmtLog.debug(LOG, "> %s %s", httpRequest.method(), httpRequest.uri());
+            logHeaders(LOG, httpRequest.headers());
+        }
     }
 
     /** Async Request */
@@ -607,14 +678,21 @@ public class HttpLib {
 
         /** Response (do not touch the body!)  */
     private static void logResponse(HttpResponse<?> httpResponse) {
-//        httpResponse.uri();
-//        httpResponse.statusCode();
-//        httpResponse.headers();
+        if ( LOG.isDebugEnabled() ) {
+            FmtLog.debug(LOG, "< %d %s %s", httpResponse.statusCode(), httpResponse.request().method(), httpResponse.uri());
+            logHeaders(LOG,  httpResponse.headers());
 //        httpResponse.previousResponse();
+        }
+    }
+
+    private static void logHeaders(Logger log, HttpHeaders headers) {
+        headers.map().forEach((header, values)->{
+            values.forEach(value->FmtLog.debug(log, "  %-15s %s", header, value));
+        });
     }
 
     /**
-     * Allow setting additional/optional query parameters on a per remote service (including for SERVICE).
+     * Allow setting additional/optional HTTP headers and query parameters on a per remote service (including for SERVICE) basis.
      * <ul>
      * <li>ARQ.httpRequestModifer - the specific modifier</li>
      * <li>ARQ.httpRegistryRequestModifer - the registry, keyed by service URL.</li>

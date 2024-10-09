@@ -18,6 +18,8 @@
 
 package org.apache.jena.sparql.core;
 
+import static org.apache.jena.system.G.nullAsAny;
+
 import java.util.* ;
 
 import org.apache.jena.graph.Graph ;
@@ -72,6 +74,10 @@ public class DatasetGraphSimpleMem extends DatasetGraphTriplesQuads implements T
         int size() {
             return store.size();
         }
+
+        void clear() {
+            store.clear();
+        }
     }
 
     public DatasetGraphSimpleMem() {}
@@ -110,12 +116,6 @@ public class DatasetGraphSimpleMem extends DatasetGraphTriplesQuads implements T
         return results.iterator();
     }
 
-    /** Convert null to Node.ANY */
-    public static Node nullAsAny(Node x) { return nullAsDft(x, Node.ANY) ; }
-
-    /** Convert null to some default Node */
-    public static Node nullAsDft(Node x, Node dft) { return x==null ? dft : x ; }
-
     private boolean matches(Triple t, Node s, Node p, Node o) {
         s = nullAsAny(s);
         p = nullAsAny(p);
@@ -133,7 +133,7 @@ public class DatasetGraphSimpleMem extends DatasetGraphTriplesQuads implements T
 
     @Override
     protected void addToDftGraph(Node s, Node p, Node o) {
-        Triple t = new Triple(s, p, o);
+        Triple t = Triple.create(s, p, o);
         triples.add(t);
     }
 
@@ -145,7 +145,7 @@ public class DatasetGraphSimpleMem extends DatasetGraphTriplesQuads implements T
 
     @Override
     protected void deleteFromDftGraph(Node s, Node p, Node o) {
-        triples.remove(new Triple(s, p, o));
+        triples.remove(Triple.create(s, p, o));
     }
 
     @Override
@@ -168,7 +168,7 @@ public class DatasetGraphSimpleMem extends DatasetGraphTriplesQuads implements T
         protected ExtendedIterator<Triple> graphBaseFind(Triple m) {
             List<Triple> results = new ArrayList<>();
             for ( Triple t : triples )
-                if ( t.matches(m.getMatchSubject(), m.getMatchPredicate(), m.getMatchObject()) )
+                if ( m.matches(t.getMatchSubject(), t.getMatchPredicate(), t.getMatchObject()) )
                     results.add(t);
             return WrappedIterator.create(results.iterator());
         }
@@ -212,6 +212,17 @@ public class DatasetGraphSimpleMem extends DatasetGraphTriplesQuads implements T
     @Override
     public Graph getGraph(Node graphNode) {
         return new GraphNamed(graphNode);
+    }
+
+    @Override
+    public void clear() {
+        triples.clear();
+        quads.clear();
+    }
+
+    @Override
+    public long size() {
+        return graphNodes().size();
     }
 
     @Override

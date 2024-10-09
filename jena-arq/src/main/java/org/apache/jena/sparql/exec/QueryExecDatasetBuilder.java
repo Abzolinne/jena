@@ -91,6 +91,12 @@ public class QueryExecDatasetBuilder implements QueryExecMod, QueryExecBuilder {
         return this;
     }
 
+    /** The parse-check flag has no effect for query execs over datasets. */
+    @Override
+    public QueryExecDatasetBuilder parseCheck(boolean parseCheck) {
+        return this;
+    }
+
     @Override
     public QueryExecDatasetBuilder query(String queryString, Syntax syntax) {
         this.queryString = queryString;
@@ -151,6 +157,8 @@ public class QueryExecDatasetBuilder implements QueryExecMod, QueryExecBuilder {
             substitutionMap = new HashMap<>();
     }
 
+    /** Use {@link #substitution(Binding)} */
+    @Deprecated
     public QueryExecDatasetBuilder initialBinding(Binding binding) {
         this.initialBinding = binding;
         return this;
@@ -220,7 +228,7 @@ public class QueryExecDatasetBuilder implements QueryExecMod, QueryExecBuilder {
         query.setResultVars();
         Context cxt = getContext();
 
-        QueryEngineFactory qeFactory = QueryEngineRegistry.get().find(query, dataset, cxt);
+        QueryEngineFactory qeFactory = QueryEngineRegistry.findFactory(query, dataset, cxt);
         if ( qeFactory == null ) {
             Log.warn(QueryExecDatasetBuilder.class, "Failed to find a QueryEngineFactory");
             return null;

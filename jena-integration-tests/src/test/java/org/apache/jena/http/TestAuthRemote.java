@@ -18,9 +18,10 @@
 
 package org.apache.jena.http;
 
+import static org.apache.jena.fuseki.test.HttpTest.expect401;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import static org.apache.jena.fuseki.test.HttpTest.*;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.http.sys.HttpRequestModifier;
@@ -30,15 +31,18 @@ import org.apache.jena.rdflink.RDFLink;
 import org.apache.jena.rdflink.RDFLinkFactory;
 import org.apache.jena.rdflink.RDFLinkHTTP;
 import org.apache.jena.riot.web.HttpNames;
+import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.DatasetGraphFactory;
 import org.apache.jena.sparql.exec.QueryExec;
-import org.apache.jena.sparql.exec.http.*;
+import org.apache.jena.sparql.exec.http.DSP;
+import org.apache.jena.sparql.exec.http.GSP;
+import org.apache.jena.sparql.exec.http.QueryExecHTTP;
+import org.apache.jena.sparql.exec.http.UpdateExecHTTP;
 import org.apache.jena.sparql.graph.GraphFactory;
 import org.apache.jena.sparql.sse.SSE;
 import org.apache.jena.test.conn.EnvTest;
-import org.junit.AfterClass;
+import org.junit.After;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
@@ -48,17 +52,13 @@ public class TestAuthRemote {
     private static String user = "user";
     private static String password = "password";
 
-    private static EnvTest env;
-    @BeforeClass public static void beforeClass() {
+    private EnvTest env;
+    @Before public void beforeClass() {
         //FusekiLogging.setLogging();
         env = EnvTest.createAuth("/ds", DatasetGraphFactory.createTxnMem(), user, password);
     }
 
-    @Before public void before() {
-        env.clear();
-    }
-
-    @AfterClass public static void afterClass() {
+    @After public void after() {
         EnvTest.stop(env);
     }
 
@@ -161,15 +161,44 @@ public class TestAuthRemote {
     }
 
     @Test
-    public void auth_gsp_good_auth() {
-        GSP.service(env.datasetURL()).httpClient(env.httpClientAuthGood()).defaultGraph().GET();
+    public void auth_gsp_good_auth_1() {
+        Graph graph = GSP.service(env.datasetURL()).httpClient(env.httpClientAuthGood()).defaultGraph().GET();
+        assertNotNull(graph);
     }
 
     @Test
-    public void auth_gsp_bad_auth() {
+    public void auth_dsp_good_auth_2() {
+        DatasetGraph dsg = DSP.service(env.datasetURL()).httpClient(env.httpClientAuthGood()).GET();
+        assertNotNull(dsg);
+    }
+
+    @Test
+    public void auth_dsp_good_auth_3() {
+        DatasetGraph dsg = DSP.service(env.datasetURL()).httpClient(env.httpClientAuthGood()).GET();
+        assertNotNull(dsg);
+    }
+
+    @Test
+    public void auth_gsp_bad_auth_1() {
         // 401 because we didn't authenticate.
         expect401(()->
             GSP.service(env.datasetURL()).httpClient(env.httpClientAuthBad()).defaultGraph().GET()
+        );
+    }
+
+    @Test
+    public void auth_dsp_bad_auth_2() {
+        // 401 because we didn't authenticate.
+        expect401(()->
+            DSP.service(env.datasetURL()).httpClient(env.httpClientAuthBad()).GET()
+        );
+    }
+
+    @Test
+    public void auth_dsp_bad_auth_3() {
+        // 401 because we didn't authenticate.
+        expect401(()->
+            DSP.service(env.datasetURL()).httpClient(env.httpClientAuthBad()).GET()
         );
     }
 
@@ -203,14 +232,17 @@ public class TestAuthRemote {
     }
 
     @Test
-    public void auth_link_good_auth() {
+    public void auth_link_good_auth_1() {
         try ( RDFLink link = RDFLinkHTTP.newBuilder()
                     .destination(env.datasetURL())
                     .httpClient(env.httpClientAuthGood())
                     .build()) {
             link.queryAsk("ASK{}");
             link.update("INSERT DATA { <x:s> <x:p> <x:o> }");
-            link.get();
+            Graph graph = link.get();
+            assertNotNull(graph);
+            DatasetGraph dsg = link.getDataset();
+            assertNotNull(dsg);
         }
     }
 
@@ -470,4 +502,3 @@ public class TestAuthRemote {
         assertTrue(graph.isIsomorphicWith(graph2));
     }
 }
-

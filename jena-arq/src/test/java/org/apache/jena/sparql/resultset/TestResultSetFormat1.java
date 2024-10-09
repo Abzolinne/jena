@@ -18,35 +18,40 @@
 
 package org.apache.jena.sparql.resultset;
 
-import java.io.ByteArrayInputStream ;
-import java.io.ByteArrayOutputStream ;
-import java.util.Arrays ;
-import java.util.Collection ;
-
-import org.apache.jena.atlas.lib.StrUtils ;
-import org.apache.jena.query.ResultSet ;
-import org.apache.jena.query.ResultSetFactory ;
-import org.apache.jena.query.ResultSetFormatter ;
-import org.apache.jena.query.ResultSetRewindable ;
-import org.apache.jena.sparql.sse.Item ;
-import org.apache.jena.sparql.sse.SSE ;
-import org.apache.jena.sparql.sse.builders.BuilderResultSet ;
-import org.apache.jena.vocabulary.OWL ;
-import org.apache.jena.vocabulary.RDF ;
-import org.apache.jena.vocabulary.RDFS ;
-import org.apache.jena.vocabulary.XSD ;
+import org.apache.jena.atlas.lib.StrUtils;
+import org.apache.jena.query.ResultSet;
+import org.apache.jena.query.ResultSetFactory;
+import org.apache.jena.query.ResultSetFormatter;
+import org.apache.jena.query.ResultSetRewindable;
+import org.apache.jena.riot.ResultSetMgr;
+import org.apache.jena.riot.resultset.ResultSetLang;
+import org.apache.jena.sparql.sse.Item;
+import org.apache.jena.sparql.sse.SSE;
+import org.apache.jena.sparql.sse.builders.BuilderRowSet;
+import org.apache.jena.vocabulary.OWL;
+import org.apache.jena.vocabulary.RDF;
+import org.apache.jena.vocabulary.RDFS;
+import org.apache.jena.vocabulary.XSD;
 import org.junit.Assert;
-import org.junit.Test ;
-import org.junit.runner.RunWith ;
-import org.junit.runners.Parameterized ;
-import org.junit.runners.Parameterized.Parameters ;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.util.Arrays;
+import java.util.Collection;
 
 @RunWith(Parameterized.class)
 public class TestResultSetFormat1
 {
+    // Test with ResultSets.
+    // This does all the RowSet testing because ResultSets are now just wrappers on RowSets.
+
     // A result set of no variables and no rows.
     static String[] $rs0 = { "(resultset ())" } ;
-    
+
     // A result set of no variables and one row (e.g SELECT * {})
     static String[] $rs1 = { "(resultset () (row))" } ;
 
@@ -63,17 +68,17 @@ public class TestResultSetFormat1
         ")"} ;
 
     static String[] $rs4 = {
-        "(resultset (?a ?b ?c)", 
+        "(resultset (?a ?b ?c)",
         "  (row (?a 1)        (?c 4))",
         "  (row (?a 1) (?b 2) (?c 3))",
         ")"} ;
-    
+
     static String[] $rs5 = {
     	"(resultset (?a ?b)",
     	" (row (?a 1)       )",
     	" (row        (?b 2))",
     	")" };
-    
+
     static String[] $rs6 = {
     	"(resultset (?x)",
     	" (row (?x <" + RDF.type.toString() + ">))",
@@ -82,25 +87,25 @@ public class TestResultSetFormat1
     	" (row (?x <" + OWL.sameAs.toString() + ">))",
     	" (row )",
     	")" };
-    
+
     static String[] $rs7 = {
         "(resultset (?x) (row))" } ;
-    
+
     static String[] $rs8 = {
     	"(resultset (?x)",
     	" (row (?x \"has \\t tab character\"))",
     	")" } ;
-    
+
     static String[] $rs9 = {
     	"(resultset (?x)",
     	" (row (?x _:bnode))",
     	")" } ;
-    
+
     static String[] $rs10 = {
     	"(resultset (?x)",
     	" (row (?x \"Includes a raw	tab character\"))",
     	")" } ;
-    
+
     static String[] $rs11 = {
     	"(resultset (?x)",
     	" (row (?x \"Includes \\n new line\"))",
@@ -113,66 +118,66 @@ public class TestResultSetFormat1
     }
 
     private final String[] $rs ;
-    
+
     public TestResultSetFormat1(String[] rs)
     {
         this.$rs = rs ;
     }
-    
+
     static ResultSet make(String... strings)
     {
         if ( strings.length == 0 )
             throw new IllegalArgumentException() ;
-        
+
         String x = StrUtils.strjoinNL(strings) ;
         Item item = SSE.parse(x) ;
-        return ResultSetFactory.makeRewindable(BuilderResultSet.build(item));
+        return ResultSetFactory.makeRewindable(BuilderRowSet.build(item));
     }
-    
-    @Test public void resultset_01()           
+
+    @Test public void resultset_01()
     {
-        ResultSet rs = make($rs) ; 
+        ResultSet rs = make($rs) ;
         ResultSetFormatter.asText(rs) ;
     }
-    
-    @Test public void resultset_02()           
+
+    @Test public void resultset_02()
     {
-        ResultSet rs = make($rs) ; 
+        ResultSet rs = make($rs) ;
         ByteArrayOutputStream out = new ByteArrayOutputStream() ;
         ResultSetFormatter.outputAsXML(out, rs) ;
         ByteArrayInputStream in = new ByteArrayInputStream(out.toByteArray()) ;
         ResultSet rs2 = ResultSetFactory.fromXML(in) ;
-        areIsomorphic(rs, rs2);
+        checkIsomorphic(rs, rs2);
     }
 
-    @Test public void resultset_03()           
+    @Test public void resultset_03()
     {
-        ResultSet rs = make($rs) ; 
+        ResultSet rs = make($rs) ;
         ByteArrayOutputStream out = new ByteArrayOutputStream() ;
         ResultSetFormatter.outputAsJSON(out, rs) ;
         ByteArrayInputStream in = new ByteArrayInputStream(out.toByteArray()) ;
         ResultSet rs2 = ResultSetFactory.fromJSON(in) ;
-        areIsomorphic(rs, rs2);
+        checkIsomorphic(rs, rs2);
     }
-    
-    @Test public void resultset_04()           
+
+    @Test public void resultset_04()
     {
-        ResultSet rs = make($rs) ; 
+        ResultSet rs = make($rs) ;
         ByteArrayOutputStream out = new ByteArrayOutputStream() ;
         ResultSetFormatter.outputAsTSV(out, rs) ;
         ByteArrayInputStream in = new ByteArrayInputStream(out.toByteArray()) ;
-        ResultSet rs2 = ResultSetFactory.fromTSV(in) ;
-        areIsomorphic(rs, rs2);
+        ResultSet rs2 = ResultSetMgr.read(in, ResultSetLang.RS_TSV);
+        checkIsomorphic(rs, rs2);
     }
 
-    @Test public void resultset_05()           
+    @Test public void resultset_05()
     {
-        ResultSet rs = make($rs) ; 
+        ResultSet rs = make($rs) ;
         ByteArrayOutputStream out = new ByteArrayOutputStream() ;
         ResultSetFormatter.outputAsCSV(out, rs) ;
     }
-    
-    private static void areIsomorphic(ResultSet x, ResultSet y)
+
+    private static void checkIsomorphic(ResultSet x, ResultSet y)
     {
         ResultSetRewindable rs1 = x.rewindable();
         ResultSetRewindable rs2 = y.rewindable();

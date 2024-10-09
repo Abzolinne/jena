@@ -163,6 +163,10 @@ public class BuilderExpr
     private final static Map<String, Build> dispatch;
 
     public static Expr buildExpr(Item item) {
+        // Before testing for a list because of RDF terms that are lists: (qtriple).
+        if ( item.isNode() )
+            return ExprLib.nodeToExpr(item.getNode());
+
         Expr expr = null;
 
         if ( item.isList() ) {
@@ -191,9 +195,6 @@ public class BuilderExpr
             }
             throw new ARQInternalErrorException();
         }
-
-        if ( item.isNode() )
-            return ExprLib.nodeToExpr(item.getNode());
 
         if ( item.isSymbolIgnoreCase(Tags.tagTrue) )
             return NodeValue.TRUE;
@@ -442,6 +443,15 @@ public class BuilderExpr
         BuilderLib.checkLength(2, list, "TZ: wanted 1 argument: got: "+numArgs(list));
         Expr ex = buildExpr(list.get(1));
         return new E_DateTimeTZ(ex);
+    };
+
+    private static Build buildAdjust = (ItemList list) -> {
+        BuilderLib.checkLength(2, 3, list, "adjust: wanted 1 or 2 arguments: got: "+numArgs(list));
+        Expr expr1 = buildExpr(list.get(1));
+        Expr expr2 = null;
+        if ( list.size() > 2 )
+            expr2 = buildExpr(list.get(2));
+        return new E_AdjustToTimezone(expr1, expr2);
     };
 
     private static Build buildNow = (ItemList list) -> {
@@ -699,24 +709,69 @@ public class BuilderExpr
     private static Build buildBNode = (ItemList list) -> {
         BuilderLib.checkLength(1, 2, list, "bnode: wanted 0 or 1 arguments: got: "+numArgs(list));
         if ( list.size() == 1 )
-            return new E_BNode();
+            return E_BNode.create();
 
         Expr expr = buildExpr(list.get(1));
-        return new E_BNode(expr);
+        return E_BNode.create(expr);
     };
 
+
+    private static String asString(Item item) {
+        Node n = item.getNode();
+        if ( ! NodeUtils.isSimpleString(n) )
+            BuilderLib.broken(item, "Need string: "+item);
+        return n.getLiteralLexicalForm();
+    }
+
+    // BASE hidden argument.
     private static Build buildIri = (ItemList list) -> {
-        BuilderLib.checkLength(2, list, "iri: wanted 1 argument: got: "+numArgs(list));
-        Expr expr = buildExpr(list.get(1));
-        return new E_IRI(expr);
+        BuilderLib.checkLength(2, 3, list, "iri: wanted 1 or 2 arguments: got: "+numArgs(list));
+        if ( numArgs(list) == 1 ) {
+            Expr expr = buildExpr(list.get(1));
+            return new E_IRI(null, expr);
+        }
+        String str = asString(list.get(1));
+        Expr expr2 = buildExpr(list.get(2));
+        return new E_IRI(str, expr2);
     };
 
     private static Build buildUri = (ItemList list) -> {
-        BuilderLib.checkLength(2, list, "uri: wanted 1 argument: got: "+numArgs(list));
-        Expr expr = buildExpr(list.get(1));
-        return new E_URI(expr);
+        BuilderLib.checkLength(2, 3, list, "uri: wanted 1 or 2 arguments: got: "+numArgs(list));
+        if ( numArgs(list) == 1 ) {
+            Expr expr = buildExpr(list.get(1));
+            return new E_URI(null, expr);
+        }
+        String str = asString(list.get(1));
+        Expr expr2 = buildExpr(list.get(2));
+        return new E_URI(str, expr2);
     };
 
+    // IRI extension - IRI(base, rel)
+    private static Build buildIri2 = (ItemList list) -> {
+        BuilderLib.checkLength(3, 4, list, "iri2: wanted 2 or 3 arguments: got: "+numArgs(list));
+        if ( numArgs(list) == 2 ) {
+            Expr expr1 = buildExpr(list.get(1));
+            Expr expr2 = buildExpr(list.get(2));
+            return new E_IRI2(expr1, null, expr2);
+        }
+        String baseStr = asString(list.get(1));
+        Expr expr1 = buildExpr(list.get(2));
+        Expr expr2 = buildExpr(list.get(3));
+        return new E_IRI2(expr1, baseStr, expr2);
+    };
+
+    private static Build buildUri2 = (ItemList list) -> {
+        BuilderLib.checkLength(3, 4, list, "iri2: wanted 2 or 3 arguments: got: "+numArgs(list));
+        if ( numArgs(list) == 2 ) {
+            Expr expr1 = buildExpr(list.get(1));
+            Expr expr2 = buildExpr(list.get(2));
+            return new E_URI2(expr1, null, expr2);
+        }
+        String baseStr = asString(list.get(1));
+        Expr expr1 = buildExpr(list.get(2));
+        Expr expr2 = buildExpr(list.get(3));
+        return new E_URI2(expr1, baseStr, expr2);
+    };
 
 
     private static Build buildIn = (ItemList list) -> {
@@ -747,19 +802,18 @@ public class BuilderExpr
         return new E_TriplePredicate(expr);
     };
 
-
     private static Build buildObject = (ItemList list) -> {
         BuilderLib.checkLength(2, list, "object: wanted 1 argument: got: "+numArgs(list));
         Expr expr = buildExpr(list.get(1));
         return new E_TripleObject(expr);
     };
 
-    private static Build buildFnTriple = (ItemList list) -> {
+    private static Build buildTripleFn = (ItemList list) -> {
         BuilderLib.checkLength(4, list, "triple: wanted 3 arguments: got: "+numArgs(list));
         Expr expr1 = buildExpr(list.get(1));
         Expr expr2 = buildExpr(list.get(2));
         Expr expr3 = buildExpr(list.get(3));
-        return new E_TripleTerm(expr1, expr2, expr3);
+        return new E_TripleFn(expr1, expr2, expr3);
     };
 
     private static Build buildIsTriple = (ItemList list) -> {
@@ -788,7 +842,6 @@ public class BuilderExpr
         return false;
     }
 
-    // All the one expression cases
     private static abstract class BuildAggCommon implements Build {
         @Override
         public Expr make(ItemList list) {
@@ -870,7 +923,7 @@ public class BuilderExpr
             x = x.cdr();
 
         // Complex syntax:
-        // (groupConcat (separator "string) expr )
+        // (groupConcat (separator "string") expr )
         if ( x.size() == 0 )
             BuilderLib.broken(list, "Broken syntax: "+list.shortString());
         String separator = null;
@@ -965,6 +1018,7 @@ public class BuilderExpr
         dispatch.put(Tags.tagSeconds, buildSeconds);
         dispatch.put(Tags.tagTimezone, buildTimezone);
         dispatch.put(Tags.tagTZ, buildTZ);
+        dispatch.put(Tags.tagAdjust, buildAdjust);
 
         dispatch.put(Tags.tagRand, buildRand);
         dispatch.put(Tags.tagNow, buildNow);
@@ -1015,6 +1069,8 @@ public class BuilderExpr
         dispatch.put(Tags.tagBNode, buildBNode);
         dispatch.put(Tags.tagIri, buildIri);
         dispatch.put(Tags.tagUri, buildUri);
+        dispatch.put(Tags.tagIri2, buildIri2);
+        dispatch.put(Tags.tagUri2, buildUri2);
 
         dispatch.put(Tags.tagIn, buildIn);
         dispatch.put(Tags.tagNotIn, buildNotIn);
@@ -1022,7 +1078,7 @@ public class BuilderExpr
         dispatch.put(Tags.tagSubject, buildSubject);
         dispatch.put(Tags.tagPredicate, buildPredicate);
         dispatch.put(Tags.tagObject, buildObject);
-        dispatch.put(Tags.tagFnTriple, buildFnTriple);
+        dispatch.put(Tags.tagFnTriple, buildTripleFn);
         dispatch.put(Tags.tagIsTriple, buildIsTriple);
 
         dispatch.put(Tags.tagCall, buildCall);

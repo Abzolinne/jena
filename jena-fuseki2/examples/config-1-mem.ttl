@@ -18,6 +18,15 @@ PREFIX ja:      <http://jena.hpl.hp.com/2005/11/Assembler#>
 
 :service rdf:type fuseki:Service ;
     fuseki:name "dataset" ;
+
+    ## The  GET /dataset?query= variants
+    fuseki:endpoint [ fuseki:operation fuseki:query ; ] ;
+    ## gsp-rw covers gsp-r and upload.
+    fuseki:endpoint [ fuseki:operation fuseki:update ; ] ;
+    fuseki:endpoint [ fuseki:operation fuseki:gsp-rw ; ] ;
+    ## RDF Patch
+    fuseki:endpoint [ fuseki:operation fuseki:patch ; ] ;
+
     fuseki:endpoint [ 
         fuseki:operation fuseki:query ;
         fuseki:name "sparql" 
@@ -38,9 +47,10 @@ PREFIX ja:      <http://jena.hpl.hp.com/2005/11/Assembler#>
         fuseki:operation fuseki:gsp-rw ; 
         fuseki:name "data"
     ] ; 
-    fuseki:endpoint [ 
-        fuseki:operation fuseki:upload ;
-        fuseki:name "upload"
+    fuseki:endpoint [
+        ## RDF Patch
+        fuseki:operation fuseki:patch ;
+        fuseki:name "patch"
     ] ; 
     fuseki:dataset :dataset ;
     .

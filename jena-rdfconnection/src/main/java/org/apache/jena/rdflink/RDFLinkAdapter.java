@@ -18,11 +18,12 @@
 
 package org.apache.jena.rdflink;
 
-import org.apache.jena.atlas.lib.NotImplemented;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
+import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.query.Query;
+import org.apache.jena.query.QueryExecutionBuilder;
 import org.apache.jena.query.ReadWrite;
 import org.apache.jena.query.TxnType;
 import org.apache.jena.rdf.model.Model;
@@ -32,13 +33,17 @@ import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.DatasetGraphZero;
 import org.apache.jena.sparql.exec.QueryExec;
 import org.apache.jena.sparql.exec.QueryExecBuilder;
+import org.apache.jena.sparql.exec.QueryExecBuilderAdapter;
+import org.apache.jena.sparql.exec.UpdateExecBuilder;
+import org.apache.jena.sparql.exec.UpdateExecBuilderAdapter;
+import org.apache.jena.update.UpdateExecutionBuilder;
 import org.apache.jena.update.UpdateRequest;
 
 public class RDFLinkAdapter implements RDFLink {
 
     public static RDFLink adapt(RDFConnection conn) {
-        if ( conn instanceof RDFConnectionAdapter )
-            return ((RDFConnectionAdapter)conn).getLink();
+        if ( conn instanceof RDFConnectionAdapter adapter )
+            return adapter.getLink();
         return new RDFLinkAdapter(conn);
     }
 
@@ -78,7 +83,10 @@ public class RDFLinkAdapter implements RDFLink {
     public boolean isInTransaction() { return conn.isInTransaction(); }
 
     @Override
-    public DatasetGraph getDataset() { return conn.fetchDataset().asDatasetGraph(); }
+    public DatasetGraph getDataset() {
+        Dataset ds = conn.fetchDataset();
+        return ds == null ? null : ds.asDatasetGraph();
+    }
 
     @Override
     public QueryExec query(Query query) { return QueryExec.adapt(conn.query(query)); }
@@ -88,15 +96,25 @@ public class RDFLinkAdapter implements RDFLink {
 
     @Override
     public QueryExecBuilder newQuery() {
-        // No adapting a previous wrapped RDFLink via RDFConnectionAdapter
-        throw new UnsupportedOperationException("RDFLinkAdapter.newQuery");
+        QueryExecutionBuilder qeb = conn.newQuery();
+        return QueryExecBuilderAdapter.adapt(qeb);
     }
 
     @Override
-    public void update(UpdateRequest update) { throw new NotImplemented("Impleemntation needed");}// UpdateProcessorAdapter.adapt(conn.update(update)); }
+    public UpdateExecBuilder newUpdate() {
+        UpdateExecutionBuilder ueb = conn.newUpdate();
+        return UpdateExecBuilderAdapter.adapt(ueb);
+    }
 
     @Override
-    public void update(String update) { throw new NotImplemented("Impleemntation needed");} //return UpdateProcessorAdapter.adapt(conn.update(update)); }
+    public void update(UpdateRequest update) {
+        conn.update(update);
+    }
+
+    @Override
+    public void update(String update) {
+        conn.update(update);
+    }
 
     @Override
     public Graph get() {

@@ -28,7 +28,7 @@ import org.apache.jena.sparql.engine.binding.Binding;
 import org.apache.jena.sparql.engine.binding.BindingLib;
 import org.apache.jena.sparql.exec.UpdateExec;
 import org.apache.jena.sparql.exec.UpdateExecDatasetBuilder;
-import org.apache.jena.sparql.exec.UpdateProcessorAdapter;
+import org.apache.jena.sparql.exec.UpdateExecutionAdapter;
 import org.apache.jena.sparql.util.Context;
 import org.apache.jena.sparql.util.Symbol;
 
@@ -66,6 +66,12 @@ public class UpdateExecutionDatasetBuilder implements UpdateExecutionBuilder {
         return this;
     }
 
+    @Override
+    public UpdateExecutionBuilder parseCheck(boolean parseCheck) {
+        builder.parseCheck(parseCheck);
+        return this;
+    }
+
     public UpdateExecutionDatasetBuilder dataset(Dataset dataset) {
         builder.dataset(dataset.asDatasetGraph());
         return this;
@@ -98,6 +104,8 @@ public class UpdateExecutionDatasetBuilder implements UpdateExecutionBuilder {
 //        return this;
 //    }
 
+    /** @deprecated Prefer {@link #substitution(QuerySolution)}. */
+    @Deprecated(forRemoval = true)
     public UpdateExecutionDatasetBuilder initialBinding(QuerySolution querySolution) {
         if ( querySolution == null )
             return this;
@@ -126,7 +134,7 @@ public class UpdateExecutionDatasetBuilder implements UpdateExecutionBuilder {
     @Override
     public UpdateExecution build() {
         UpdateExec exec = builder.build();
-        return UpdateProcessorAdapter.adapt(exec);
+        return UpdateExecutionAdapter.adapt(exec);
     }
 
     // Abbreviated forms

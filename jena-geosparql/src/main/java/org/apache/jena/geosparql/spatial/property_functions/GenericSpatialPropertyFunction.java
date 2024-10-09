@@ -20,6 +20,9 @@ package org.apache.jena.geosparql.spatial.property_functions;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
+import java.util.stream.Stream;
+
 import org.apache.commons.collections4.iterators.IteratorChain;
 import org.apache.jena.datatypes.DatatypeFormatException;
 import org.apache.jena.geosparql.implementation.GeometryWrapper;
@@ -38,13 +41,15 @@ import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.engine.ExecutionContext;
 import org.apache.jena.sparql.engine.QueryIterator;
 import org.apache.jena.sparql.engine.binding.Binding;
-import org.apache.jena.sparql.engine.iterator.QueryIterConcat;
+import org.apache.jena.sparql.engine.binding.BindingFactory;
 import org.apache.jena.sparql.engine.iterator.QueryIterNullIterator;
+import org.apache.jena.sparql.engine.iterator.QueryIterPlainWrapper;
 import org.apache.jena.sparql.engine.iterator.QueryIterSingleton;
 import org.apache.jena.sparql.expr.ExprEvalException;
 import org.apache.jena.sparql.pfunction.PFuncSimpleAndList;
 import org.apache.jena.sparql.pfunction.PropFuncArg;
 import org.apache.jena.sparql.util.FmtUtils;
+import org.apache.jena.system.G;
 import org.apache.jena.util.iterator.ExtendedIterator;
 
 /**
@@ -110,9 +115,8 @@ public abstract class GenericSpatialPropertyFunction extends PFuncSimpleAndList 
             //Check for Geometry and so GeometryLiterals.
             if (graph.contains(subject, Geo.HAS_GEOMETRY_NODE, null)) {
                 //A Feature can have many geometries so add each of them. The check Geo.HAS_DEFAULT_GEOMETRY_NODE will only return one but requires the data to have these present.
-                Iterator<Triple> geometryTriples = graph.find(subject, Geo.HAS_GEOMETRY_NODE, null);
-                while (geometryTriples.hasNext()) {
-                    Node geometry = geometryTriples.next().getObject();
+                List<Node> geometryNodes = G.listSP(graph, subject, Geo.HAS_GEOMETRY_NODE);
+                geometryNodes.forEach(geometry->{
                     ExtendedIterator<Triple> iter = graph.find(geometry, Geo.HAS_SERIALIZATION_NODE, null);
                     // Check for asWKT
                     if (!iter.hasNext()) {
@@ -123,14 +127,14 @@ public abstract class GenericSpatialPropertyFunction extends PFuncSimpleAndList 
                         iter = graph.find(geometry, Geo.AS_GML_NODE, null);
                     }
                     spatialTriples.addIterator(iter);
-                }
+                });
             } else {
                 //Check for Geo predicates against the feature when no geometry literals found.
                 if (graph.contains(subject, SpatialExtension.GEO_LAT_NODE, null) && graph.contains(subject, SpatialExtension.GEO_LON_NODE, null)) {
-                    Node lat = graph.find(subject, SpatialExtension.GEO_LAT_NODE, null).next().getObject();
-                    Node lon = graph.find(subject, SpatialExtension.GEO_LON_NODE, null).next().getObject();
+                    Node lat = G.getOneSP(graph, subject, SpatialExtension.GEO_LAT_NODE);
+                    Node lon = G.getOneSP(graph, subject, SpatialExtension.GEO_LON_NODE);
                     Node latLonGeometryLiteral = ConvertLatLon.toNode(lat, lon);
-                    Triple triple = new Triple(subject, Geo.HAS_GEOMETRY_NODE, latLonGeometryLiteral);
+                    Triple triple = Triple.create(subject, Geo.HAS_GEOMETRY_NODE, latLonGeometryLiteral);
                     spatialTriples.addIterator(Arrays.asList(triple).iterator());
                 }
             }
@@ -138,7 +142,6 @@ public abstract class GenericSpatialPropertyFunction extends PFuncSimpleAndList 
             //Check through each Geometry and stop if one is accepted.
             boolean isMatched = false;
             while (spatialTriples.hasNext()) {
-
                 Triple triple = spatialTriples.next();
                 Node geometryLiteral = triple.getObject();
                 GeometryWrapper targetGeometryWrapper = GeometryWrapper.extract(geometryLiteral);
@@ -175,7 +178,6 @@ public abstract class GenericSpatialPropertyFunction extends PFuncSimpleAndList 
 
     private QueryIterator checkUnbound(Binding binding, ExecutionContext execCxt, Node subject, int limit) {
 
-        QueryIterConcat queryIterConcat = new QueryIterConcat(execCxt);
         if (limit < 0) {
             limit = Integer.MAX_VALUE;
         }
@@ -185,29 +187,15 @@ public abstract class GenericSpatialPropertyFunction extends PFuncSimpleAndList 
         HashSet<Resource> features = searchEnvelope.check(spatialIndex);
 
         Var subjectVar = Var.alloc(subject.getName());
-        int count = 0;
-        for (Resource feature : features) {
 
-            boolean isMatched;
-
-            if (requireSecondFilter()) {
-                //Check all the GeometryLiterals of the Feature in a fine-grained test.
-                isMatched = checkBound(execCxt, feature.asNode());
-            } else {
-                //Second filter is not required so accept the case.
-                isMatched = true;
-            }
-
-            if (isMatched) {
-                count++; //Exit on limit of zero.
-                if (count > limit) {
-                    break;
-                }
-                QueryIterator queryIter = QueryIterSingleton.create(binding, subjectVar, feature.asNode(), execCxt);
-                queryIterConcat.add(queryIter);
-            }
+        Stream<Resource> stream = features.stream();
+        if (requireSecondFilter()) {
+            stream = stream.filter(feature -> checkBound(execCxt, feature.asNode()));
         }
-        return queryIterConcat;
+        Iterator<Binding> iterator = stream.map(feature -> BindingFactory.binding(binding, subjectVar, feature.asNode()))
+                .limit(limit)
+                .iterator();
+        return QueryIterPlainWrapper.create(iterator, execCxt);
     }
 
 }

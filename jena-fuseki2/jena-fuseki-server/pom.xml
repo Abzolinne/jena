@@ -25,12 +25,15 @@
   <parent>
     <groupId>org.apache.jena</groupId>
     <artifactId>jena-fuseki</artifactId>
-    <version>4.4.0-SNAPSHOT</version>
-    <relativePath>../</relativePath>
+    <version>5.2.0-SNAPSHOT</version>
   </parent> 
 
   <packaging>jar</packaging>
   <description>Fuseki server - combined jar with built-in webserver.</description>
+
+  <properties>
+    <automatic.module.name>org.apache.jena.fuseki.server</automatic.module.name>
+  </properties>
 
   <dependencies>
 
@@ -43,13 +46,13 @@
     <dependency>
       <groupId>org.apache.jena</groupId>
       <artifactId>jena-text</artifactId>
-      <version>4.4.0-SNAPSHOT</version>
+      <version>5.2.0-SNAPSHOT</version>
     </dependency>
 
     <dependency>
       <groupId>org.apache.jena</groupId>
       <artifactId>jena-fuseki-access</artifactId>
-      <version>4.4.0-SNAPSHOT</version>
+      <version>5.2.0-SNAPSHOT</version>
     </dependency>
 
     <dependency>
@@ -60,7 +63,7 @@
     
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
-      <artifactId>log4j-slf4j-impl</artifactId>
+      <artifactId>log4j-slf4j2-impl</artifactId>
     </dependency>
 
     <dependency>
@@ -89,7 +92,7 @@
           <!-- 
             https://issues.apache.org/jira/browse/LOG4J2-954
             Multiple Log4j2Plugins.dat
-            jena-fuseki-server only pick up one Log4j2Plugins.dat (from log4j-core-2.13.2)
+            jena-fuseki-server only pick up one Log4j2Plugins.dat (from log4j-core)
             No need to run the transformer to merge them.
             If it becomes necessary, see: https://github.com/edwgiz/maven-shaded-log4j-transformer
           -->
@@ -118,6 +121,9 @@
                 <exclude>META-INF/*.SF</exclude>
                 <exclude>META-INF/*.DSA</exclude>
                 <exclude>META-INF/*.RSA</exclude>
+                <exclude>META-INF/DEPENDENCIES</exclude>
+                <exclude>META-INF/MANIFEST.MF</exclude>
+                <exclude>**/module-info.class</exclude>
               </excludes>
             </filter>
           </filters>
@@ -136,5 +142,4 @@
     </plugins>
 
   </build>
-  
 </project>

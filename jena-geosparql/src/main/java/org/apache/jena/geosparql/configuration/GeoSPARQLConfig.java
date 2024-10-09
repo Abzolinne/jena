@@ -18,15 +18,12 @@
 package org.apache.jena.geosparql.configuration;
 
 import java.io.File;
+
 import org.apache.jena.geosparql.geof.topological.RelateFF;
 import org.apache.jena.geosparql.implementation.datatype.GeometryDatatype;
-import org.apache.jena.geosparql.implementation.function_registration.Egenhofer;
-import org.apache.jena.geosparql.implementation.function_registration.GeometryProperty;
-import org.apache.jena.geosparql.implementation.function_registration.NonTopological;
-import org.apache.jena.geosparql.implementation.function_registration.RCC8;
-import org.apache.jena.geosparql.implementation.function_registration.Relate;
-import org.apache.jena.geosparql.implementation.function_registration.SimpleFeatures;
-import org.apache.jena.geosparql.implementation.function_registration.Spatial;
+import org.apache.jena.geosparql.implementation.function_registration.*;
+import org.apache.jena.geosparql.implementation.index.GeometryLiteralIndex;
+import org.apache.jena.geosparql.implementation.index.GeometryTransformIndex;
 import org.apache.jena.geosparql.implementation.index.IndexConfiguration;
 import org.apache.jena.geosparql.implementation.index.IndexConfiguration.IndexOption;
 import org.apache.jena.geosparql.implementation.index.QueryRewriteIndex;
@@ -37,6 +34,7 @@ import org.apache.jena.geosparql.spatial.SpatialIndexException;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.sparql.function.FunctionRegistry;
 import org.apache.jena.sparql.pfunction.PropertyFunctionRegistry;
+import org.apache.jena.sys.JenaSystem;
 
 /**
  *
@@ -44,11 +42,15 @@ import org.apache.jena.sparql.pfunction.PropertyFunctionRegistry;
  */
 public class GeoSPARQLConfig {
 
+    static { JenaSystem.init(); }
+
     /**
      * GeoSPARQL schema
      */
-    private static Boolean IS_FUNCTIONS_REGISTERED = false;
-    private static Boolean IS_QUERY_REWRITE_ENABLED = true;
+    // Must be boolean, not Boolean, because then IS_FUNCTIONS_REGISTERED is
+    // defined and not null.
+    private static boolean IS_FUNCTIONS_REGISTERED = false;
+    private static boolean IS_QUERY_REWRITE_ENABLED = true;
 
     /**
      * Precision of calculations. Inaccuracies exist in these calculations and a
@@ -61,6 +63,11 @@ public class GeoSPARQLConfig {
      * JTS geometry calculations, e.g. buffer.
      */
     public static int PRECISION_MODEL_SCALE_FACTOR = 1000000;
+
+    /**
+     * Option to dynamically transform GeometryLiteral SRS in calculations.
+     */
+    public static boolean ALLOW_GEOMETRY_SRS_TRANSFORMATION = true;
 
     /**
      * Initialise all GeoSPARQL property and filter functions with memory
@@ -91,38 +98,6 @@ public class GeoSPARQLConfig {
      * Initialise all GeoSPARQL property and filter functions with memory
      * indexing.
      * <br>Use this for in-memory indexing GeoSPARQL setup and to control the
-     * index sizes. Expiry is defaulted to 5,000 milliseconds.
-     * <br>This does not affect the use of Spatial Indexes for Datasets.
-     *
-     * @param geometryLiteralIndex
-     * @param geometryTransformIndex
-     * @param queryRewriteIndex
-     */
-    public static final void setupMemoryIndexSize(Integer geometryLiteralIndex, Integer geometryTransformIndex, Integer queryRewriteIndex) {
-        setup(IndexOption.MEMORY, true);
-        IndexConfiguration.setIndexMaxSize(geometryLiteralIndex, geometryTransformIndex, queryRewriteIndex);
-    }
-
-    /**
-     * Initialise all GeoSPARQL property and filter functions with memory
-     * indexing.
-     * <br>Use this for in-memory indexing GeoSPARQL setup and to control the
-     * index expiry rate (milliseconds). Size is defaulted to unlimited.
-     * <br>This does not affect the use of Spatial Indexes for Datasets.
-     *
-     * @param geometryLiteralIndex
-     * @param geometryTransformIndex
-     * @param queryRewriteIndex
-     */
-    public static final void setupMemoryIndexExpiry(Long geometryLiteralIndex, Long geometryTransformIndex, Long queryRewriteIndex) {
-        setup(IndexOption.MEMORY, true);
-        IndexConfiguration.setIndexExpiry(geometryLiteralIndex, geometryTransformIndex, queryRewriteIndex);
-    }
-
-    /**
-     * Initialise all GeoSPARQL property and filter functions with memory
-     * indexing.
-     * <br>Use this for in-memory indexing GeoSPARQL setup and to control the
      * index sizes (default: unlimited) and expiry rate (default: 5,000
      * milliseconds).
      * <br>This does not affect the use of Spatial Indexes for Datasets.
@@ -137,8 +112,10 @@ public class GeoSPARQLConfig {
      */
     public static final void setupMemoryIndex(Integer geometryLiteralIndex, Integer geometryTransformIndex, Integer queryRewriteIndex, Long geometryLiteralIndexExpiry, Long geometryTransformIndexExpiry, Long queryRewriteIndexExpiry, Boolean isQueryRewriteEnabled) {
         setup(IndexOption.MEMORY, isQueryRewriteEnabled);
-        IndexConfiguration.setIndexMaxSize(geometryLiteralIndex, geometryTransformIndex, queryRewriteIndex);
-        IndexConfiguration.setIndexExpiry(geometryLiteralIndexExpiry, geometryTransformIndexExpiry, queryRewriteIndexExpiry);
+        GeometryLiteralIndex.reset(geometryLiteralIndex, geometryLiteralIndexExpiry);
+        GeometryTransformIndex.reset(geometryTransformIndex, geometryTransformIndexExpiry);
+        QueryRewriteIndex.setMaxSize(queryRewriteIndex);
+        QueryRewriteIndex.setExpiry(queryRewriteIndexExpiry);
     }
 
     /**
@@ -186,10 +163,23 @@ public class GeoSPARQLConfig {
         //Set the configuration for indexing.
         IndexConfiguration.setConfig(indexOption);
 
-        //Only register functions once.
-        if (!IS_FUNCTIONS_REGISTERED) {
+        loadFunctions();
+    }
 
-            //Setup Default Cordinate Reference Systems
+    public static final void loadFunctions() {
+        //Only register functions once in system initialization.
+        if (!IS_FUNCTIONS_REGISTERED) {
+            // loading is actually idempotent.
+            IS_FUNCTIONS_REGISTERED = true;
+
+            /*
+             * If jul-to-slf4j SLF4JBridgeHandler has not been setup,
+             * then this can generate a warning via java.util.logging.
+             *
+             *   Dec 28, 2021 10:56:27 AM org.apache.sis.referencing.factory.sql.EPSGFactory <init>
+             *   WARNING: The “SIS_DATA” environment variable is not set.
+             */
+            //Setup Default Coordinate Reference Systems
             SRSRegistry.setupDefaultSRS();
 
             //Register GeometryDatatypes with the TypeMapper.
@@ -211,7 +201,6 @@ public class GeoSPARQLConfig {
             GeometryProperty.loadFilterFunctions(functionRegistry);
             Spatial.loadPropertyFunctions(propertyRegistry);
             Spatial.loadFilterFunctions(functionRegistry);
-            IS_FUNCTIONS_REGISTERED = true;
         }
     }
 
@@ -264,6 +253,19 @@ public class GeoSPARQLConfig {
     }
 
     /**
+     * Setup the precomputed Spatial Index using Dataset Dataset.<br>
+     * We assume that the spatial index was computed before and written to the given file.
+     *
+     * @param dataset the dataset
+     * @param spatialIndexFile the file containing the serialized spatial index
+     * @throws SpatialIndexException
+     */
+    public static final void setupPrecomputedSpatialIndex(Dataset dataset, File spatialIndexFile) throws SpatialIndexException {
+        SpatialIndex si = SpatialIndex.load(spatialIndexFile);
+        SpatialIndex.setSpatialIndex(dataset, si);
+    }
+
+    /**
      * Setup Spatial Index using Dataset and most frequent SRS URI in
      * Dataset.<br>
      * Spatial Index written to file once created.
@@ -308,6 +310,15 @@ public class GeoSPARQLConfig {
      */
     public static final void setPrecisionModelScaleFactor(int scaleFactor) {
         PRECISION_MODEL_SCALE_FACTOR = scaleFactor;
+    }
+
+    /**
+     * Sets whether transformation for mismatching Geometry SRS is allowed.
+     *
+     * @param allowTransformation
+     */
+    public static final void allowGeometrySRSTransformation(boolean allowTransformation) {
+        ALLOW_GEOMETRY_SRS_TRANSFORMATION = allowTransformation;
     }
 
 }

@@ -28,7 +28,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 
 import org.apache.jena.atlas.lib.StrUtils;
 import org.apache.jena.atlas.web.AcceptList;
@@ -42,9 +42,9 @@ import org.apache.jena.query.ResultSetFormatter;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.WebContent;
 import org.apache.jena.riot.resultset.ResultSetWriterRegistry;
-import org.apache.jena.riot.resultset.rw.ResultSetWriterXML;
-import org.apache.jena.riot.resultset.rw.ResultsWriter;
+import org.apache.jena.riot.rowset.rw.RowSetWriterXML;
 import org.apache.jena.sparql.core.Prologue;
+import org.apache.jena.sparql.resultset.ResultsWriter;
 import org.apache.jena.sparql.util.Context;
 import org.apache.jena.web.HttpSC;
 import org.slf4j.Logger;
@@ -105,7 +105,7 @@ public class ResponseResultSet
 
         String mimeType = null;
         // -- Conneg
-        MediaType i = ConNeg.chooseContentType(request, contentTypeOffer, DEF.acceptRSXML);
+        MediaType i = ConNeg.chooseContentType(request, contentTypeOffer, DEF.acceptResultSetXML);
         if ( i != null )
             mimeType = i.getContentTypeStr();
 
@@ -162,7 +162,7 @@ public class ResponseResultSet
         if ( Objects.equals(serializationType, contentTypeResultsXML) ) {
             charset = null;
             if ( stylesheetURL != null )
-                cxt.set(ResultSetWriterXML.xmlStylesheet, stylesheetURL);
+                cxt.set(RowSetWriterXML.xmlStylesheet, stylesheetURL);
         }
         if ( Objects.equals(serializationType, contentTypeResultsJSON) ) {
             jsonCallback = ResponseOps.paramCallback(action.getRequest());
@@ -172,6 +172,12 @@ public class ResponseResultSet
                 ServletOps.errorBadRequest("Can't write a boolean result in thrift");
             charset = null;
         }
+        if (Objects.equals(serializationType, WebContent.contentTypeResultsProtobuf) ) {
+            if ( booleanResult != null )
+                ServletOps.errorBadRequest("Can't write a boolean result in protobuf");
+            charset = null;
+        }
+
 
         // Finally, the general case
         generalOutput(action, lang, contentType, charset, cxt, jsonCallback, resultSet, booleanResult);

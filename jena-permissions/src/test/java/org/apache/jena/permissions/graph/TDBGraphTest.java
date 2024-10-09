@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,8 +22,8 @@ import java.io.IOException;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.permissions.MockSecurityEvaluator;
 import org.apache.jena.sparql.core.DatasetGraph;
-import org.apache.jena.tdb.TDB;
-import org.apache.jena.tdb.TDBFactory;
+import org.apache.jena.tdb1.TDB1;
+import org.apache.jena.tdb1.TDB1Factory;
 import org.junit.After;
 
 public class TDBGraphTest extends MemGraphTest {
@@ -36,15 +36,14 @@ public class TDBGraphTest extends MemGraphTest {
 
     @Override
     protected Graph createGraph() throws IOException {
-        dsGraph = TDBFactory.createDataset().asDatasetGraph();
+        dsGraph = TDB1Factory.createDataset().asDatasetGraph();
         return dsGraph.getDefaultGraph();
     }
 
     @After
     public void tearDown() {
-        TDB.sync(dsGraph);
         dsGraph.close();
-        TDB.closedown();
+        TDB1.closedown();
     }
 
 }

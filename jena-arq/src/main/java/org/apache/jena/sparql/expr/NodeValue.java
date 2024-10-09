@@ -18,49 +18,46 @@
 
 package org.apache.jena.sparql.expr;
 
-import static javax.xml.datatype.DatatypeConstants.* ;
-import static org.apache.jena.datatypes.xsd.XSDDatatype.* ;
-import static org.apache.jena.sparql.expr.ValueSpaceClassification.* ;
+import static javax.xml.datatype.DatatypeConstants.*;
+import static org.apache.jena.datatypes.xsd.XSDDatatype.*;
+import static org.apache.jena.sparql.expr.ValueSpace.*;
 
-import java.math.BigDecimal ;
-import java.math.BigInteger ;
-import java.util.Calendar ;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.util.Calendar;
 
-import javax.xml.datatype.DatatypeFactory ;
-import javax.xml.datatype.Duration ;
-import javax.xml.datatype.XMLGregorianCalendar ;
+import javax.xml.datatype.DatatypeFactory;
+import javax.xml.datatype.Duration;
+import javax.xml.datatype.XMLGregorianCalendar;
 
-import org.apache.jena.JenaRuntime;
-import org.apache.jena.atlas.lib.DateTimeUtils ;
-import org.apache.jena.atlas.lib.StrUtils ;
-import org.apache.jena.atlas.logging.Log ;
-import org.apache.jena.datatypes.DatatypeFormatException ;
-import org.apache.jena.datatypes.RDFDatatype ;
-import org.apache.jena.datatypes.TypeMapper ;
+import org.apache.jena.atlas.lib.DateTimeUtils;
+import org.apache.jena.atlas.logging.Log;
+import org.apache.jena.datatypes.DatatypeFormatException;
+import org.apache.jena.datatypes.RDFDatatype;
+import org.apache.jena.datatypes.TypeMapper;
 import org.apache.jena.datatypes.xsd.XSDDatatype;
 import org.apache.jena.ext.xerces.DatatypeFactoryInst;
-import org.apache.jena.graph.Node ;
-import org.apache.jena.graph.NodeFactory ;
-import org.apache.jena.graph.Triple;
-import org.apache.jena.graph.impl.LiteralLabel ;
-import org.apache.jena.sparql.ARQInternalErrorException ;
-import org.apache.jena.sparql.SystemARQ ;
-import org.apache.jena.sparql.engine.ExecutionContext ;
-import org.apache.jena.sparql.engine.binding.Binding ;
-import org.apache.jena.sparql.expr.nodevalue.* ;
-import org.apache.jena.sparql.function.FunctionEnv ;
-import org.apache.jena.sparql.graph.NodeConst ;
-import org.apache.jena.sparql.graph.NodeTransform ;
-import org.apache.jena.sparql.serializer.SerializationContext ;
-import org.apache.jena.sparql.util.* ;
-import org.apache.jena.sys.JenaSystem ;
-import org.apache.jena.vocabulary.RDF ;
-import org.slf4j.Logger ;
-import org.slf4j.LoggerFactory ;
+import org.apache.jena.graph.Node;
+import org.apache.jena.graph.NodeFactory;
+import org.apache.jena.graph.impl.LiteralLabel;
+import org.apache.jena.sparql.ARQInternalErrorException;
+import org.apache.jena.sparql.SystemARQ;
+import org.apache.jena.sparql.engine.ExecutionContext;
+import org.apache.jena.sparql.engine.binding.Binding;
+import org.apache.jena.sparql.expr.nodevalue.*;
+import org.apache.jena.sparql.function.FunctionEnv;
+import org.apache.jena.sparql.graph.NodeConst;
+import org.apache.jena.sparql.graph.NodeTransform;
+import org.apache.jena.sparql.serializer.SerializationContext;
+import org.apache.jena.sparql.util.*;
+import org.apache.jena.sys.JenaSystem;
+import org.apache.jena.vocabulary.RDF;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class NodeValue extends ExprNode
 {
-    static { JenaSystem.init() ; }
+    static { JenaSystem.init(); }
 
     // Maybe:: NodeValueStringLang - strings with language tag
 
@@ -108,31 +105,31 @@ public abstract class NodeValue extends ExprNode
      * ref:  http://www.w3.org/TR/xquery/#dt-ebv
      */
 
-    private static Logger log = LoggerFactory.getLogger(NodeValue.class) ;
+    private static Logger log = LoggerFactory.getLogger(NodeValue.class);
 
     // ---- Constants and initializers / public
 
-    public static boolean VerboseWarnings = true ;
-    public static boolean VerboseExceptions = false ;
+    public static boolean VerboseWarnings = true;
+    public static boolean VerboseExceptions = false;
 
-    public static final NodeValue TRUE   = NodeValue.makeNode("true", XSDboolean) ;
-    public static final NodeValue FALSE  = NodeValue.makeNode("false", XSDboolean) ;
+    public static final NodeValue TRUE   = NodeValue.makeNode("true", XSDboolean);
+    public static final NodeValue FALSE  = NodeValue.makeNode("false", XSDboolean);
 
-    public static final NodeValue nvZERO = NodeValue.makeNode(NodeConst.nodeZero) ;
+    public static final NodeValue nvZERO = NodeValue.makeNode(NodeConst.nodeZero);
     public static final NodeValue nvNegZERO = NodeValue.makeNode("-0.0e0", XSDdouble);
-    public static final NodeValue nvONE  = NodeValue.makeNode(NodeConst.nodeOne) ;
-    public static final NodeValue nvTEN  = NodeValue.makeNode(NodeConst.nodeTen) ;
+    public static final NodeValue nvONE  = NodeValue.makeNode(NodeConst.nodeOne);
+    public static final NodeValue nvTEN  = NodeValue.makeNode(NodeConst.nodeTen);
 
     public static final NodeValue nvDecimalZERO = NodeValue.makeNode("0.0", XSDdecimal);
     public static final NodeValue nvDecimalONE  = NodeValue.makeNode("1.0", XSDdecimal);
 
-    public static final NodeValue nvNaN     = NodeValue.makeNode("NaN", XSDdouble) ;
-    public static final NodeValue nvINF     = NodeValue.makeNode("INF", XSDdouble) ;
-    public static final NodeValue nvNegINF  = NodeValue.makeNode("-INF",XSDdouble) ;
+    public static final NodeValue nvNaN     = NodeValue.makeNode("NaN", XSDdouble);
+    public static final NodeValue nvINF     = NodeValue.makeNode("INF", XSDdouble);
+    public static final NodeValue nvNegINF  = NodeValue.makeNode("-INF",XSDdouble);
 
-    public static final NodeValue nvEmptyString  = NodeValue.makeString("") ;
+    public static final NodeValue nvEmptyString  = NodeValue.makeString("");
 
-    public static final String xsdNamespace = XSD+"#" ;
+    public static final String xsdNamespace = XSD+"#";
 
     public static DatatypeFactory xmlDatatypeFactory = null;
 
@@ -143,11 +140,11 @@ public abstract class NodeValue extends ExprNode
         xmlDatatypeFactory = DatatypeFactoryInst.newDatatypeFactory();
     }
 
-    private Node node = null ;     // Null used when a value has not been turned into a Node.
+    private Node node = null;     // Null used when a value has not been turned into a Node.
 
     // Don't create direct - the static builders manage the value/node relationship
-    protected NodeValue() { super() ; }
-    protected NodeValue(Node n) { super() ; node = n ; }
+    protected NodeValue() { super(); }
+    protected NodeValue(Node n) { super(); node = n; }
 
 //    protected makeNodeValue(NodeValue nv)
 //    {
@@ -165,49 +162,49 @@ public abstract class NodeValue extends ExprNode
 
     /** Convenience operation - parse a string to produce a NodeValue - common namespaces like xsd: are built-in */
     public static NodeValue parse(String string)
-    { return makeNode(NodeFactoryExtra.parseNode(string)) ; }
+    { return makeNode(NodeFactoryExtra.parseNode(string)); }
 
     public static NodeValue makeInteger(long i)
-    { return new NodeValueInteger(BigInteger.valueOf(i)) ; }
+    { return new NodeValueInteger(BigInteger.valueOf(i)); }
 
     public static NodeValue makeInteger(BigInteger i)
-    { return new NodeValueInteger(i) ; }
+    { return new NodeValueInteger(i); }
 
     public static NodeValue makeInteger(String lexicalForm)
-    { return new NodeValueInteger(new BigInteger(lexicalForm)) ; }
+    { return new NodeValueInteger(new BigInteger(lexicalForm)); }
 
     public static NodeValue makeFloat(float f)
-    { return new NodeValueFloat(f) ; }
+    { return new NodeValueFloat(f); }
 
     public static NodeValue makeDouble(double d)
-    { return new NodeValueDouble(d) ; }
+    { return new NodeValueDouble(d); }
 
     public static NodeValue makeString(String s)
-    { return new NodeValueString(s) ; }
+    { return new NodeValueString(s); }
 
     public static NodeValue makeSortKey(String s, String collation)
-    { return new NodeValueSortKey(s, collation) ; }
+    { return new NodeValueSortKey(s, collation); }
 
     public static NodeValue makeLangString(String s, String lang)
-    { return new NodeValueLang(s, lang) ; }
+    { return new NodeValueLang(s, lang); }
 
     public static NodeValue makeDecimal(BigDecimal d)
-    { return new NodeValueDecimal(d) ; }
+    { return new NodeValueDecimal(d); }
 
     public static NodeValue makeDecimal(long i)
-    { return new NodeValueDecimal(BigDecimal.valueOf(i)) ; }
+    { return new NodeValueDecimal(BigDecimal.valueOf(i)); }
 
     public static NodeValue makeDecimal(double d)
-    { return new NodeValueDecimal(BigDecimal.valueOf(d)) ; }
+    { return new NodeValueDecimal(BigDecimal.valueOf(d)); }
 
     public static NodeValue makeDecimal(String lexicalForm)
-    { return NodeValue.makeNode(lexicalForm, XSDdecimal) ; }
+    { return NodeValue.makeNode(lexicalForm, XSDdecimal); }
 
     public static NodeValue makeDateTime(String lexicalForm)
-    { return NodeValue.makeNode(lexicalForm, XSDdateTime) ; }
+    { return NodeValue.makeNode(lexicalForm, XSDdateTime); }
 
     public static NodeValue makeDate(String lexicalForm)
-    { return NodeValue.makeNode(lexicalForm, XSDdate) ; }
+    { return NodeValue.makeNode(lexicalForm, XSDdate); }
 
     public static NodeValue makeDateTime(Calendar cal) {
         String lex = DateTimeUtils.calendarToXSDDateTimeString(cal);
@@ -216,7 +213,7 @@ public abstract class NodeValue extends ExprNode
 
     public static NodeValue makeDateTime(XMLGregorianCalendar cal) {
         String lex = cal.toXMLFormat();
-        Node node = NodeFactory.createLiteral(lex, XSDdateTime);
+        Node node = NodeFactory.createLiteralDT(lex, XSDdateTime);
         return NodeValueDateTime.create(lex, node);
     }
 
@@ -227,12 +224,12 @@ public abstract class NodeValue extends ExprNode
 
     public static NodeValue makeDate(XMLGregorianCalendar cal) {
         String lex = cal.toXMLFormat();
-        Node node = NodeFactory.createLiteral(lex, XSDdate);
+        Node node = NodeFactory.createLiteralDT(lex, XSDdate);
         return NodeValueDateTime.create(lex, node);
     }
 
     public static NodeValue makeDuration(String lexicalForm)
-    { return NodeValue.makeNode(lexicalForm, XSDduration) ; }
+    { return NodeValue.makeNode(lexicalForm, XSDduration); }
 
     public static NodeValue makeDuration(Duration duration)
     { return new NodeValueDuration(duration); }
@@ -241,147 +238,116 @@ public abstract class NodeValue extends ExprNode
     { return new NodeValueDuration(duration, node); }
 
     public static NodeValue makeBoolean(boolean b)
-    { return b ? NodeValue.TRUE : NodeValue.FALSE ; }
+    { return b ? NodeValue.TRUE : NodeValue.FALSE; }
 
     public static NodeValue booleanReturn(boolean b)
-    { return b ? NodeValue.TRUE : NodeValue.FALSE ; }
+    { return b ? NodeValue.TRUE : NodeValue.FALSE; }
 
     // ----------------------------------------------------------------
     // ---- Construct NodeValue from graph nodes
 
     public static NodeValue makeNode(Node n)
     {
-        NodeValue nv = nodeToNodeValue(n) ;
-        return nv ;
+        return nodeToNodeValue(n);
     }
 
     public static NodeValue makeNode(String lexicalForm, RDFDatatype dtype)
     {
-        Node n = NodeFactory.createLiteral(lexicalForm, dtype) ;
-        NodeValue nv = NodeValue.makeNode(n) ;
-        return nv ;
+        Node n = NodeFactory.createLiteralDT(lexicalForm, dtype);
+        return NodeValue.makeNode(n);
     }
 
     // Convenience - knows that lang tags aren't allowed with datatypes.
     public static NodeValue makeNode(String lexicalForm, String langTag, Node datatype)
     {
-        String uri = (datatype==null) ? null : datatype.getURI() ;
-        return makeNode(lexicalForm, langTag,  uri) ;
+        String uri = (datatype==null) ? null : datatype.getURI();
+        return makeNode(lexicalForm, langTag,  uri);
     }
 
     public static NodeValue makeNode(String lexicalForm, String langTag, String datatype)
     {
         if ( datatype != null && datatype.equals("") )
-            datatype = null ;
+            datatype = null;
 
         if ( langTag != null && datatype != null )
             // raise??
-            Log.warn(NodeValue.class, "Both lang tag and datatype defined (lexcial form '"+lexicalForm+"')") ;
+            Log.warn(NodeValue.class, "Both lang tag and datatype defined (lexcial form '"+lexicalForm+"')");
 
-        Node n = null ;
+        Node n = null;
         if ( langTag != null )
-            n = NodeFactory.createLiteral(lexicalForm, langTag) ;
+            n = NodeFactory.createLiteralLang(lexicalForm, langTag);
         else if ( datatype != null) {
-            RDFDatatype dType = TypeMapper.getInstance().getSafeTypeByName(datatype) ;
-            n = NodeFactory.createLiteral(lexicalForm, dType) ;
+            RDFDatatype dType = TypeMapper.getInstance().getSafeTypeByName(datatype);
+            n = NodeFactory.createLiteralDT(lexicalForm, dType);
         } else
-            n = NodeFactory.createLiteral(lexicalForm) ;
+            n = NodeFactory.createLiteralString(lexicalForm);
 
-        return NodeValue.makeNode(n) ;
+        return NodeValue.makeNode(n);
     }
 
     // ----------------------------------------------------------------
     // ---- Construct NodeValue with graph node and value.
 
     public static NodeValue makeNodeBoolean(boolean b)
-    { return b ? NodeValue.TRUE : NodeValue.FALSE ; }
+    { return b ? NodeValue.TRUE : NodeValue.FALSE; }
 
-    public static NodeValue makeNodeBoolean(String lexicalForm)
-    {
-        NodeValue nv = makeNode(lexicalForm, null, XSDboolean.getURI()) ;
-        return nv ;
+    public static NodeValue makeNodeBoolean(String lexicalForm) {
+        return makeNode(lexicalForm, null, XSDboolean.getURI());
     }
 
-    public static NodeValue makeNodeInteger(long v)
-    {
-        NodeValue nv = makeNode(Long.toString(v), null, XSDinteger.getURI()) ;
-        return nv ;
+    public static NodeValue makeNodeInteger(long v) {
+        return makeNode(Long.toString(v), null, XSDinteger.getURI());
     }
 
-    public static NodeValue makeNodeInteger(String lexicalForm)
-    {
-        NodeValue nv = makeNode(lexicalForm, null, XSDinteger.getURI()) ;
-        return nv ;
+    public static NodeValue makeNodeInteger(String lexicalForm) {
+        return makeNode(lexicalForm, null, XSDinteger.getURI());
     }
 
-    public static NodeValue makeNodeFloat(float f)
-    {
-        NodeValue nv = makeNode(Utils.stringForm(f), null, XSDfloat.getURI()) ;
-        return nv ;
+    public static NodeValue makeNodeFloat(float f) {
+        return makeNode(XSDNumUtils.stringForm(f), null, XSDfloat.getURI());
     }
 
-    public static NodeValue makeNodeFloat(String lexicalForm)
-    {
-        NodeValue nv = makeNode(lexicalForm, null, XSDdouble.getURI()) ;
-        return nv ;
+    public static NodeValue makeNodeFloat(String lexicalForm) {
+        return makeNode(lexicalForm, null, XSDfloat.getURI());
     }
 
-    public static NodeValue makeNodeDouble(double v)
-    {
-        NodeValue nv = makeNode(Utils.stringForm(v), null, XSDdouble.getURI()) ;
-        return nv ;
+    public static NodeValue makeNodeDouble(double v) {
+        return makeNode(XSDNumUtils.stringForm(v), null, XSDdouble.getURI());
     }
 
-    public static NodeValue makeNodeDouble(String lexicalForm)
-    {
-        NodeValue nv = makeNode(lexicalForm, null, XSDdouble.getURI()) ;
-        return nv ;
+    public static NodeValue makeNodeDouble(String lexicalForm) {
+        return makeNode(lexicalForm, null, XSDdouble.getURI());
     }
 
-    public static NodeValue makeNodeDecimal(BigDecimal decimal)
-    {
-      String lex = XSDFuncOp.canonicalDecimalStr(decimal);
-      return NodeValue.makeNode(lex, XSDDatatype.XSDdecimal) ;
-//        NodeValue nv = XSDFuncOp.canonicalDecimalNV(decimal) ;
-//        return nv ;
+    public static NodeValue makeNodeDecimal(BigDecimal decimal) {
+        String lex = XSDNumUtils.stringFormatARQ(decimal);
+        return makeNode(lex, XSDDatatype.XSDdecimal);
     }
 
-    public static NodeValue makeNodeDecimal(String lexicalForm)
-    {
-        NodeValue nv = makeNode(lexicalForm, null, XSDdecimal.getURI()) ;
-        return nv ;
+    public static NodeValue makeNodeDecimal(String lexicalForm) {
+        return makeNode(lexicalForm, null, XSDdecimal.getURI());
     }
 
-    public static NodeValue makeNodeString(String string)
-    {
-        NodeValue nv = makeNode(string, null, (String)null) ;
-        return nv ;
+    public static NodeValue makeNodeString(String string) {
+        return makeNode(string, null, (String)null);
     }
 
-    public static NodeValue makeNodeDateTime(Calendar date)
-    {
-        String lex = DateTimeUtils.calendarToXSDDateTimeString(date) ;
-        NodeValue nv = makeNode(lex, XSDdateTime) ;
-        return nv ;
+    public static NodeValue makeNodeDateTime(Calendar date) {
+        String lex = DateTimeUtils.calendarToXSDDateTimeString(date);
+        return makeNode(lex, XSDdateTime);
     }
 
-    public static NodeValue makeNodeDateTime(String lexicalForm)
-    {
-        NodeValue nv = makeNode(lexicalForm, XSDdateTime) ;
-        return nv ;
+    public static NodeValue makeNodeDateTime(String lexicalForm) {
+        return makeNode(lexicalForm, XSDdateTime);
     }
 
-    public static NodeValue makeNodeDate(Calendar date)
-    {
-        String lex = DateTimeUtils.calendarToXSDDateString(date) ;
-        NodeValue nv = makeNode(lex, XSDdate) ;
-        return nv ;
+    public static NodeValue makeNodeDate(Calendar date) {
+        String lex = DateTimeUtils.calendarToXSDDateString(date);
+        return makeNode(lex, XSDdate);
     }
 
-    public static NodeValue makeNodeDate(String lexicalForm)
-    {
-        NodeValue nv = makeNode(lexicalForm, XSDdate) ;
-        return nv ;
+    public static NodeValue makeNodeDate(String lexicalForm) {
+        return makeNode(lexicalForm, XSDdate);
     }
 
    // ----------------------------------------------------------------
@@ -389,47 +355,66 @@ public abstract class NodeValue extends ExprNode
 
     @Override
     public NodeValue eval(Binding binding, FunctionEnv env)
-    { return this ; }
+    { return this; }
 
     // NodeValues are immutable so no need to duplicate.
     @Override
     public Expr copySubstitute(Binding binding)
     {
-        return this ;
+        return this;
     }
 
     @Override
     public Expr applyNodeTransform(NodeTransform transform)
     {
-        Node n = asNode() ;
-        n = transform.apply(n) ;
-        return makeNode(n) ;
+        Node n = asNode();
+        n = transform.apply(n);
+        return makeNode(n);
     }
 
     public Node evalNode(Binding binding, ExecutionContext execCxt)
     {
-        return asNode() ;
+        return asNode();
     }
 
     @Override
-    public boolean isConstant()     { return true ; }
+    public boolean isConstant()     { return true; }
 
     @Override
-    public NodeValue getConstant()  { return this ; }
+    public NodeValue getConstant()  { return this; }
 
     public boolean isIRI() {
-        forceToNode() ;
-        return node.isURI() ;
+        forceToNode();
+        return node.isURI();
     }
 
     public boolean isBlank() {
-        forceToNode() ;
-        return node.isBlank() ;
+        forceToNode();
+        return node.isBlank();
     }
 
     public boolean isTripleTerm() {
-        forceToNode() ;
-        return node.isNodeTriple() ;
+        forceToNode();
+        return node.isNodeTriple();
+    }
+
+    public ValueSpace getValueSpace() {
+        return classifyValueSpace(this);
+    }
+
+    public static ValueSpace classifyValueOp(NodeValue nv1, NodeValue nv2) {
+        ValueSpace c1 = classifyValueSpace(nv1);
+        ValueSpace c2 = classifyValueSpace(nv2);
+        if ( c1 == c2 ) return c1;
+        if ( c1 == VSPACE_UNKNOWN || c2 == VSPACE_UNKNOWN )
+            return VSPACE_UNKNOWN;
+
+        // Known values spaces but incompatible
+        return VSPACE_DIFFERENT;
+    }
+
+    /*package*/ static ValueSpace classifyValueSpace(NodeValue nv) {
+        return ValueSpace.valueSpace(nv);
     }
 
     // ----------------------------------------------------------------
@@ -438,427 +423,59 @@ public abstract class NodeValue extends ExprNode
     // Disjoint value spaces : dateTime and dates are not comparable
     // Every langtag implies another value space as well.
 
-    /** Return true if the two NodeValues are known to be the same value
-     *  return false if known to be different values,
-     *  throw ExprEvalException otherwise
+    /**
+     * Return true if the two NodeValues are known to be the same value return false
+     * if known to be different values, throw ExprEvalException otherwise
      */
-    public static boolean sameAs(NodeValue nv1, NodeValue nv2)
-    {
-        if ( nv1 == null || nv2 == null )
-            throw new ARQInternalErrorException("Attempt to sameValueAs on a null") ;
-
-        ValueSpaceClassification compType = classifyValueOp(nv1, nv2) ;
-
-        // Special case - date/dateTime comparison is affected by timezones and may be
-        // indeterminate based on the value of the dateTime/date.
-
-        switch (compType)
-        {
-            case VSPACE_NUM:
-                return XSDFuncOp.compareNumeric(nv1, nv2) == Expr.CMP_EQUAL ;
-            case VSPACE_DATETIME:
-            case VSPACE_DATE:
-            case VSPACE_TIME:
-            case VSPACE_G_YEAR :
-            case VSPACE_G_YEARMONTH :
-            case VSPACE_G_MONTH :
-            case VSPACE_G_MONTHDAY :
-            case VSPACE_G_DAY :
-            {
-                int x = XSDFuncOp.compareDateTime(nv1, nv2) ;
-                if ( x == Expr.CMP_INDETERMINATE )
-                    throw new ExprNotComparableException("Indeterminate dateTime comparison") ;
-                return  x == Expr.CMP_EQUAL ;
-            }
-            case VSPACE_DURATION:
-            {
-                int x = XSDFuncOp.compareDuration(nv1, nv2) ;
-                if ( x == Expr.CMP_INDETERMINATE )
-                	throw new ExprNotComparableException("Indeterminate duration comparison") ;
-                return  x == Expr.CMP_EQUAL ;
-            }
-
-            case VSPACE_STRING:     return XSDFuncOp.compareString(nv1, nv2) == Expr.CMP_EQUAL ;
-            case VSPACE_BOOLEAN:    return XSDFuncOp.compareBoolean(nv1, nv2) == Expr.CMP_EQUAL ;
-
-            case VSPACE_TRIPLE_TERM: {
-                Triple t1 = nv1.getNode().getTriple();
-                Triple t2 = nv2.getNode().getTriple();
-                return nSameAs(t1.getSubject(), t2.getSubject())
-                    && nSameAs(t1.getPredicate(), t2.getPredicate())
-                    && nSameAs(t1.getObject(), t2.getObject());
-            }
-
-            case VSPACE_LANG:
-            case VSPACE_NODE:
-                // Two non-literals
-                return NodeFunctions.sameTerm(nv1.getNode(), nv2.getNode()) ;
-
-            case VSPACE_UNKNOWN:
-            {
-                // One or two unknown value spaces, or one has a lang tag (but not both).
-                Node node1 = nv1.asNode() ;
-                Node node2 = nv2.asNode() ;
-
-                if ( ! SystemARQ.ValueExtensions )
-                    // No value extensions => raw rdfTermEquals
-                    return NodeFunctions.rdfTermEquals(node1, node2) ;
-
-                // Some "value spaces" are know to be not equal (no overlap).
-                // Like one literal with a language tag, and one without can't be sameAs.
-
-                if ( ! node1.isLiteral() || ! node2.isLiteral() )
-                    // Can't both be non-literals - that's VSPACE_NODE
-                    // One or other not a literal => not sameAs
-                    return false ;
-
-                // Two literals at this point.
-
-                if ( NodeFunctions.sameTerm(node1, node2) )
-                    return true ;
-
-                if ( ! node1.getLiteralLanguage().equals("") ||
-                     ! node2.getLiteralLanguage().equals("") )
-                    // One had lang tag but weren't sameNode => not equals
-                    return false ;
-
-                raise(new ExprEvalException("Unknown equality test: "+nv1+" and "+nv2)) ;
-                throw new ARQInternalErrorException("raise returned (sameValueAs)") ;
-            }
-            case VSPACE_SORTKEY:
-                return nv1.getSortKey().compareTo(nv2.getSortKey()) == 0 ;
-
-            case VSPACE_DIFFERENT:
-                // Known to be incompatible.
-                if ( ! SystemARQ.ValueExtensions && ( nv1.isLiteral() && nv2.isLiteral() ) )
-                    raise(new ExprEvalException("Incompatible: "+nv1+" and "+nv2)) ;
-                return false ;
-        }
-
-        throw new ARQInternalErrorException("sameValueAs failure "+nv1+" and "+nv2) ;
+    public static boolean sameValueAs(NodeValue nv1, NodeValue nv2) {
+        return NodeValueCmp.sameValueAs(nv1, nv2);
     }
 
-    /** Worker for sameAs. */
-    private static boolean nSameAs(Node n1, Node n2) {
-        NodeValue nv1 = NodeValue.makeNode(n1);
-        NodeValue nv2 = NodeValue.makeNode(n2);
-        return sameAs(nv1, nv2);
+    /**
+     * Return true if the two Nodes are known to be different, return false if the
+     * two Nodes are known to be the same, else throw ExprEvalException
+     */
+    public static boolean notSameValueAs(Node n1, Node n2) {
+        return notSameValueAs(NodeValue.makeNode(n1), NodeValue.makeNode(n2));
     }
 
-    /** Return true if the two Nodes are known to be different,
-     *  return false if the two Nodes are known to be the same,
-     *  else throw ExprEvalException
+    /**
+     * Return true if the two NodeValues are known to be different, return false if
+     * the two NodeValues are known to be the same, else throw ExprEvalException
      */
-    public static boolean notSameAs(Node n1, Node n2)
-    {
-        return notSameAs(NodeValue.makeNode(n1), NodeValue.makeNode(n2)) ;
-    }
-
-    /** Return true if the two NodeValues are known to be different,
-     *  return false if the two NodeValues are known to be the same,
-     *  else throw ExprEvalException
-     */
-    public static boolean notSameAs(NodeValue nv1, NodeValue nv2)
-    {
-        return ! sameAs(nv1, nv2) ;
+    public static boolean notSameValueAs(NodeValue nv1, NodeValue nv2) {
+        return NodeValueCmp.notSameValueAs(nv1, nv2);
     }
 
     // ----------------------------------------------------------------
     // compare
 
-    // Compare by value code is here
-    // NodeUtils.compareRDFTerms for syntactic comparison
-
-    /** Compare by value if possible else compare by kind/type/lexical form
-     *  Only use when you want an ordering regardless of form of NodeValue,
-     *  for example in ORDER BY
+    /** Compare by value (and only value) if possible.
+     *  Supports &lt;, &lt;=, &gt;, &gt;= but not = nor != (which are sameValueAs and notSameValueAs)
+     * @param nv1
+     * @param nv2
+     * @return Expr.CMP_LESS(-1), Expr.CMP_EQUAL(0) or Expr.CMP_GREATER(+1)
+     * @throws ExprNotComparableException for Expr.CMP_INDETERMINATE(+2)
+     */
+    public static int compare(NodeValue nv1, NodeValue nv2) {
+        //return NodeValueCompare.compare(nv1, nv2);
+        int x = NodeValueCmp.compareByValue(nv1, nv2);
+        if ( x == Expr.CMP_INDETERMINATE || x == Expr.CMP_UNEQUAL )
+            throw new ExprNotComparableException(null);
+        return x;
+    }
+    /**
+     * Compare by value if possible else compare by kind/type/lexical form
+     * Only use when you want an ordering regardless of form of NodeValue,
+     * for example in ORDER BY
      *
      * @param nv1
      * @param nv2
      * @return negative, 0, or positive for less than, equal, greater than.
      */
-
-    public static int compareAlways(NodeValue nv1, NodeValue nv2)
-    {
-        try {
-            int x = compare(nv1, nv2, true) ;
-            // Same?
-            if ( x != Expr.CMP_EQUAL )
-                return x ;
-        } catch (ExprNotComparableException ex)
-        { /* Drop through */ }
-        return NodeUtils.compareRDFTerms(nv1.asNode(), nv2.asNode()) ;
-    }
-
-    /** Compare by value (and only value) if possible.
-     *  Supports &lt;, &lt;=, &gt;, &gt;= but not = nor != (which are sameValueAs and notSameValueAs)
-     * @param nv1
-     * @param nv2
-     * @return Expr.CMP_INDETERMINATE(+2), Expr.CMP_LESS(-1), Expr.CMP_EQUAL(0) or Expr.CMP_GREATER(+1)
-     * @throws ExprNotComparableException
-     */
-    public static int compare(NodeValue nv1, NodeValue nv2)
-    {
-        if ( nv1 == null || nv2 == null )
-            //raise(new ExprEvalException("Attempt to notSameValueAs on null") ;
-            throw new ARQInternalErrorException("Attempt to compare on null") ;
-        int x = compare(nv1, nv2, false) ;
-        return x ;
-    }
-
-    // E_GreaterThan/E_LessThan/E_GreaterThanOrEqual/E_LessThanOrEqual
-    // ==> compare(nv1, nv2) => compare (nv1, nv2, false)
-
-    // BindingComparator => compareAlways(nv1, nv2) => compare (nv1, nv2, true)
-
-    // E_Equals calls NodeValue.sameAs() ==>
-
-    // sortOrderingCompare means that the comparison should do something with normally unlike things,
-    // and split plain strings from xsd:strings.
-
-    private static int compare(NodeValue nv1, NodeValue nv2, boolean sortOrderingCompare)
-    {
-        if ( nv1 == null && nv2 == null )
-            return Expr.CMP_EQUAL ;
-
-        if ( nv1 == null )
-            return Expr.CMP_LESS ;
-        if ( nv2 == null )
-            return Expr.CMP_GREATER ;
-
-        ValueSpaceClassification compType = classifyValueOp(nv1, nv2) ;
-
-        // Special case - date/dateTime comparison is affected by timezones and may be
-        // indeterminate based on the value of the dateTime/date.
-        // Do this first,
-
-        switch (compType)
-        {
-            case VSPACE_DATETIME:
-            case VSPACE_DATE:
-            case VSPACE_TIME:
-            case VSPACE_G_DAY :
-            case VSPACE_G_MONTH :
-            case VSPACE_G_MONTHDAY :
-            case VSPACE_G_YEAR :
-            case VSPACE_G_YEARMONTH :
-            {
-                int x = XSDFuncOp.compareDateTime(nv1, nv2) ;
-                if ( x != Expr.CMP_INDETERMINATE )
-                    return x ;
-                // Indeterminate => can't compare as strict values.
-                compType = ValueSpaceClassification.VSPACE_DIFFERENT ;
-                break ;
-            }
-            case VSPACE_DURATION:
-            {
-                int x = XSDFuncOp.compareDuration(nv1, nv2) ;
-                // Fix up - Java (Oracle java7 at least) returns "equals" for
-                // "P1Y"/"P365D" and "P1M"/"P28D", and others split over
-                // YearMonth/DayTime.
-
-                // OR return Expr.CMP_INDETERMINATE ??
-                if ( x == Expr.CMP_EQUAL ) {
-                    Duration d1 = nv1.getDuration() ;
-                    Duration d2 = nv2.getDuration() ;
-                    if ( ( XSDFuncOp.isDayTime(d1) && XSDFuncOp.isYearMonth(d2) ) ||
-                         ( XSDFuncOp.isDayTime(d2) && XSDFuncOp.isYearMonth(d1) ) )
-                        x = Expr.CMP_INDETERMINATE ;
-                }
-                if ( x != Expr.CMP_INDETERMINATE )
-                    return x ;
-                compType = ValueSpaceClassification.VSPACE_DIFFERENT ;
-                break ;
-            }
-
-            // No special cases.
-            case VSPACE_BOOLEAN :
-            case VSPACE_DIFFERENT :
-            case VSPACE_LANG :
-            case VSPACE_TRIPLE_TERM:
-            case VSPACE_NODE :
-            case VSPACE_NUM :
-            case VSPACE_STRING :
-            case VSPACE_SORTKEY :
-            case VSPACE_UNKNOWN :
-                // Drop through.
-        }
-
-        switch (compType)
-        {
-            case VSPACE_DATETIME:
-            case VSPACE_DATE:
-            case VSPACE_TIME:
-            case VSPACE_G_DAY :
-            case VSPACE_G_MONTH :
-            case VSPACE_G_MONTHDAY :
-            case VSPACE_G_YEAR :
-            case VSPACE_G_YEARMONTH :
-            case VSPACE_DURATION:
-                throw new ARQInternalErrorException("Still seeing date/dateTime/time/duration compare type") ;
-
-            case VSPACE_NUM:        return XSDFuncOp.compareNumeric(nv1, nv2) ;
-            case VSPACE_STRING:
-            {
-                int cmp = XSDFuncOp.compareString(nv1, nv2) ;
-
-                if ( ! sortOrderingCompare )
-                    return cmp ;
-                if ( cmp != Expr.CMP_EQUAL )
-                    return cmp ;
-
-                // Equality.
-                if ( JenaRuntime.isRDF11 )
-                    // RDF 1.1 : No literals without datatype.
-                    return cmp ;
-
-                // RDF 1.0
-                // Split plain literals and xsd:strings for sorting purposes.
-                // Same by string value.
-                String dt1 = nv1.asNode().getLiteralDatatypeURI() ;
-                String dt2 = nv2.asNode().getLiteralDatatypeURI() ;
-                if ( dt1 == null && dt2 != null )
-                    return Expr.CMP_LESS ;
-                if ( dt2 == null && dt1 != null )
-                    return Expr.CMP_GREATER ;
-                return Expr.CMP_EQUAL;  // Both plain or both xsd:string.
-            }
-            case VSPACE_SORTKEY :
-                return nv1.getSortKey().compareTo(nv2.getSortKey());
-
-            case VSPACE_BOOLEAN:
-                return XSDFuncOp.compareBoolean(nv1, nv2) ;
-
-            case VSPACE_LANG:
-            {
-                // Two literals, both with language tags.
-                Node node1 = nv1.asNode() ;
-                Node node2 = nv2.asNode() ;
-                int x = StrUtils.strCompareIgnoreCase(node1.getLiteralLanguage(), node2.getLiteralLanguage()) ;
-
-                if ( x != Expr.CMP_EQUAL )
-                {
-                    // Different lang tags
-                    if ( ! sortOrderingCompare )
-                        raise(new ExprNotComparableException("Can't compare (different languages) "+nv1+" and "+nv2)) ;
-                    // Different lang tags - sorting
-                    return x ;
-                }
-
-                // same lang tag (case insensitive)
-                x = StrUtils.strCompare(node1.getLiteralLexicalForm(), node2.getLiteralLexicalForm()) ;
-                if ( x != Expr.CMP_EQUAL )
-                    return x ;
-                // Same lexical forms, same lang tag by value
-                // Try to split by syntactic lang tags.
-                x = StrUtils.strCompare(node1.getLiteralLanguage(), node2.getLiteralLanguage()) ;
-                // Maybe they are the same after all!
-                // Should be node.equals by now.
-                if ( x == Expr.CMP_EQUAL  && ! NodeFunctions.sameTerm(node1, node2) )
-                    throw new ARQInternalErrorException("Looks like the same (lang tags) but not node equals") ;
-                return x ;
-            }
-
-            case VSPACE_TRIPLE_TERM: {
-                Triple t1 = nv1.getNode().getTriple();
-                Triple t2 = nv2.getNode().getTriple();
-                int x = nCompare(t1.getSubject(), t2.getSubject(), sortOrderingCompare);
-                if ( x != CMP_EQUAL )
-                    return x;
-                x = nCompare(t1.getPredicate(), t2.getPredicate(), sortOrderingCompare);
-                if ( x != CMP_EQUAL )
-                    return x;
-                return nCompare(t1.getObject(), t2.getObject(), sortOrderingCompare);
-            }
-
-            case VSPACE_NODE:
-                // Two non-literals don't compare except for sorting.
-                if ( sortOrderingCompare )
-                    return NodeUtils.compareRDFTerms(nv1.asNode(), nv2.asNode()) ;
-                else
-                {
-                    raise(new ExprNotComparableException("Can't compare (nodes) "+nv1+" and "+nv2)) ;
-                    throw new ARQInternalErrorException("NodeValue.raise returned") ;
-                }
-
-            case VSPACE_UNKNOWN:
-            {
-                // One or two unknown value spaces.
-                Node node1 = nv1.asNode() ;
-                Node node2 = nv2.asNode() ;
-                // Two unknown literals can be equal.
-                if ( NodeFunctions.sameTerm(node1, node2) )
-                    return Expr.CMP_EQUAL ;
-
-                if ( sortOrderingCompare )
-                    return NodeUtils.compareRDFTerms(node1, node2) ;
-
-                raise(new ExprNotComparableException("Can't compare "+nv1+" and "+nv2)) ;
-                throw new ARQInternalErrorException("NodeValue.raise returned") ;
-            }
-
-            case VSPACE_DIFFERENT:
-                // Two literals, from different known value spaces
-                if ( sortOrderingCompare )
-                    return NodeUtils.compareRDFTerms(nv1.asNode(), nv2.asNode()) ;
-
-                raise(new ExprNotComparableException("Can't compare (incompatible value spaces)"+nv1+" and "+nv2)) ;
-                throw new ARQInternalErrorException("NodeValue.raise returned") ;
-        }
-        throw new ARQInternalErrorException("Compare failure "+nv1+" and "+nv2) ;
-    }
-
-    /** Worker for compare. */
-    private static int nCompare(Node n1, Node n2, boolean sortOrderingCompare) {
-        if ( n1.equals(n2) )
-            return CMP_EQUAL;
-        NodeValue nv1 = NodeValue.makeNode(n1);
-        NodeValue nv2 = NodeValue.makeNode(n2);
-        return compare(nv1, nv2, sortOrderingCompare);
-    }
-
-    public static ValueSpaceClassification classifyValueOp(NodeValue nv1, NodeValue nv2)
-    {
-        ValueSpaceClassification c1 = nv1.getValueSpace() ;
-        ValueSpaceClassification c2 = nv2.getValueSpace() ;
-        if ( c1 == c2 ) return c1 ;
-        if ( c1 == VSPACE_UNKNOWN || c2 == VSPACE_UNKNOWN )
-            return VSPACE_UNKNOWN ;
-
-        // Known values spaces but incompatible
-        return VSPACE_DIFFERENT ;
-    }
-
-    public ValueSpaceClassification getValueSpace()     { return classifyValueSpace(this) ; }
-
-    private static ValueSpaceClassification classifyValueSpace(NodeValue nv)
-    {
-        if ( nv.isNumber() )        return VSPACE_NUM ;
-        if ( nv.isDateTime() )      return VSPACE_DATETIME ;
-        if ( nv.isString())         return VSPACE_STRING ;
-        if ( nv.isBoolean())        return VSPACE_BOOLEAN ;
-        if ( nv.isTripleTerm())     return VSPACE_TRIPLE_TERM ;
-        if ( ! nv.isLiteral() )     return VSPACE_NODE ;
-
-        if ( ! SystemARQ.ValueExtensions )
-            return VSPACE_UNKNOWN ;
-
-        // Datatypes and their value spaces that are an extension of minimal SPARQL 1.1
-        if ( nv.isDate() )          return VSPACE_DATE ;
-        if ( nv.isTime() )          return VSPACE_TIME ;
-        if ( nv.isDuration() )      return VSPACE_DURATION ;
-
-        if ( nv.isGYear() )         return VSPACE_G_YEAR ;
-        if ( nv.isGYearMonth() )    return VSPACE_G_YEARMONTH ;
-        if ( nv.isGMonth() )        return VSPACE_G_MONTH ;
-        if ( nv.isGMonthDay() )     return VSPACE_G_MONTHDAY ;
-        if ( nv.isGDay() )          return VSPACE_G_DAY ;
-
-        if ( nv.isSortKey() )       return VSPACE_SORTKEY ;
-
-        if ( NodeUtils.hasLang(nv.asNode()) )
-            return VSPACE_LANG ;
-        return VSPACE_UNKNOWN ;
+    public static int compareAlways(NodeValue nv1, NodeValue nv2) {
+        //return NodeValueCompare.compareAlways(nv1, nv2);
+        return NodeValueCmp.compareAlways(nv1, nv2);
     }
 
     // ----------------------------------------------------------------
@@ -867,160 +484,159 @@ public abstract class NodeValue extends ExprNode
     public static Node toNode(NodeValue nv)
     {
         if ( nv == null )
-            return null ;
-        return nv.asNode() ;
+            return null;
+        return nv.asNode();
     }
 
     public final Node asNode()
     {
         if ( node == null )
-            node = makeNode() ;
-        return node ;
+            node = makeNode();
+        return node;
     }
-    protected abstract Node makeNode() ;
+    protected abstract Node makeNode();
 
     /** getNode - return the node form - may be null (use .asNode() to force to a node) */
-    public Node getNode() { return node ; }
+    public Node getNode() { return node; }
 
-    public String getDatatypeURI() { return asNode().getLiteralDatatypeURI() ; }
+    public String getDatatypeURI() { return asNode().getLiteralDatatypeURI(); }
 
-    public boolean hasNode() { return node != null ; }
+    public boolean hasNode() { return node != null; }
 
     // ----------------------------------------------------------------
     // ---- Subclass operations
 
-    public boolean isBoolean()      { return false ; }
-    public boolean isString()       { return false ; }
-    public boolean isLangString()   { return false ; }
-    public boolean isSortKey()      { return false ; }
+    public boolean isBoolean()      { return false; }
+    public boolean isString()       { return false; }
+    public boolean isLangString()   { return false; }
+    public boolean isSortKey()      { return false; }
 
-    public boolean isNumber()       { return false ; }
-    public boolean isInteger()      { return false ; }
-    public boolean isDecimal()      { return false ; }
-    public boolean isFloat()        { return false ; }
-    public boolean isDouble()       { return false ; }
+    public boolean isNumber()       { return false; }
+    public boolean isInteger()      { return false; }
+    public boolean isDecimal()      { return false; }
+    public boolean isFloat()        { return false; }
+    public boolean isDouble()       { return false; }
 
-    public boolean hasDateTime()    { return isDateTime() || isDate() || isTime() || isGYear() || isGYearMonth() || isGMonth() || isGMonthDay() || isGDay() ; }
-    public boolean isDateTime()     { return false ; }
-    public boolean isDate()         { return false ; }
-    public boolean isLiteral()      { return getNode() == null || getNode().isLiteral() ; }
-    public boolean isTime()         { return false ; }
-    public boolean isDuration()     { return false ; }
+    public boolean hasDateTime()    { return isDateTime() || isDate() || isTime() || isGYear() || isGYearMonth() || isGMonth() || isGMonthDay() || isGDay(); }
+    public boolean isDateTime()     { return false; }
+    public boolean isDate()         { return false; }
+    public boolean isLiteral()      { return getNode() == null || getNode().isLiteral(); }
+    public boolean isTime()         { return false; }
+    public boolean isDuration()     { return false; }
 
     public boolean isYearMonthDuration()
     {
-        if ( ! isDuration() ) return false ;
-        Duration dur = getDuration() ;
+        if ( ! isDuration() ) return false;
+        Duration dur = getDuration();
         return ( dur.isSet(YEARS) || dur.isSet(MONTHS) ) &&
-               ! dur.isSet(DAYS) && ! dur.isSet(HOURS) && ! dur.isSet(MINUTES) && ! dur.isSet(SECONDS) ;
+               ! dur.isSet(DAYS) && ! dur.isSet(HOURS) && ! dur.isSet(MINUTES) && ! dur.isSet(SECONDS);
     }
 
     public boolean isDayTimeDuration()
     {
-        if ( ! isDuration() ) return false ;
-        Duration dur = getDuration() ;
+        if ( ! isDuration() ) return false;
+        Duration dur = getDuration();
         return !dur.isSet(YEARS) && ! dur.isSet(MONTHS) &&
             ( dur.isSet(DAYS) || dur.isSet(HOURS) || dur.isSet(MINUTES) || dur.isSet(SECONDS) );
     }
 
-    public boolean isGYear()        { return false ; }
-    public boolean isGYearMonth()   { return false ; }
-    public boolean isGMonth()       { return false ; }
-    public boolean isGMonthDay()    { return false ; }
-    public boolean isGDay()         { return false ; }
+    public boolean isGYear()        { return false; }
+    public boolean isGYearMonth()   { return false; }
+    public boolean isGMonth()       { return false; }
+    public boolean isGMonthDay()    { return false; }
+    public boolean isGDay()         { return false; }
 
-    public boolean     getBoolean()     { raise(new ExprEvalTypeException("Not a boolean: "+this)) ; return false ; }
-    public String      getString()      { raise(new ExprEvalTypeException("Not a string: "+this)) ; return null ; }
-    public String      getLang()        { raise(new ExprEvalTypeException("Not a string: "+this)) ; return null ; }
-    public NodeValueSortKey getSortKey()        { raise(new ExprEvalTypeException("Not a sort key: "+this)) ; return null ; }
+    public boolean     getBoolean()     { raise(new ExprEvalTypeException("Not a boolean: "+this)); return false; }
+    public String      getString()      { raise(new ExprEvalTypeException("Not a string: "+this)); return null; }
+    public String      getLang()        { raise(new ExprEvalTypeException("Not a string: "+this)); return null; }
+    public NodeValueSortKey getSortKey()        { raise(new ExprEvalTypeException("Not a sort key: "+this)); return null; }
 
-    public BigInteger  getInteger()     { raise(new ExprEvalTypeException("Not an integer: "+this)) ; return null ; }
-    public BigDecimal  getDecimal()     { raise(new ExprEvalTypeException("Not a decimal: "+this)) ; return null ; }
-    public float       getFloat()       { raise(new ExprEvalTypeException("Not a float: "+this)) ; return Float.NaN ; }
-    public double      getDouble()      { raise(new ExprEvalTypeException("Not a double: "+this)) ; return Double.NaN ; }
+    public BigInteger  getInteger()     { raise(new ExprEvalTypeException("Not an integer: "+this)); return null; }
+    public BigDecimal  getDecimal()     { raise(new ExprEvalTypeException("Not a decimal: "+this)); return null; }
+    public float       getFloat()       { raise(new ExprEvalTypeException("Not a float: "+this)); return Float.NaN; }
+    public double      getDouble()      { raise(new ExprEvalTypeException("Not a double: "+this)); return Double.NaN; }
     // Value representation for all date and time values.
-    public XMLGregorianCalendar getDateTime()    { raise(new ExprEvalTypeException("No DateTime value: "+this)) ; return null ; }
-    public Duration    getDuration() { raise(new ExprEvalTypeException("Not a duration: "+this)) ; return null ; }
+    public XMLGregorianCalendar getDateTime()    { raise(new ExprEvalTypeException("No DateTime value: "+this)); return null; }
+    public Duration    getDuration() { raise(new ExprEvalTypeException("Not a duration: "+this)); return null; }
 
     // ----------------------------------------------------------------
     // ---- Setting : used when a node is used to make a NodeValue
 
-    private static NodeValue nodeToNodeValue(Node node)
-    {
+    private static NodeValue nodeToNodeValue(Node node) {
         if ( node.isVariable() )
-            Log.warn(NodeValue.class, "Variable passed to NodeValue.nodeToNodeValue") ;
+            Log.warn(NodeValue.class, "Variable passed to NodeValue.nodeToNodeValue");
 
         if ( ! node.isLiteral() )
             // Not a literal - no value to extract
-            return new NodeValueNode(node) ;
+            return new NodeValueNode(node);
 
-        boolean hasLangTag = NodeUtils.isLangString(node) ;
-        boolean isPlainLiteral = ( node.getLiteralDatatypeURI() == null && ! hasLangTag ) ;
+        boolean hasLangTag = NodeUtils.isLangString(node);
+        boolean isPlainLiteral = ( node.getLiteralDatatypeURI() == null && ! hasLangTag );
 
         if ( isPlainLiteral )
-            return new NodeValueString(node.getLiteralLexicalForm(), node) ;
+            return new NodeValueString(node.getLiteralLexicalForm(), node);
 
         if ( hasLangTag ) {
             // Works for RDF 1.0 and RDF 1.1
             if ( node.getLiteralDatatype() != null && ! RDF.dtLangString.equals(node.getLiteralDatatype()) ) {
                 if ( NodeValue.VerboseWarnings )
-                    Log.warn(NodeValue.class, "Lang tag and datatype (datatype ignored)") ;
+                    Log.warn(NodeValue.class, "Lang tag and datatype (datatype ignored)");
             }
-            return new NodeValueLang(node) ;
+            return new NodeValueLang(node);
         }
 
         // Typed literal
-        LiteralLabel lit = node.getLiteral() ;
+        LiteralLabel lit = node.getLiteral();
 
         // This includes type testing
         //if ( ! lit.getDatatype().isValidLiteral(lit) )
         // Use this - already calculated when the node is formed.
-        if ( !node.getLiteral().isWellFormed() )
+        if ( !lit.isWellFormed() )
         {
             if ( NodeValue.VerboseWarnings )
             {
-                String tmp =  FmtUtils.stringForNode(node) ;
-                Log.warn(NodeValue.class, "Datatype format exception: "+tmp) ;
+                String tmp =  FmtUtils.stringForNode(node);
+                Log.warn(NodeValue.class, "Datatype format exception: "+tmp);
             }
             // Invalid lexical form.
-            return new NodeValueNode(node) ;
+            return new NodeValueNode(node);
         }
 
-        NodeValue nv = _setByValue(node) ;
+        NodeValue nv = _setByValue(node);
         if ( nv != null )
-            return nv ;
+            return nv;
 
-        return new NodeValueNode(node) ;
-        //raise(new ExprException("NodeValue.nodeToNodeValue: Unknown Node type: "+n)) ;
-
+        return new NodeValueNode(node);
+        //raise(new ExprException("NodeValue.nodeToNodeValue: Unknown Node type: "+n));
     }
 
     // Jena code does not have these types (yet)
-    private static final String dtXSDprecisionDecimal   = XSD+"#precisionDecimal" ;
+    private static final String dtXSDprecisionDecimal   = XSD+"#precisionDecimal";
 
     // Returns null for unrecognized literal.
     private static NodeValue _setByValue(Node node) {
         // This should not happen.
         // nodeToNodeValue should have dealt with it.
         if ( NodeUtils.hasLang(node) )
-            return new NodeValueLang(node) ;
-        LiteralLabel lit = node.getLiteral() ;
-        String lex = lit.getLexicalForm() ;
-        RDFDatatype datatype = lit.getDatatype() ;
+            return new NodeValueLang(node);
+        LiteralLabel lit = node.getLiteral();
+        RDFDatatype datatype = lit.getDatatype();
 
         // Quick check.
         // Only XSD supported.
         // And (for testing) roman numerals.
-        String datatypeURI = datatype.getURI() ;
+        String datatypeURI = datatype.getURI();
         if ( !datatypeURI.startsWith(xsdNamespace) && !SystemARQ.EnableRomanNumerals ) {
             // Not XSD.
-            return null ;
+            return null;
         }
+
+        String lex = lit.getLexicalForm();
 
         try { // DatatypeFormatException - should not happen
             if ( XSDstring.isValidLiteral(lit) )
                 // String - plain or xsd:string, or derived datatype.
-                return new NodeValueString(lit.getLexicalForm(), node) ;
+                return new NodeValueString(lex, node);
 
             // Otherwise xsd:string is like any other unknown datatype.
             // Ditto literals with language tags (which are handled by nodeToNodeValue)
@@ -1044,86 +660,86 @@ public abstract class NodeValue extends ExprNode
                     String s = lexTrimmed;
                     if ( s.startsWith("+") )
                         // BigInteger does not accept leading "+"
-                        s = s.substring(1) ;
+                        s = s.substring(1);
                     // Includes subtypes (int, byte, postiveInteger etc).
                     // NB Known to be valid for type by now
-                    BigInteger integer = new BigInteger(s) ;
-                    return new NodeValueInteger(integer, node) ;
+                    BigInteger integer = new BigInteger(s);
+                    return new NodeValueInteger(integer, node);
                 }
             }
 
             if ( datatype.equals(XSDdecimal) && XSDdecimal.isValidLiteral(lit) ) {
-                BigDecimal decimal = new BigDecimal(lexTrimmed) ;
-                return new NodeValueDecimal(decimal, node) ;
+                BigDecimal decimal = new BigDecimal(lexTrimmed);
+                return new NodeValueDecimal(decimal, node);
             }
 
             if ( datatype.equals(XSDfloat) && XSDfloat.isValidLiteral(lit) ) {
                 // NB If needed, call to floatValue, then assign to double.
                 // Gets 1.3f != 1.3d right
-                float f = ((Number)lit.getValue()).floatValue() ;
-                return new NodeValueFloat(f, node) ;
+                float f = ((Number)lit.getValue()).floatValue();
+                return new NodeValueFloat(f, node);
             }
 
             if ( datatype.equals(XSDdouble) && XSDdouble.isValidLiteral(lit) ) {
-                double d = ((Number)lit.getValue()).doubleValue() ;
-                return new NodeValueDouble(d, node) ;
+                double d = ((Number)lit.getValue()).doubleValue();
+                return new NodeValueDouble(d, node);
             }
 
             if ( datatype.equals(XSDboolean) && XSDboolean.isValidLiteral(lit) ) {
                 boolean b = (Boolean) lit.getValue();
-                return new NodeValueBoolean(b, node) ;
+                return new NodeValueBoolean(b, node);
             }
 
             if ( (datatype.equals(XSDdateTime) || datatype.equals(XSDdateTimeStamp)) && XSDdateTime.isValid(lex) ) {
-                return NodeValueDateTime.create(lexTrimmed, node) ;
+                return NodeValueDateTime.create(lexTrimmed, node);
             }
 
             if ( datatype.equals(XSDdate) && XSDdate.isValidLiteral(lit) ) {
-                return NodeValueDateTime.create(lexTrimmed, node) ;
+                return NodeValueDateTime.create(lexTrimmed, node);
             }
 
             if ( datatype.equals(XSDtime) && XSDtime.isValidLiteral(lit) ) {
-                return NodeValueDateTime.create(lexTrimmed, node) ;
+                return NodeValueDateTime.create(lexTrimmed, node);
             }
 
             if ( datatype.equals(XSDgYear) && XSDgYear.isValidLiteral(lit) ) {
-                return NodeValueDateTime.create(lexTrimmed, node) ;
+                return NodeValueDateTime.create(lexTrimmed, node);
             }
             if ( datatype.equals(XSDgYearMonth) && XSDgYearMonth.isValidLiteral(lit) ) {
-                return NodeValueDateTime.create(lexTrimmed, node) ;
+                return NodeValueDateTime.create(lexTrimmed, node);
             }
             if ( datatype.equals(XSDgMonth) && XSDgMonth.isValidLiteral(lit) ) {
-                return NodeValueDateTime.create(lexTrimmed, node) ;
+                return NodeValueDateTime.create(lexTrimmed, node);
             }
 
             if ( datatype.equals(XSDgMonthDay) && XSDgMonthDay.isValidLiteral(lit) ) {
-                return NodeValueDateTime.create(lexTrimmed, node) ;
+                return NodeValueDateTime.create(lexTrimmed, node);
             }
             if ( datatype.equals(XSDgDay) && XSDgDay.isValidLiteral(lit) ) {
-                return NodeValueDateTime.create(lexTrimmed, node) ;
+                return NodeValueDateTime.create(lexTrimmed, node);
             }
 
             // -- Duration
 
             if ( datatype.equals(XSDduration) && XSDduration.isValid(lex) ) {
-                Duration duration = xmlDatatypeFactory.newDuration(lexTrimmed) ;
-                return new NodeValueDuration(duration, node) ;
+                Duration duration = xmlDatatypeFactory.newDuration(lexTrimmed);
+                return new NodeValueDuration(duration, node);
             }
 
             if ( datatype.equals(XSDyearMonthDuration) && XSDyearMonthDuration.isValid(lex) ) {
-                Duration duration = xmlDatatypeFactory.newDuration(lexTrimmed) ;
-                return new NodeValueDuration(duration, node) ;
+                Duration duration = xmlDatatypeFactory.newDuration(lexTrimmed);
+                return new NodeValueDuration(duration, node);
             }
             if ( datatype.equals(XSDdayTimeDuration) && XSDdayTimeDuration.isValid(lex) ) {
-                Duration duration = xmlDatatypeFactory.newDuration(lexTrimmed) ;
-                return new NodeValueDuration(duration, node) ;
+                Duration duration = xmlDatatypeFactory.newDuration(lexTrimmed);
+                return new NodeValueDuration(duration, node);
             }
 
             // If wired into the TypeMapper via RomanNumeralDatatype.enableAsFirstClassDatatype
 //            if ( RomanNumeralDatatype.get().isValidLiteral(lit) )
 //            {
-//                int i = ((RomanNumeral)lit.getValue()).intValue() ;
-//                return new NodeValueInteger(i) ;
+//                int i = ((RomanNumeral)lit.getValue()).intValue();
+//                return new NodeValueInteger(i);
 //            }
 
             // Not wired in
@@ -1131,41 +747,39 @@ public abstract class NodeValue extends ExprNode
             {
                 if ( lit.getDatatypeURI().equals(RomanNumeralDatatype.get().getURI()) )
                 {
-                    Object obj = RomanNumeralDatatype.get().parse(lexTrimmed) ;
+                    Object obj = RomanNumeralDatatype.get().parse(lexTrimmed);
                     if ( obj instanceof Integer )
-                        return new NodeValueInteger(((Integer)obj).longValue()) ;
+                        return new NodeValueInteger(((Integer)obj).longValue());
                     if ( obj instanceof RomanNumeral )
-                        return new NodeValueInteger( ((RomanNumeral)obj).intValue() ) ;
-                    throw new ARQInternalErrorException("DatatypeFormatException: Roman numeral is unknown class") ;
+                        return new NodeValueInteger( ((RomanNumeral)obj).intValue() );
+                    throw new ARQInternalErrorException("DatatypeFormatException: Roman numeral is unknown class");
                 }
             }
 
         } catch (DatatypeFormatException ex)
         {
             // Should have been caught earlier by special test in nodeToNodeValue
-            throw new ARQInternalErrorException("DatatypeFormatException: "+lit, ex) ;
+            throw new ARQInternalErrorException("DatatypeFormatException: "+lit, ex);
         }
-        return null ;
+        return null;
     }
 
     // ----------------------------------------------------------------
 
     // Point to catch all exceptions.
-    public static void raise(ExprException ex)
-    {
-        throw ex ;
+    public static void raise(ExprException ex) {
+        throw ex;
     }
 
     @Override
-    public void visit(ExprVisitor visitor) { visitor.visit(this) ; }
+    public void visit(ExprVisitor visitor) { visitor.visit(this); }
 
-    private void forceToNode()
-    {
+    private void forceToNode() {
         if ( node == null )
-            node = asNode() ;
+            node = asNode();
 
         if ( node == null )
-            raise(new ExprEvalException("Not a node: "+this)) ;
+            raise(new ExprEvalException("Not a node: " + this));
     }
 
     // ---- Formatting (suitable for SPARQL syntax).
@@ -1173,55 +787,49 @@ public abstract class NodeValue extends ExprNode
     // In desperation, will try toString() (no quoting)
 
     public final String asUnquotedString()
-    { return asString() ; }
+    { return asString(); }
 
     public final String asQuotedString()
-    { return asQuotedString(new SerializationContext()) ; }
+    { return asQuotedString(new SerializationContext()); }
 
-    public final String asQuotedString(SerializationContext context)
-    {
+    public final String asQuotedString(SerializationContext context) {
         // If possible, make a node and use that as the formatted output.
         if ( node == null )
-            node = asNode() ;
+            node = asNode();
         if ( node != null )
-            return FmtUtils.stringForNode(node, context) ;
-        return toString() ;
+            return FmtUtils.stringForNode(node, context);
+        return toString();
     }
 
-    // Convert to a string  - usually overridden.
-    public String asString()
-    {
+    // Convert to a string - usually overridden.
+    public String asString() {
         // Do not call .toString()
-        forceToNode() ;
-        return NodeFunctions.str(node) ;
+        forceToNode();
+        return NodeFunctions.str(node);
     }
 
     @Override
-    public int hashCode()
-    {
-        return asNode().hashCode() ;
+    public int hashCode() {
+        return asNode().hashCode();
     }
 
     @Override
     public boolean equals(Expr other, boolean bySyntax) {
-        if ( other == null ) return false ;
-        if ( this == other ) return true ;
+        if ( other == null ) return false;
+        if ( this == other ) return true;
         // This is the equality condition Jena uses - lang tags are different by case.
-
-        if ( ! ( other instanceof NodeValue ) )
-            return false ;
-        NodeValue nv = (NodeValue)other ;
-        return asNode().equals(nv.asNode()) ;
+        if ( ! ( other instanceof NodeValue nv) )
+            return false;
+        return asNode().equals(nv.asNode());
         // Not NodeFunctions.sameTerm (which smooshes language tags by case)
     }
 
-    public abstract void visit(NodeValueVisitor visitor) ;
+    public abstract void visit(NodeValueVisitor visitor);
 
-    public Expr apply(ExprTransform transform)  { return transform.transform(this) ; }
+    public Expr apply(ExprTransform transform)  { return transform.transform(this); }
 
     @Override
-    public String toString()
-    {
-        return asQuotedString() ;
+    public String toString() {
+        return asQuotedString();
     }
 }

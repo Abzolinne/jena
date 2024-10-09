@@ -49,6 +49,8 @@ public class OpVisitorBase implements OpVisitor
 
     @Override public void visit(OpLeftJoin opLeftJoin)          {}
 
+    @Override public void visit(OpLateral opLateral)            {}
+
     @Override public void visit(OpConditional opCond)           {}
 
     @Override public void visit(OpMinus opMinus)                {}
@@ -77,6 +79,8 @@ public class OpVisitorBase implements OpVisitor
     @Override public void visit(OpAssign opAssign)              {}
 
     @Override public void visit(OpExtend opExtend)              {}
+
+    @Override public void visit(OpUnfold opUnfold)              {}
 
     @Override public void visit(OpList opList)                  {}
 

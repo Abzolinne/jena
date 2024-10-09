@@ -55,11 +55,14 @@ public class Lang
     /** Alternative constant for {@link #NTRIPLES} */
     public static Lang NT ;
 
-    /** <a href="http://www.w3.org/TR/json-ld/">JSON-LD</a>. */
+    /**
+     * <a href="http://www.w3.org/TR/json-ld/">JSON-LD</a>.
+     * <p>
+     * This is the system default.
+     */
     public static Lang JSONLD ;
 
-    //public static Lang JSONLD10 ;
-
+    /** JSONLD 1.1 */
     public static Lang JSONLD11 ;
 
     /**
@@ -99,6 +102,9 @@ public class Lang
 
     /** The "null" language */
     public static Lang RDFNULL ;
+
+    /** Output-only language for a StreamRDF (for development) */
+    public static Lang RDFRAW ;
 
     private final String label ;                    // Primary name
     private final ContentType contentType ;         // Primary content type.
@@ -153,6 +159,7 @@ public class Lang
         Lang otherLang = (Lang)other ;
         return
             this.label == otherLang.label &&
+            this.altLabels.equals(otherLang.altLabels) &&
             this.contentType.equals(otherLang.contentType) &&
             this.altContentTypes.equals(otherLang.altContentTypes) &&
             this.fileExtensions.equals(otherLang.fileExtensions) ;

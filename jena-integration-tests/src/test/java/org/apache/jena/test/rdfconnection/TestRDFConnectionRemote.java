@@ -24,6 +24,7 @@ import org.apache.jena.atlas.logging.LogCtl;
 import org.apache.jena.fuseki.Fuseki;
 import org.apache.jena.fuseki.main.FusekiServer ;
 import org.apache.jena.fuseki.main.FusekiTestLib;
+import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryParseException;
 import org.apache.jena.query.ResultSet;
 import org.apache.jena.rdf.model.Model;
@@ -33,6 +34,8 @@ import org.apache.jena.rdfconnection.RDFConnectionRemote;
 import org.apache.jena.sparql.core.DatasetGraph ;
 import org.apache.jena.sparql.core.DatasetGraphFactory ;
 import org.apache.jena.system.Txn ;
+import org.apache.jena.update.UpdateException;
+import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.web.HttpSC.Code;
 import org.junit.AfterClass ;
 import org.junit.Before ;
@@ -123,10 +126,113 @@ public class TestRDFConnectionRemote extends AbstractTestRDFConnection {
             String level = LogCtl.getLevel(Fuseki.actionLog);
             try {
                 LogCtl.setLevel(Fuseki.actionLog, "ERROR");
-                FusekiTestLib.expectQueryFail(()->conn.query("FOOBAR").execSelect(), Code.BAD_REQUEST);
+                Runnable action = ()-> {
+                    try( QueryExecution qExec = conn.query("FOOBAR") ) {
+                        qExec.execSelect();
+                    }};
+                FusekiTestLib.expectQueryFail(action, Code.BAD_REQUEST);
             } finally {
                 LogCtl.setLevel(Fuseki.actionLog, level);
             }
+        }
+    }
+
+    /** Non-standard query syntax on remote connection with parse check enabled is expected to fail. */
+    @Test(expected = QueryParseException.class)
+    public void non_standard_syntax_query_remote_1a() {
+        try ( RDFConnection conn = RDFConnectionRemote.service(server.datasetURL("/ds")).parseCheckSPARQL(true).build() ) {
+            try (QueryExecution qe = conn.newQuery().query("FOOBAR").build()) { }
+        }
+    }
+
+    /** Non-standard query syntax on remote connection with parse flag overridden on the builder is expected to work. */
+    @Test
+    public void non_standard_syntax_query_remote_1b() {
+        try ( RDFConnection conn = RDFConnectionRemote.service(server.datasetURL("/ds")).parseCheckSPARQL(true).build() ) {
+            try (QueryExecution qe = conn.newQuery().parseCheck(false).query("FOOBAR").build()) { }
+        }
+    }
+
+    /** Non-standard query syntax on remote connection with parse check disabled is expected to work. */
+    @Test
+    public void non_standard_syntax_query_remote_2a() {
+        try ( RDFConnection conn = RDFConnectionRemote.service(server.datasetURL("/ds")).parseCheckSPARQL(false).build() ) {
+            try (QueryExecution qe = conn.newQuery().query("FOOBAR").build()) { }
+        }
+    }
+
+    /** Non-standard query syntax on remote connection with parse flag overridden on the builder is expected to fail. */
+    @Test(expected = QueryParseException.class)
+    public void non_standard_syntax_query_remote_2b() {
+        try ( RDFConnection conn = RDFConnectionRemote.service(server.datasetURL("/ds")).parseCheckSPARQL(false).build() ) {
+            try (QueryExecution qe = conn.newQuery().parseCheck(true).query("FOOBAR").build()) { }
+        }
+    }
+
+    /** Non-standard update syntax on remote connection with parse check enabled is expected to fail. */
+    @Test(expected = QueryParseException.class)
+    public void non_standard_syntax_update_remote_1a() {
+        try ( RDFConnection conn = RDFConnectionRemote.service(server.datasetURL("/ds")).parseCheckSPARQL(true).build() ) {
+            conn.newUpdate().update("FOOBAR").build();
+        }
+    }
+
+    /** Non-standard update syntax on remote connection with parse flag overridden on the builder is expected to work. */
+    @Test
+    public void non_standard_syntax_update_remote_1b() {
+        try ( RDFConnection conn = RDFConnectionRemote.service(server.datasetURL("/ds")).parseCheckSPARQL(true).build() ) {
+            conn.newUpdate().parseCheck(false).update("FOOBAR").build();
+        }
+    }
+
+    /** Non-standard update syntax on remote connection with parse check disabled is expected to work. */
+    @Test
+    public void non_standard_syntax_update_remote_2a() {
+        try ( RDFConnection conn = RDFConnectionRemote.service(server.datasetURL("/ds")).parseCheckSPARQL(false).build() ) {
+            conn.newUpdate().update("FOOBAR").build();
+        }
+    }
+
+    /** Non-standard update syntax on remote connection with parse flag overridden on the builder is expected to fail. */
+    @Test(expected = QueryParseException.class)
+    public void non_standard_syntax_update_remote_2b() {
+        try ( RDFConnection conn = RDFConnectionRemote.service(server.datasetURL("/ds")).parseCheckSPARQL(false).build() ) {
+            conn.newUpdate().parseCheck(true).update("FOOBAR").build();
+        }
+    }
+
+    /** Non-standard update syntax on remote connection with parse check disabled is expected to work. */
+    @Test
+    public void non_standard_syntax_update_remote_3a() {
+        try ( RDFConnection conn = RDFConnectionRemote.service(server.datasetURL("/ds")).parseCheckSPARQL(false).build() ) {
+            conn.newUpdate().update("FOO").update("BAR").build();
+        }
+    }
+
+    /** Non-standard update syntax on remote connection with parse flag disabled on the builder is expected to work. */
+    public void non_standard_syntax_update_remote_3b() {
+        try ( RDFConnection conn = RDFConnectionRemote.service(server.datasetURL("/ds")).parseCheckSPARQL(true).build() ) {
+            conn.newUpdate().parseCheck(false).update("FOO").update("BAR").build();
+        }
+    }
+
+    /** Non-standard update syntax with substitution should fail on build. */
+    @Test(expected = UpdateException.class)
+    public void non_standard_syntax_update_remote_3c() {
+        try ( RDFConnection conn = RDFConnectionRemote.service(server.datasetURL("/ds")).parseCheckSPARQL(false).build() ) {
+            conn.newUpdate().parseCheck(false).update("FOO").update("BAR")
+                .substitution("foo", RDF.type).build();
+        }
+    }
+
+    /** Standard update syntax with substitution should work. */
+    @Test
+    public void standard_syntax_update_remote_1a() {
+        try ( RDFConnection conn = RDFConnectionRemote.service(server.datasetURL("/ds")).parseCheckSPARQL(false).build() ) {
+            conn.newUpdate()
+                .update("INSERT DATA { <a> <b> <c> }")
+                .update("INSERT DATA { <x> <y> <z> }")
+                .substitution("foo", RDF.type).build();
         }
     }
 

@@ -27,14 +27,15 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 
-
+/**
+ * ARQ scripted tests.
+ */
 @RunWith(RunnerSPARQL.class)
 @Label("ARQ")
 @Manifests({
     "testing/ARQ/Syntax/manifest-syntax.ttl" ,
     "testing/ARQ/manifest-arq.ttl" ,
-    "testing/ARQ/Serialization/manifest.ttl" ,
-    "testing/ARQ/RDF-star/cg/manifest.ttl"
+    "testing/ARQ/Serialization/manifest.ttl"
 })
 public class Scripts_ARQ
 {

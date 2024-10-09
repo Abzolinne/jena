@@ -44,19 +44,18 @@
       <outputFileNameMapping>fuseki-server.jar</outputFileNameMapping>
 
     </dependencySet>
-    <!-- WAR file -->
+    <!-- WAR file
     <dependencySet>
       <useProjectArtifact>false</useProjectArtifact>
       <includes>
         <include>org.apache.jena:jena-fuseki-war:war</include>
       </includes>
       <outputFileNameMapping>fuseki.war</outputFileNameMapping>
-
     </dependencySet>
+    -->
   </dependencySets>
 
   <files>
-    
     <file>
       <source>dist/LICENSE</source>
       <destName>LICENSE</destName>
@@ -75,7 +74,7 @@
     <fileSet>
       <outputDirectory></outputDirectory>
       <includes>
-        <include>templates/*</include>
+        <include>static/*</include>
         <include>README*</include>
         <include>DEPENDENCIES*</include>
       </includes>
@@ -92,7 +91,7 @@
     </fileSet>
 
     <fileSet>
-       <!-- Exeutables -->
+       <!-- Executables -->
        <outputDirectory></outputDirectory>
        <fileMode>0755</fileMode>
        <includes>
@@ -103,7 +102,7 @@
      </fileSet>
 
     <fileSet>
-      <directory>../jena-fuseki-webapp/src/main/webapp</directory>
+      <directory>../jena-fuseki-webapp/target/webapp/</directory>
       <outputDirectory>webapp</outputDirectory>
     </fileSet>
 

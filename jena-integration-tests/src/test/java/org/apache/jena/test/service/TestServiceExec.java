@@ -27,12 +27,21 @@ import org.apache.jena.query.*;
 import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.DatasetGraphFactory;
 import org.apache.jena.sparql.engine.http.QueryExceptionHTTP;
-import org.apache.jena.sparql.engine.main.iterator.QueryIterService;
+import org.apache.jena.sparql.exec.http.CtlService;
+import org.apache.jena.sparql.service.single.ServiceExecutorHttp;
 import org.apache.jena.sparql.sse.SSE;
+import org.apache.jena.sparql.util.Context;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class TestServiceExec {
+    // ---- Enable service
+    @BeforeClass public static void enableAllowServiceExecution() { CtlService.enableAllowServiceExecution(); }
+    @AfterClass public static void resetAllowServiceExecution() { CtlService.resetAllowServiceExecution(); }
+    public static Context minimalContext() { return CtlService.minimalContext(); }
+    // ----
+
     private static FusekiServer server;
     public static String testDB;
     private static DatasetGraph emptyLocal = DatasetGraphFactory.create();
@@ -72,7 +81,7 @@ public class TestServiceExec {
 
     @Test
     public void service_exec_3() {
-        Class<?> logClass = QueryIterService.class;
+        Class<?> logClass = ServiceExecutorHttp.class;
         String logLevel = LogCtl.getLevel(logClass);
         try {
             LogCtl.setLevel(logClass, "ERROR");

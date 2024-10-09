@@ -28,7 +28,6 @@ import org.apache.jena.atlas.io.AWriter ;
 import org.apache.jena.atlas.io.IO ;
 import org.apache.jena.atlas.lib.CharSpace ;
 import org.apache.jena.graph.Graph ;
-import org.apache.jena.graph.Triple ;
 import org.apache.jena.riot.* ;
 import org.apache.jena.riot.protobuf.ProtobufRDF;
 import org.apache.jena.riot.thrift.ThriftRDF;
@@ -37,8 +36,8 @@ import org.apache.jena.riot.writer.WriterStreamRDFBlocks ;
 import org.apache.jena.riot.writer.WriterStreamRDFFlat ;
 import org.apache.jena.riot.writer.WriterStreamRDFPlain ;
 import org.apache.jena.sparql.core.DatasetGraph ;
-import org.apache.jena.sparql.core.Quad ;
 import org.apache.jena.sparql.util.Context;
+import org.apache.jena.sys.JenaSystem;
 
 /** Write RDF in a streaming fashion.
  *  {@link RDFDataMgr} operations do not provide this guarantee.
@@ -50,6 +49,8 @@ import org.apache.jena.sparql.util.Context;
  * @see RDFWriterRegistry
  */
 public class StreamRDFWriter {
+
+    static { JenaSystem.init(); }
 
     private static StreamRDFWriterFactory streamWriterFactoryBlocks = new StreamRDFWriterFactory() {
         @Override
@@ -111,6 +112,9 @@ public class StreamRDFWriter {
         }
     } ;
 
+    private static StreamRDFWriterFactory streamWriterFactoryRaw =
+            (OutputStream output, RDFFormat format, Context context)->new PrintingStreamRDF(output);
+
     private static WriterRegistry<StreamRDFWriterFactory> registry = new WriterRegistry<>() ;
 
     /** Register the default serialization for the language (replace any existing registration).
@@ -144,6 +148,7 @@ public class StreamRDFWriter {
         register(Lang.RDFTHRIFT,    RDFFormat.RDF_THRIFT) ;
         register(Lang.TRIX,         RDFFormat.TRIX) ;
         register(Lang.RDFNULL,      RDFFormat.RDFNULL) ;
+        register(Lang.RDFRAW,       RDFFormat.RDFRAW) ;
 
         register(RDFFormat.TURTLE_BLOCKS,   streamWriterFactoryBlocks) ;
         register(RDFFormat.TURTLE_FLAT,     streamWriterFactoryFlat) ;
@@ -166,6 +171,7 @@ public class StreamRDFWriter {
 
         register(RDFFormat.TRIX,            streamWriterFactoryTriX) ;
         register(RDFFormat.RDFNULL,         streamWriterFactoryNull) ;
+        register(RDFFormat.RDFRAW,          streamWriterFactoryRaw) ;
     }
 
     /** Get a StreamRDF destination that will output in syntax {@code Lang}
@@ -218,14 +224,21 @@ public class StreamRDFWriter {
     public static StreamRDF getWriterStream(OutputStream output, RDFFormat format, Context context) {
         StreamRDFWriterFactory x = registry.get(format) ;
         if ( x == null )
-            throw new RiotException("Failed to find a writer factory for "+format) ;
+            return null;
         if ( context == null )
             context = RIOT.getContext().copy();
-        StreamRDF stream = x.create(output, format, context) ;
+        StreamRDF stream = x.create(output, format, context);
         if ( ! RDFLanguages.isQuads(format.getLang()) )
-            // Only pass through triples.
-            stream = new StreamTriplesOnly(stream) ;
+            stream = triplesOnly(stream);
         return stream ;
+    }
+
+
+    /* What to do if a quad is seen when writing in a triples-only syntax. */
+    private static StreamRDF triplesOnly(StreamRDF stream) {
+        // StreamTriplesOnly converts default graph quads to triples.
+        // Otherwise, throw exception.
+        return StreamTriplesOnly.exceptionOnQuads(stream);
     }
 
     public static boolean registered(Lang lang) {
@@ -308,26 +321,8 @@ public class StreamRDFWriter {
         StreamRDFOps.datasetToStream(datasetGraph, stream) ;
     }
 
-    private static class StreamTriplesOnly extends StreamRDFWrapper {
-
-        public StreamTriplesOnly(StreamRDF sink) {
-            super(sink) ;
-        }
-
-        @Override public void quad(Quad quad) {
-            if ( quad.isTriple() || quad.isDefaultGraph() || quad.isUnionGraph() ) {
-                triple(quad.asTriple()) ;
-            }
-        }
-
-        @Override public void triple(Triple triple)
-        { other.triple(triple) ; }
-    }
-
     /** Writer registry */
     public static class WriterRegistry<T> {
-        // But RDFWriterregistry is two registries with shared Map<Lang, RDFFormat>
-        // Coudl refator but the benefit is not so great.
 
         private Map<RDFFormat, T>     formatRegistry  = new HashMap<>() ;
         private Map<Lang, RDFFormat>  langToFormat    = new HashMap<>() ;

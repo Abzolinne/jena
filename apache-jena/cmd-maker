@@ -54,6 +54,7 @@ riotcmd.utf8
 riotcmd.rdfxml
 shacl.shacl
 shex.shex
+rdfpatch.rdfpatch
 tdb.tdbbackup
 tdb.tdbdump
 tdb.tdbloader
@@ -64,6 +65,7 @@ EOF
 )
 
 CMDS2=$(cat <<EOF
+jena.version
 tdb2.tdbbackup
 tdb2.tdbdump
 tdb2.tdbcompact

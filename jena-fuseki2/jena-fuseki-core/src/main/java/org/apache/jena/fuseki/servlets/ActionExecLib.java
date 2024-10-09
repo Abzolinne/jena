@@ -23,8 +23,8 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import org.apache.jena.atlas.RuntimeIOException;
 import org.apache.jena.atlas.logging.FmtLog;
@@ -33,9 +33,12 @@ import org.apache.jena.fuseki.Fuseki;
 import org.apache.jena.fuseki.server.*;
 import org.apache.jena.fuseki.system.ActionCategory;
 import org.apache.jena.query.QueryCancelledException;
+import org.apache.jena.query.QueryDeniedException;
 import org.apache.jena.riot.web.HttpNames;
 import org.apache.jena.shared.OperationDeniedException;
 import org.apache.jena.sparql.engine.http.QueryExceptionHTTP;
+import org.apache.jena.sparql.expr.ExprException;
+import org.apache.jena.sparql.function.scripting.ScriptDenyException;
 import org.apache.jena.web.HttpSC;
 import org.slf4j.Logger;
 
@@ -56,7 +59,6 @@ public class ActionExecLib {
         // Need a way to set verbose logging on a per servlet and per request basis.
         HttpAction action = new HttpAction(id, log, category, request, response);
         if ( dap != null ) {
-            // TODO remove setRequest?
             DataService dataService = dap.getDataService();
             action.setRequest(dap, dataService);
         }
@@ -73,102 +75,122 @@ public class ActionExecLib {
      * <li>completion/error statistics,</li>
      * <li>{@link #finishRequest(HttpAction)}
      * </ul>
-     * Common process for handling HTTP requests with logging and Java error handling.
+     * Common process for handling HTTP requests with logging and Java error
+     * handling. This is the case where the ActionProcessor is defined by or is the
+     * servlet directly outside the Fuseki dispatch process ({@link ServletAction}
+     * for special case like {@link SPARQL_QueryGeneral} which directly holds the {@link ActionProcessor}
+     * and {@link ServletProcessor} for administration actions.
+     * <p>
+     * Return false if the ActionProcessor is null.
+     *
      * @param action
      * @param processor
      */
-    public static boolean execAction(HttpAction action, ActionProcessor processor) {
+    public static void execAction(HttpAction action, ActionProcessor processor) {
         boolean b = execAction(action, ()->processor);
         if ( !b )
             ServletOps.errorNotFound("Not found: "+action.getActionURI());
-        return true;
     }
 
-    /** execAction, allowing for a choice of {@link ActionProcessor} within the logging and error handling. */
+    /**
+     * execAction, allowing for a choice of {@link ActionProcessor} within the logging and error handling.
+     * Return false if there was no ActionProcessor to handle the action.
+     */
     public static boolean execAction(HttpAction action, Supplier<ActionProcessor> processor) {
         try {
-            logRequest(action);
-            action.setStartTime();
-            initResponse(action);
-            HttpServletResponse response = action.getResponse();
-
-            startRequest(action);
-
-            try {
-                // Get the processor inside the startRequest - error handling - finishRequest sequence.
-                ActionProcessor proc = processor.get();
-                if ( proc == null ) {
-                    // Only for the logging.
-                    finishRequest(action);
-                    logNoResponse(action);
-                    archiveHttpAction(action);
-                    // Can't find the URL (the /dataset/service case) - not handled here.
-                    return false;
-                }
-                proc.process(action);
-            } catch (QueryCancelledException ex) {
-                // To put in the action timeout, need (1) global, (2) dataset and (3) protocol settings.
-                // See
-                //    global -- cxt.get(ARQ.queryTimeout)
-                //    dataset -- dataset.getContect(ARQ.queryTimeout)
-                //    protocol -- SPARQL_Query.setAnyTimeouts
-                String message = "Query timed out";
-                ServletOps.responseSendError(response, HttpSC.SERVICE_UNAVAILABLE_503, message);
-            } catch (OperationDeniedException ex) {
-                if ( ex.getMessage() == null )
-                    FmtLog.info(action.log, "[%d] OperationDeniedException", action.id);
-                else
-                    FmtLog.info(action.log, "[%d] OperationDeniedException: %s", action.id, ex.getMessage());
-                ServletOps.responseSendError(response, HttpSC.FORBIDDEN_403);
-            } catch (ActionErrorException ex) {
-                if ( ex.getCause() != null )
-                    FmtLog.warn(action.log, ex, "[%d] ActionErrorException with cause", action.id);
-                // Log message done by printResponse in a moment.
-                if ( ex.getMessage() != null )
-                    ServletOps.responseSendError(response, ex.getRC(), ex.getMessage());
-                else
-                    ServletOps.responseSendError(response, ex.getRC());
-            } catch (HttpException ex) {
-                int sc = ex.getStatusCode();
-                if ( sc <= 0 )
-                    // -1: Connection problem.
-                    sc = 400;
-                // Some code is passing up its own HttpException.
-                if ( ex.getMessage() == null )
-                    ServletOps.responseSendError(response, sc);
-                else
-                    ServletOps.responseSendError(response, sc, ex.getMessage());
-            } catch (QueryExceptionHTTP ex) {
-                // SERVICE failure.
-                int sc = ex.getStatusCode();
-                if ( sc <= 0 )
-                    // -1: Connection problem. "Bad Gateway"
-                    sc = 502;
-                if ( ex.getMessage() == null )
-                    ServletOps.responseSendError(response, sc);
-                else
-                    ServletOps.responseSendError(response, sc, ex.getMessage());
-            } catch (RuntimeIOException ex) {
-                FmtLog.warn(action.log, /*ex,*/ "[%d] Runtime IO Exception (client left?) RC = %d : %s", action.id, HttpSC.INTERNAL_SERVER_ERROR_500, ex.getMessage());
-                ServletOps.responseSendError(response, HttpSC.INTERNAL_SERVER_ERROR_500, ex.getMessage());
-            } catch (Throwable ex) {
-                // This should not happen.
-                //ex.printStackTrace(System.err);
-                FmtLog.warn(action.log, ex, "[%d] RC = %d : %s", action.id, HttpSC.INTERNAL_SERVER_ERROR_500, ex.getMessage());
-                ServletOps.responseSendError(response, HttpSC.INTERNAL_SERVER_ERROR_500, ex.getMessage());
-            } finally {
-                action.setFinishTime();
-                finishRequest(action);
-            }
-            // Handled - including sending back errors.
-            logResponse(action);
-            archiveHttpAction(action);
-            return true;
+            return execActionSub(action, processor);
         } catch (Throwable th) {
             // This really should not catch anything.
             FmtLog.error(action.log, th, "Internal error");
             return true;
         }
+    }
+
+    private static boolean execActionSub(HttpAction action, Supplier<ActionProcessor> processor) {
+        logRequest(action);
+        action.setStartTime();
+        initResponse(action);
+        HttpServletResponse response = action.getResponse();
+
+        startRequest(action);
+        try {
+            // Get the processor inside the startRequest - error handling - finishRequest sequence.
+            ActionProcessor proc = processor.get();
+            if ( proc == null ) {
+                // Only for the logging.
+                finishRequest(action);
+                logNoResponse(action);
+                archiveHttpAction(action);
+                // Can't find the URL (the /dataset/service case) - not handled here.
+                return false;
+            }
+            proc.process(action);
+        } catch (QueryCancelledException ex) {
+            // To put in the action timeout, need (1) global, (2) dataset and (3) protocol settings.
+            // See
+            //    global -- cxt.get(ARQ.queryTimeout)
+            //    dataset -- dataset.getContect(ARQ.queryTimeout)
+            //    protocol -- SPARQL_Query.setAnyTimeouts
+            String message = "Query timed out";
+            ServletOps.responseSendError(response, HttpSC.SERVICE_UNAVAILABLE_503, message);
+        } catch (QueryDeniedException ex) {
+            // Typically a configuration setting blocks the query.
+            ServletOps.responseSendError(response, HttpSC.UNPROCESSABLE_ENTITY_422, ex.getMessage());
+        } catch (OperationDeniedException ex) {
+            if ( ex.getMessage() == null )
+                FmtLog.info(action.log, "[%d] OperationDeniedException", action.id);
+            else
+                FmtLog.info(action.log, "[%d] OperationDeniedException: %s", action.id, ex.getMessage());
+            ServletOps.responseSendError(response, HttpSC.FORBIDDEN_403);
+        } catch (ActionErrorException ex) {
+            if ( ex.getCause() != null )
+                FmtLog.warn(action.log, ex, "[%d] ActionErrorException with cause", action.id);
+            // Log message done by printResponse in a moment.
+            if ( ex.getMessage() != null )
+                ServletOps.responseSendError(response, ex.getRC(), ex.getMessage());
+            else
+                ServletOps.responseSendError(response, ex.getRC());
+        } catch (HttpException ex) {
+            int sc = ex.getStatusCode();
+            if ( sc <= 0 )
+                // -1: Connection problem.
+                sc = 400;
+            // Some code is passing up its own HttpException.
+            if ( ex.getMessage() == null )
+                ServletOps.responseSendError(response, sc);
+            else
+                ServletOps.responseSendError(response, sc, ex.getMessage());
+        } catch (QueryExceptionHTTP ex) {
+            // SERVICE failure.
+            int sc = ex.getStatusCode();
+            if ( sc <= 0 )
+                // -1: Connection problem. "Bad Gateway"
+                sc = 502;
+            if ( ex.getMessage() == null )
+                ServletOps.responseSendError(response, sc);
+            else
+                ServletOps.responseSendError(response, sc, ex.getMessage());
+        } catch (ScriptDenyException ex) {
+            ServletOps.responseSendError(response, HttpSC.BAD_REQUEST_400, ex.getMessage());
+        } catch (RuntimeIOException ex) {
+            FmtLog.warn(action.log, /*ex,*/ "[%d] Runtime IO Exception (client left?) RC = %d : %s", action.id, HttpSC.INTERNAL_SERVER_ERROR_500, ex.getMessage());
+            ServletOps.responseSendError(response, HttpSC.INTERNAL_SERVER_ERROR_500, ex.getMessage());
+        } catch (ExprException ex) {
+            FmtLog.warn(action.log, "[%d] RC = %d : %s", action.id, HttpSC.INTERNAL_SERVER_ERROR_500, ex.getMessage());
+            ServletOps.responseSendError(response, HttpSC.INTERNAL_SERVER_ERROR_500, ex.getMessage());
+        } catch (Throwable ex) {
+            // This should not happen.
+            //ex.printStackTrace(System.err);
+            FmtLog.warn(action.log, ex, "[%d] RC = %d : %s", action.id, HttpSC.INTERNAL_SERVER_ERROR_500, ex.getMessage());
+            ServletOps.responseSendError(response, HttpSC.INTERNAL_SERVER_ERROR_500, ex.getMessage());
+        } finally {
+            action.setFinishTime();
+            finishRequest(action);
+        }
+        // Handled - including sending back errors.
+        logResponse(action);
+        archiveHttpAction(action);
+        return true;
     }
 
     /**
@@ -227,14 +249,16 @@ public class ActionExecLib {
             FmtLog.info(action.log, "[%d] %s %s", action.id, method, url);
         if ( action.verbose ) {
             Enumeration<String> en = action.getRequestHeaderNames();
-            for (; en.hasMoreElements();) {
-                String h = en.nextElement();
-                Enumeration<String> vals = action.getRequestHeaders(h);
-                if ( !vals.hasMoreElements() )
-                    FmtLog.info(action.log, "[%d]   => %s", action.id, h+":");
-                else {
-                    for (; vals.hasMoreElements();)
-                        FmtLog.info(action.log, "[%d]   => %-20s %s", action.id, h+":", vals.nextElement());
+            if ( en != null ) {
+                for (; en.hasMoreElements();) {
+                    String h = en.nextElement();
+                    Enumeration<String> vals = action.getRequestHeaders(h);
+                    if ( !vals.hasMoreElements() )
+                        FmtLog.info(action.log, "[%d]   => %s", action.id, h+":");
+                    else {
+                        for (; vals.hasMoreElements();)
+                            FmtLog.info(action.log, "[%d]   => %-20s %s", action.id, h+":", vals.nextElement());
+                    }
                 }
             }
         }

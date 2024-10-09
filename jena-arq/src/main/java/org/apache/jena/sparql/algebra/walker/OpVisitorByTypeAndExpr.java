@@ -134,6 +134,11 @@ public interface OpVisitorByTypeAndExpr extends OpVisitor
     }
 
     @Override
+    public default void visit(OpLateral opLateral) {
+        visit2(opLateral);
+    }
+
+    @Override
     public default void visit(OpConditional opCond) {
         visit2(opCond);
     }
@@ -208,6 +213,12 @@ public interface OpVisitorByTypeAndExpr extends OpVisitor
     public default void visit(OpExtend opExtend) {
         visitVarExpr(opExtend.getVarExprList()) ;
         visit1(opExtend);
+    }
+
+    @Override
+    public default void visit(OpUnfold opUnfold) {
+        visitExpr( new ExprList(opUnfold.getExpr()) ) ;
+        visit1(opUnfold);
     }
 
     @Override

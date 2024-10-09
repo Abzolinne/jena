@@ -18,12 +18,10 @@
 
 package org.apache.jena.sparql.core.assembler;
 
+import java.util.Map;
+
 import org.apache.jena.assembler.Assembler;
-import org.apache.jena.assembler.Mode;
-import org.apache.jena.assembler.assemblers.AssemblerBase;
 import org.apache.jena.atlas.lib.InternalErrorException;
-import org.apache.jena.query.Dataset;
-import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.DatasetGraphSink;
@@ -36,7 +34,8 @@ import org.apache.jena.sparql.core.DatasetGraphZero;
  * @see DatasetGraphZero
  */
 
-public class DatasetNullAssembler extends AssemblerBase {
+public class DatasetNullAssembler extends NamedDatasetAssembler {
+
     private final Resource tDataset;
 
     public DatasetNullAssembler(Resource tDataset) {
@@ -44,7 +43,7 @@ public class DatasetNullAssembler extends AssemblerBase {
     }
 
     @Override
-    public Object open(Assembler a, Resource root, Mode mode) {
+    public DatasetGraph createDataset(Assembler a, Resource root) {
         DatasetGraph dsg;
         if ( DatasetAssemblerVocab.tDatasetSink.equals(tDataset) )
             dsg = DatasetGraphSink.create();
@@ -52,8 +51,12 @@ public class DatasetNullAssembler extends AssemblerBase {
             dsg = DatasetGraphZero.create();
         else
             throw new InternalErrorException();
-        Dataset ds = DatasetFactory.wrap(dsg);
-        AssemblerUtils.mergeContext(root, ds.getContext());
-        return ds;
+        AssemblerUtils.mergeContext(root, dsg.getContext());
+        return dsg;
+    }
+
+    @Override
+    public Map<String, DatasetGraph> pool() {
+        return sharedDatasetPool;
     }
 }
