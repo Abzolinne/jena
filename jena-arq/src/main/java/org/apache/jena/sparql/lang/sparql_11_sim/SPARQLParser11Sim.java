@@ -4074,11 +4074,11 @@ public class SPARQLParser11Sim extends SPARQLParser11SimBase implements SPARQLPa
         jj_consume_token(LPAREN);
         expr1 = Expression();
         jj_consume_token(RPAREN);
-        {if (true) return new E_BNode(expr1) ;}
+        {if (true) return E_BNode.create(expr1) ;}
         break;
       case NIL:
         jj_consume_token(NIL);
-              {if (true) return new E_BNode() ;}
+              {if (true) return E_BNode.create();}
         break;
       default:
         jj_la1[141] = jj_gen;

@@ -83,13 +83,15 @@ public class SerializerRegistry {
             public boolean accept(Syntax syntax) {
                 // Since ARQ syntax is a super set of SPARQL only need one serializer
                 return Syntax.syntaxARQ.equals(syntax) || Syntax.syntaxSPARQL_10.equals(syntax)
-                        || Syntax.syntaxSPARQL_11.equals(syntax) || Syntax.syntaxSPARQL_12.equals(syntax);
+                        || Syntax.syntaxSPARQL_11.equals(syntax) || Syntax.syntaxSPARQL_12.equals(syntax) || Syntax.syntaxSPARQL_11_sim.equals(syntax);
             }
         };
         reg.addQuerySerializer(Syntax.syntaxARQ, arqQuerySerializerFactory);
         reg.addQuerySerializer(Syntax.syntaxSPARQL_10, arqQuerySerializerFactory);
         reg.addQuerySerializer(Syntax.syntaxSPARQL_11, arqQuerySerializerFactory);
         reg.addQuerySerializer(Syntax.syntaxSPARQL_12, arqQuerySerializerFactory);
+        reg.addQuerySerializer(Syntax.syntaxSPARQL_11_sim, arqQuerySerializerFactory);
+        
 
         UpdateSerializerFactory arqUpdateSerializerFactory = new UpdateSerializerFactory() {
 

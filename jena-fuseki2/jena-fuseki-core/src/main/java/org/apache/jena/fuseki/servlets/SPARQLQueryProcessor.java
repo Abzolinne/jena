@@ -251,7 +251,7 @@ public abstract class SPARQLQueryProcessor extends ActionService
         Query query = null;
         try {
             // NB syntax is ARQ (a superset of SPARQL)
-            query = QueryFactory.create(queryString, QueryParseBase, Syntax.syntaxARQ);
+            query = QueryFactory.create(queryString, QueryParseBase, Syntax.syntaxSPARQL_11_sim);
             queryStringLog = formatForLog(query);
             validateQuery(action, query);
         } catch (ActionErrorException ex) {

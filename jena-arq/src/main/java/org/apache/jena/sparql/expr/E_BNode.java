@@ -31,7 +31,9 @@ import org.apache.jena.sparql.util.Symbol;
 
 public class E_BNode implements Unstable
 {
-    private static final String symbol = Tags.tagBNode;
+	
+	
+	private static final String symbol = Tags.tagBNode;
 
     private static final Symbol keyMap = Symbol.create("arq:internal:bNodeMappings");
 
@@ -42,6 +44,7 @@ public class E_BNode implements Unstable
     public static Expr create(Expr expr) {
         return new E_BNode1(expr);
     }
+    
 
     // --- The zero argument case.
     private static class E_BNode0 extends ExprFunction0  implements Unstable {
