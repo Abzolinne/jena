@@ -20,10 +20,10 @@ public class Distances {
 	private static Map<String, DistFunc> registry = new HashMap<String, Distances.DistFunc>();
 	static {
 		registry.put("http://ex.com/manhattanvec", new DistFunc() {
-			@Override
+            @Override
             public double distance(List<Node> p1, List<Node> p2, Map<Expr, PairOfSameType<Number>> minMax, ExprList leftExpr, ExprList rightExpr) {
 				
-		        double d = 0.0;
+                double d = 0.0;
                 Node n1 = p1.get(0);
                 Node n2 = p2.get(0);
 
