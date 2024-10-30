@@ -24,9 +24,9 @@ public class Distances {
 			@Override
 			public double distance(List<Node> p1, List<Node> p2, Map<Expr, PairOfSameType<Number>> minMax, ExprList leftExpr, ExprList rightExpr) {
 				
-				double d = 0.0;
+		        double d = 0.0;
 				Node n1 = p1.get(0);
-                Node n2 = p2.get(0);
+				Node n2 = p2.get(0);
 
                 String vectorString1 = n1.getLiteralValue().toString().trim();
                 String vectorString2 = n2.getLiteralValue().toString().trim();
