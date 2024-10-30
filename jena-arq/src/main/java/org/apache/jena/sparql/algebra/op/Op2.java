@@ -26,8 +26,8 @@ import org.apache.jena.sparql.util.NodeIsomorphismMap;
 
 public abstract class Op2 extends OpBase
 {
-    public Op left;
-    public Op right;
+    protected Op left;
+    protected Op right;
 
     public Op2(Op left, Op right)
     {
