@@ -19,7 +19,7 @@ public class Distances {
 
 	private static Map<String, DistFunc> registry = new HashMap<String, Distances.DistFunc>();
 	static {
-		registry.put("http://ex.com/manhattanvec", new DistFunc() {
+        registry.put("http://ex.com/manhattanvec", new DistFunc() {
             @Override
             public double distance(List<Node> p1, List<Node> p2, Map<Expr, PairOfSameType<Number>> minMax, ExprList leftExpr, ExprList rightExpr) {
 				
