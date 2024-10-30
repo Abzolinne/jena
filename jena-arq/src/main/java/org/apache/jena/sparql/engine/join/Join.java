@@ -307,52 +307,21 @@ public class Join {
 
 	private static void probeToMap(Map<Expr, PairOfSameType<Number>> result, Binding current, Expr expr) {
 		if(current.get(expr.asVar())==null)
-	        throw new IllegalArgumentException("Similarity Join variables should not be obtained from an OPTIONAL clause");
+			throw new IllegalArgumentException("Similarity Join variables should not be obtained from an OPTIONAL clause");
 	    Object literalValue = current.get(expr.asVar()).getLiteralValue();
-	    List<Number> values = new ArrayList<>();
 	    if (literalValue instanceof String) {
-	        String strValue = (String) literalValue;
-	        String[] strValues = strValue.replaceAll("\\[|\\]", "").split(",");
-	        for (String str : strValues) {
-	            str = str.trim();
-	            if (str.startsWith("\"")) {
-	                str = str.substring(1);
-	            }
-	            if (str.endsWith("\"")) {
-	                str = str.substring(0, str.length() - 1);
-	            }
-	            values.add(Double.parseDouble(str));
-	        }
-	    } else if (literalValue instanceof Number) {
-	        values.add((Number) literalValue);
-	    } else {
-	        throw new IllegalArgumentException("Unsupported literal value type");
-	    }
-
-		    for (Number currentValue : values) {
-		        if (!result.containsKey(expr)) {
-		            result.put(expr, new PairOfSameType<Number>(currentValue, currentValue));
-		            continue;
-		        }
-		        if (currentValue.doubleValue() < result.get(expr).getLeft().doubleValue()) {
-		            result.put(expr, new PairOfSameType<Number>(currentValue, result.get(expr).getRight()));
-		        }
-		        if (currentValue.doubleValue() > result.get(expr).getRight().doubleValue()) {
-		            result.put(expr, new PairOfSameType<Number>(result.get(expr).getLeft(), currentValue));
-		        }
-		    }
-//		if(current.get(expr.asVar())==null)
-//			throw new IllegalArgumentException("Similarity Join variables should not be obtained from an OPTIONAL clause");
-//		Number currentValue = (Number) current.get(expr.asVar()).getLiteralValue();
-//		if (!result.containsKey(expr)) {
-//			result.put(expr, new PairOfSameType<Number>(currentValue, currentValue));
-//			return;
-//		}
-//		if (currentValue.doubleValue() < result.get(expr).getLeft().doubleValue()) {
-//			result.put(expr, new PairOfSameType<Number>(currentValue, result.get(expr).getRight()));
-//		}
-//		if (currentValue.doubleValue() > result.get(expr).getRight().doubleValue()) {
-//			result.put(expr, new PairOfSameType<Number>(result.get(expr).getLeft(), currentValue));
-//		}
+	    	return;
+	    } 
+		Number currentValue = (Number) literalValue;
+		if (!result.containsKey(expr)) {
+			result.put(expr, new PairOfSameType<Number>(currentValue, currentValue));
+			return;
+		}
+		if (currentValue.doubleValue() < result.get(expr).getLeft().doubleValue()) {
+			result.put(expr, new PairOfSameType<Number>(currentValue, result.get(expr).getRight()));
+		}
+		if (currentValue.doubleValue() > result.get(expr).getRight().doubleValue()) {
+			result.put(expr, new PairOfSameType<Number>(result.get(expr).getLeft(), currentValue));
+		}
 	}
 }
