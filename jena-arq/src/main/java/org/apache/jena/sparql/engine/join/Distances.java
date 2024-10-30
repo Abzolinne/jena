@@ -23,6 +23,7 @@ public class Distances {
 			
 			@Override
 			public double distance(List<Node> p1, List<Node> p2, Map<Expr, PairOfSameType<Number>> minMax, ExprList leftExpr, ExprList rightExpr) {
+				
 				double d = 0.0;
 				Node n1 = p1.get(0);
                 Node n2 = p2.get(0);
@@ -33,9 +34,7 @@ public class Distances {
                 List<Double> vector1 = parseVectorString(vectorString1);
                 List<Double> vector2 = parseVectorString(vectorString2);
 
-                System.out.println("vector1: " + vector1);
-                System.out.println("vector2: " + vector2);
-
+                
                 if (vector1.size() != vector2.size()) {
                     throw new IllegalArgumentException("Vectors must have the same length.");
                 }
@@ -43,7 +42,8 @@ public class Distances {
                 for (int i = 0; i < vector1.size(); i++) {
                     d += Math.abs(vector1.get(i) - vector2.get(i));
                 }
-                System.out.println("d: " + d);
+
+                
                 return d;
 			}
 			
@@ -78,8 +78,6 @@ public class Distances {
 				for (int i = 0; i < p1.size(); i++) {
 					Node n1 = p1.get(i);
 					Node n2 = p2.get(i);
-					System.out.println("n1: " + n1.getLiteralValue());
-					System.out.println("n2: " + n2.getLiteralValue());
 					double maxX = minMax.get(leftExpr.get(i)).getRight().doubleValue();
 					double minX = minMax.get(leftExpr.get(i)).getLeft().doubleValue();
 					double x = (((Number) n1.getLiteralValue()).doubleValue() - minX)/(maxX-minX);
