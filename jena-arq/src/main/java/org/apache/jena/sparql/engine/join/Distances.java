@@ -19,7 +19,7 @@ public class Distances {
 
 	private static Map<String, DistFunc> registry = new HashMap<String, Distances.DistFunc>();
 	static {
-        registry.put("http://ex.com/manhattanvec", new DistFunc() {
+        registry.put("http://sj.dcc.uchile.cl/sim/manhattanvec", new DistFunc() {
             @Override
             public double distance(List<Node> p1, List<Node> p2, Map<Expr, PairOfSameType<Number>> minMax, ExprList leftExpr, ExprList rightExpr) {
 				
@@ -69,7 +69,7 @@ public class Distances {
 			}
 		});
 		
-		registry.put("http://ex.com/manhattan", new DistFunc() {
+		registry.put("http://sj.dcc.uchile.cl/sim/manhattan", new DistFunc() {
 			
 			@Override
 			public double distance(List<Node> p1, List<Node> p2, Map<Expr, PairOfSameType<Number>> minMax, ExprList leftExpr, ExprList rightExpr) {
@@ -86,7 +86,7 @@ public class Distances {
 				return d;
 			}
 		});
-		registry.put("http://ex.com/euclidean", new DistFunc() {
+		registry.put("http://sj.dcc.uchile.cl/sim/euclidean", new DistFunc() {
 			
 			@Override
 			public double distance(List<Node> p1, List<Node> p2, Map<Expr, PairOfSameType<Number>> minMax, ExprList leftExpr, ExprList rightExpr) {
