@@ -8,3 +8,13 @@ sparql_11.txt
 /SPARQLParser11SimTokenManager.java
 /Token.java
 /TokenMgrError.java
+sparql_12.txt
+# Older files
+X12.html
+Y12.html
+# Grammar in HTML 
+sparql-grammar.html
+# Grammar in BNF text
+sparql.bnf
+# Grammar in HTML as a standalone web page.
+sparql-html.html

@@ -21,20 +21,20 @@ package tdb1.examples;
 import org.apache.jena.atlas.lib.StrUtils;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.system.Txn;
-import org.apache.jena.tdb.TDBFactory;
+import org.apache.jena.tdb1.TDB1Factory;
 import org.apache.jena.update.UpdateExecutionFactory;
 import org.apache.jena.update.UpdateFactory;
-import org.apache.jena.update.UpdateProcessor;
+import org.apache.jena.update.UpdateExecution;
 import org.apache.jena.update.UpdateRequest;
 
 /**
- * Example of a WRITE transaction. 
+ * Example of a WRITE transaction.
  * See {@link Txn#executeRead}.
  */
 public class ExTDB_Txn2 {
     public static void main(String...argv) {
         String directory = "MyDatabases/DB1";
-        Dataset dataset = TDBFactory.createDataset(directory);
+        Dataset dataset = TDB1Factory.createDataset(directory);
 
         // Start WRITE transaction.
         // It's possible to read from the dataset inside the write transaction.
@@ -44,7 +44,7 @@ public class ExTDB_Txn2 {
         // transactions concurrently. If another write transaction
         // starts, the call of dataset.begin(WRITE) blocks until
         // existing writer finishes.
-        
+
         // A WRITE transaction is
         // dataset.begin(ReadWrite.READ);
         // try {
@@ -66,7 +66,7 @@ public class ExTDB_Txn2 {
 
     public static void execUpdate(String sparqlUpdateString, Dataset dataset) {
         UpdateRequest request = UpdateFactory.create(sparqlUpdateString);
-        UpdateProcessor proc = UpdateExecutionFactory.create(request, dataset);
+        UpdateExecution proc = UpdateExecutionFactory.create(request, dataset);
         proc.execute();
     }
 

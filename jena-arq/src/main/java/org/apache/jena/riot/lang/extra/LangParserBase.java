@@ -73,7 +73,10 @@ public class LangParserBase {
 
     // ----
 
-    protected String fixupPrefix(String prefix, int line, int column) {
+    /**
+     * Standardize a prefix - prefixes do not include the ":".
+     */
+    protected String canonicalPrefix(String prefix, int line, int column) {
         if ( prefix.endsWith(":") )
             prefix = prefix.substring(0, prefix.length() - 1) ;
         return prefix ;
@@ -127,7 +130,7 @@ public class LangParserBase {
         return n ;
     }
 
-    protected Node createTripleTerm(Node s, Node p, Node o, int line, int column) {
+    protected Node createQuotedTriple(Node s, Node p, Node o, int line, int column) {
         return profile.createTripleNode(s, p, o, line, column);
     }
 
@@ -181,7 +184,7 @@ public class LangParserBase {
     }
 
     protected void setPrefix(String prefix, String iri, int line, int column) {
-        prefix = fixupPrefix(prefix, line, column);
+        prefix = canonicalPrefix(prefix, line, column);
         profile.getPrefixMap().add(prefix,iri);
         stream.prefix(prefix, iri);
     }

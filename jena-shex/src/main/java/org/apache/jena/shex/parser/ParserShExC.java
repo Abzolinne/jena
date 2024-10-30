@@ -20,8 +20,10 @@ package org.apache.jena.shex.parser;
 
 import static org.apache.jena.shex.parser.ParserShExC.Inline.INLINE;
 import static org.apache.jena.shex.parser.ParserShExC.Inline.NOT_INLINE;
+import static org.apache.jena.sparql.util.NodeUtils.nullToAny;
 
 import java.util.*;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -35,7 +37,10 @@ import org.apache.jena.irix.IRIs;
 import org.apache.jena.riot.RiotException;
 import org.apache.jena.riot.lang.extra.LangParserBase;
 import org.apache.jena.riot.lang.extra.LangParserLib;
-import org.apache.jena.shex.*;
+import org.apache.jena.shex.ShapeMap;
+import org.apache.jena.shex.ShexRecord;
+import org.apache.jena.shex.ShexSchema;
+import org.apache.jena.shex.ShexShape;
 import org.apache.jena.shex.expressions.*;
 import org.apache.jena.shex.sys.SysShex;
 
@@ -43,9 +48,13 @@ import org.apache.jena.shex.sys.SysShex;
 public class ParserShExC extends LangParserBase {
 
     private IndentedWriter out;
-    public static boolean DEBUG = false;
+    /** Print the call nesting */
     public static boolean DEBUG_PARSE = false;
+    /** Print the stack operations */
     public static boolean DEBUG_STACK = false;
+
+    /** Print various unexpected situations */
+    public static boolean DEBUG_DEV = false;
 
     static enum Inline { INLINE, NOT_INLINE }
 
@@ -58,6 +67,7 @@ public class ParserShExC extends LangParserBase {
     // The distinguished start shape. This is also in the list of all shapes.
     private ShexShape startShape = null;
     private List<String> imports = null;
+    private List<SemAct> semActs = new ArrayList<>();
     private String sourceURI = null;
     private boolean explicitBase = false;
     private String baseURI = null;
@@ -75,9 +85,10 @@ public class ParserShExC extends LangParserBase {
     private TripleExpression currentTripleExpression() { return peek(tripleExprStack); }
 
     private void printState() {
-        if ( DEBUG ) {
+        if ( DEBUG_DEV ) {
             printStack("shapeExprStack", shapeExprStack);
             printStack("tripleExprStack", tripleExprStack);
+            //printStack("nodeConstraintStack", nodeConstraintStack);
         }
     }
 
@@ -131,7 +142,11 @@ public class ParserShExC extends LangParserBase {
         if (! shapeExprStack.isEmpty() )
             throw new InternalErrorException("shape expresion stack not empty");
         // last base seen.
-        return ShexSchema.shapes(sourceURI, baseURI, super.profile.getPrefixMap(), startShape, shapes, imports, tripleExprRefs);
+        return ShexSchema.shapes(sourceURI, baseURI, super.profile.getPrefixMap(), startShape, shapes, imports, semActs, tripleExprRefs);
+    }
+
+    protected void semActs(SemAct semAct, int line, int column) {
+        semActs.add(semAct);
     }
 
     protected void imports(String iri, int line, int column) {
@@ -194,7 +209,7 @@ public class ParserShExC extends LangParserBase {
     private void startShapeExpressionTop() {
         start("startShapeExpressionTop");
         // Stack is empty.
-        if ( DEBUG ) {
+        if ( DEBUG_DEV ) {
             if ( ! shapeExprStack.isEmpty() )
                 debug("startShapeExpressionTop: Stack not empty");
         }
@@ -205,7 +220,7 @@ public class ParserShExC extends LangParserBase {
             return ShapeExprNone.get();
 
         ShapeExpression sExpr = pop(shapeExprStack);
-        if ( DEBUG ) {
+        if ( DEBUG_DEV ) {
             if ( ! shapeExprStack.isEmpty() )
                 debug("finishShapeExpressionTop: Stack not empty");
         }
@@ -245,28 +260,6 @@ public class ParserShExC extends LangParserBase {
 
     // ---- TripleExpression
 
-//    private void startTripleExpressionTop() {
-//        start("startTripleExpressionTop");
-//        // Stack is empty.
-//        if ( DEBUG ) {
-//            if ( ! tripleExprStack.isEmpty() )
-//                debug("startTripleExpressionTop: Stack not empty");
-//        }
-//    }
-//
-//    private TripleExpression finishTripleExpressionTop() {
-//        if ( tripleExprStack.isEmpty() )
-//            return TripleExpressionNone.get();
-//
-//        TripleExpression tExpr = pop(tripleExprStack);
-//        if ( DEBUG ) {
-//            if ( ! tripleExprStack.isEmpty() )
-//                debug("finishShapeExpressionTop: Stack not empty");
-//        }
-//        finish("finishShapeExpressionTop");
-//        return tExpr;
-//    }
-
     private int startTripleOp() {
         return front(tripleExprStack);
     }
@@ -278,23 +271,22 @@ public class ParserShExC extends LangParserBase {
         return pop(tripleExprStack, idx);
     }
 
-    private void finishTripleOp(int idx, Function<List<TripleExpression>, TripleExpression> action) {
+    private void finishTripleOp(int idx, List<SemAct> semActs, BiFunction<List<TripleExpression>, List<SemAct>, TripleExpression> action) {
         if ( action == null )
             return ;
         List<TripleExpression> args = finishTripleOp(idx);
         if ( args == null )
             return ;
-        processTripleExprArgs(args, action);
+        processTripleExprArgs(args, semActs, action);
     }
 
-    private void processTripleExprArgs(List<TripleExpression> args, Function<List<TripleExpression>, TripleExpression> action) {
+    private void processTripleExprArgs(List<TripleExpression> args, List<SemAct> semActs, BiFunction<List<TripleExpression>, List<SemAct>, TripleExpression> action) {
         if ( action != null ) {
-            TripleExpression tExpr = action.apply(args);
+            TripleExpression tExpr = action.apply(args, semActs);
             if ( tExpr != null )
                 push(tripleExprStack, tExpr);
         }
     }
-
 
     // -- Shape Structure
 
@@ -335,7 +327,7 @@ public class ParserShExC extends LangParserBase {
 
     protected void finishShapeNot(Inline inline, int idx, boolean negate) {
         int x = front(shapeExprStack) - idx ;
-        if ( x > 1)
+        if ( x > 1 )
             throw new InternalErrorException("Shape NOT - multiple items on the stack");
         if ( negate && ! shapeExprStack.isEmpty() ) {
             ShapeExpression shExpr = pop(shapeExprStack);
@@ -350,19 +342,22 @@ public class ParserShExC extends LangParserBase {
         return startShapeOp();
     }
 
+//    protected void finishShapeAtom(Inline inline, int idx) {
+//        // The ShapeAtom for the NodeConstraint of ShapeExpression is made in each parser rule.
+//        finish(inline, "ShapeAtom");
+//    }
+
     protected void finishShapeAtom(Inline inline, int idx) {
         //Gather NodeConstraints parts, Kind, datatype and facets, together.
         finishShapeOp(idx, ShapeExprAND::create);
-        //finishShapeOpNoAction("ShapeAtom", idx);
         finish(inline, "ShapeAtom");
     }
 
     protected void shapeAtomDOT() {
-        push(shapeExprStack, new ShapeExprTrue());
+        push(shapeExprStack, new ShapeExprDot());
     }
 
     protected void shapeReference(Node ref) {
-        debug("shapeReference");
         push(shapeExprStack, new ShapeExprRef(ref));
     }
 
@@ -370,26 +365,28 @@ public class ParserShExC extends LangParserBase {
         start("ShapeDefinition");
     }
 
-    protected void finishShapeDefinition(TripleExpression tripleExpr, List<Node> extras, boolean closed) {
+    protected void finishShapeDefinition(TripleExpression tripleExpr, List<Node> extras, boolean closed, List<SemAct> semActs) {
         if ( tripleExpr == null )
-            tripleExpr = TripleExprNone.get();
+            return;
+            // XXX [Print] Below causes "{ ; }"
+            //tripleExpr = TripleExprNone.get();
         ShapeExprTripleExpr shape = ShapeExprTripleExpr.newBuilder()
                 //.label(???)
                 .closed(closed)
                 .extras(extras)
+                .semActs(semActs)
                 .shapeExpr(tripleExpr).build();
         push(shapeExprStack, shape);
         finish("ShapeDefinition");
     }
 
-    // ?? Top of TripleExpression
     protected int startTripleExpression() {
         start("TripleExpression");
         return startTripleOp();
     }
 
-    protected TripleExpression finishTripleExpression(int idx) {
-        finishTripleOp(idx, TripleExprOneOf::create);
+    protected TripleExpression finishTripleExpression(int idx, List<SemAct> semActs) {
+        finishTripleOp(idx, semActs, TripleExprOneOf::create);
         TripleExpression tripleExpr = pop(tripleExprStack);
         finish("TripleExpression");
         return tripleExpr;
@@ -402,8 +399,8 @@ public class ParserShExC extends LangParserBase {
         return startTripleOp();
     }
 
-    protected void finishTripleExpressionClause(int idx) {
-        finishTripleOp(idx, TripleExprEachOf::create);
+    protected void finishTripleExpressionClause(int idx, List<SemAct> semActs) {
+        finishTripleOp(idx, semActs, TripleExprEachOf::create);
         finish("TripleExpressionClause");
     }
 
@@ -420,10 +417,12 @@ public class ParserShExC extends LangParserBase {
         start("BracketedTripleExpression");
     }
 
-    protected void finishBracketedTripleExpr(Node label, TripleExpression tripleExpr, Cardinality cardinality) {
+    protected void finishBracketedTripleExpr(Node label, TripleExpression tripleExpr, Cardinality cardinality, List<SemAct> semActs) {
         TripleExpression tripleExpr2 = tripleExpr;
         if ( cardinality != null )
-            tripleExpr2 = new TripleExprCardinality(tripleExpr, cardinality);
+            tripleExpr2 = new TripleExprCardinality(tripleExpr, cardinality, semActs);
+        else
+            tripleExpr2.setSemActs(semActs);
         push(tripleExprStack, tripleExpr2);
         if ( label != null )
             tripleExprRefs.put(label, tripleExpr2);
@@ -435,7 +434,7 @@ public class ParserShExC extends LangParserBase {
         return startShapeOp();
     }
 
-    protected void finishTripleConstraint(Node label, int idx, Node predicate, boolean reverse, Cardinality cardinality) {
+    protected void finishTripleConstraint(Node label, int idx, Node predicate, boolean reverse, Cardinality cardinality, List<SemAct> semActs) {
         if ( label != null ) { /*ref*/ } // XXX
         List<ShapeExpression> args = finishShapeOp(idx);
         if ( args == null )
@@ -445,7 +444,7 @@ public class ParserShExC extends LangParserBase {
 
         ShapeExpression arg = args.get(0);
         // Cardinality as argument.
-        TripleExpression tripleExpr = new TripleConstraint(label, predicate, reverse, arg, cardinality);
+        TripleExpression tripleExpr = new TripleConstraint(label, predicate, reverse, arg, cardinality, semActs);
         push(tripleExprStack, tripleExpr);
         if ( label != null )
             tripleExprRefs.put(label, tripleExpr);
@@ -453,38 +452,63 @@ public class ParserShExC extends LangParserBase {
     }
 
     // ---- Node Constraints.
+    // XXX [ NodeConstraint] Do we need the different constraints here?
 
     protected int startLiteralNodeConstraint(int line, int column) {
+        startNodeConstraint();
         start("LiteralNodeConstraint");
         return startShapeOp();
     }
 
-    protected void finishLiteralNodeConstraint(int idx, int line, int column) {
+    protected void finishLiteralNodeConstraint(List<SemAct> semActs, int idx, int line, int column) {
         finishShapeOpNoAction("LiteralNodeConstraint", idx);
+        finishNodeConstraint(semActs);
         finish("LiteralNodeConstraint");
     }
 
     protected int startNonLiteralNodeConstraint(int line, int column) {
+        startNodeConstraint();
         start("NonLiteralNodeConstraint");
         return startShapeOp();
     }
 
-    protected void finishNonLiteralNodeConstraint(int idx, int line, int column) {
+    protected void finishNonLiteralNodeConstraint(List<SemAct> semActs, int idx, int line, int column) {
         finishShapeOpNoAction("NonLiteralNodeConstraint", idx);
+        finishNodeConstraint(semActs);
         finish("NonLiteralNodeConstraint");
     }
 
-    private void addNodeConstraint(NodeConstraint constraint) {
-        stack("NodeConstraint: %s", constraint);
-        push(shapeExprStack, constraint);
+    private List<NodeConstraintComponent> accumulator = new ArrayList<>();
+
+    private void startNodeConstraint() { }
+
+    private void finishNodeConstraint(List<SemAct> semActs) {
+        NodeConstraint nodeConstraint = new NodeConstraint(accumulator);
+        accumulator.clear();
+        ShapeExpression shExpr = new ShapeNodeConstraint(nodeConstraint, semActs);
+        push(shapeExprStack, shExpr);
     }
 
-    protected void cDatatype(String str, int line, int column) {
+    //
+    // shapeAtom      ::= nonLitNodeConstraint shapeOrRef?
+    //                  | litNodeConstraint
+    //                  | shapeOrRef nonLitNodeConstraint?
+    //                  | '(' shapeExpression ')'
+    //                  | '.'
+
+
+    private void addNodeConstraint(NodeConstraintComponent constraint) {
+        stack("NodeConstraint: %s", constraint);
+        //push(nodeConstraintStack, constraint);
+        accumulator.add(constraint);
+    }
+
+    protected void constraintDatatype(String str, int line, int column) {
         DatatypeConstraint dt = new DatatypeConstraint(str);
         addNodeConstraint(dt);
     }
 
-    protected void cNodeKind(String nodeKindStr, int line, int column) {
+    protected void constraintNodeKind(String nodeKindStr, int line, int column) {
         NodeKind nodeKind = NodeKind.create(nodeKindStr);
         NodeKindConstraint nk = new NodeKindConstraint(nodeKind);
         addNodeConstraint(nk);
@@ -509,7 +533,7 @@ public class ParserShExC extends LangParserBase {
         List<ValueSetRange> x = valueSetRanges;
         valueSetRanges = new ArrayList<>();
         ValueConstraint vc = new ValueConstraint(x);
-        push(shapeExprStack, vc);
+        addNodeConstraint(vc);
         finish("ValueSet");
     }
 
@@ -607,14 +631,57 @@ public class ParserShExC extends LangParserBase {
 
     protected void numericFacetRange(String range, Node num, int line, int column) {
         NumRangeKind kind = NumRangeKind.create(range);
-        NodeConstraint numLength = new NumRangeConstraint(kind, num);
+        NodeConstraintComponent numLength = new NumRangeConstraint(kind, num);
         addNodeConstraint(numLength);
     }
 
     protected void numericFacetLength(String facetKind, int length, int line, int column) {
         NumLengthKind kind = NumLengthKind.create(facetKind);
-        NodeConstraint numLength = new NumLengthConstraint(kind, length);
+        NodeConstraintComponent numLength = new NumLengthConstraint(kind, length);
         addNodeConstraint(numLength);
+    }
+
+    protected SemAct crackSemanticAction(String iriAndCode, int line, int column) {
+        // e.g. % <http://shex.io/extensions/Test/> { print(s) %}
+        // or   % ex:Test { print(s) %}
+        // or   %<http://shex.io/extensions/Test/>%
+
+        // Trim leading '%' and ws and trim trailing '%}'
+        String whitespaces = " \t\n\r\f";
+        int startOfIri = 1; // get past '%'
+        for (; whitespaces.indexOf(iriAndCode.charAt(startOfIri)) != -1; ++startOfIri)
+            ;
+
+        // parse the IRI and extract the code
+        String iri, code;
+        if (iriAndCode.charAt(startOfIri) == '<') {
+            // relative IRI
+            int iriEnd = iriAndCode.indexOf('>');
+            iri = profile.resolveIRI(iriAndCode.substring(startOfIri + 1, iriEnd), line, column);
+
+            int codeDelimiter = iriAndCode.indexOf('{', iriEnd);
+            code = codeDelimiter == -1
+                ? null
+                : iriAndCode.substring(codeDelimiter + 1, iriAndCode.length() - 2);
+        } else {
+            // PNAME
+            int codeDelimiter = iriAndCode.indexOf('{', startOfIri);
+            int endOfLocalName = codeDelimiter == -1
+                ? iriAndCode.length()
+                : codeDelimiter - 1;
+            for (; whitespaces.indexOf(iriAndCode.charAt(endOfLocalName)) != -1; --endOfLocalName)
+                ;
+            String pname = iriAndCode.substring(startOfIri, endOfLocalName + 1);
+            iri = resolvePName(pname, line, column);
+
+            code = codeDelimiter == -1
+                ? null
+                : iriAndCode.substring(codeDelimiter + 1, iriAndCode.length() - 2);
+        }
+
+        SemAct ret = new SemAct(iri, code == null ? null : EscapeStr.unescapeUnicode(code));
+        stack("SemAct: %s %s", iri, code);
+        return ret;
     }
 
     // Metacharacters ., ?, *, +, {, } (, ), [ or ].
@@ -629,13 +696,13 @@ public class ParserShExC extends LangParserBase {
 
         String flags = regexStr.substring(idx+1);
         pattern = ShexParserLib.unescapeShexRegex(pattern, '\\', false);
-        NodeConstraint regex = new StrRegexConstraint(pattern, flags);
+        NodeConstraintComponent regex = new StrRegexConstraint(pattern, flags);
         addNodeConstraint(regex);
     }
 
     protected void stringFacetLength(String str, int len) {
         StrLengthKind lengthType = StrLengthKind.create(str);
-        NodeConstraint nodeConstraint = StrLengthConstraint.create(lengthType, len);
+        NodeConstraintComponent nodeConstraint = StrLengthConstraint.create(lengthType, len);
         addNodeConstraint(nodeConstraint);
     }
 
@@ -648,7 +715,7 @@ public class ParserShExC extends LangParserBase {
         String lex = image.substring(quoteLen, idx-quoteLen);
         String lang = image.substring(idx+1);
         lex = unescapeStr(lex, line, column);
-        return NodeFactory.createLiteral(lex, lang);
+        return NodeFactory.createLiteralLang(lex, lang);
     }
 
     // Special case @ns: and @ns:foo.
@@ -659,7 +726,6 @@ public class ParserShExC extends LangParserBase {
     }
 
     protected void ampTripleExprLabel(Node ref) {
-        debug("& TripleExprLabel");
         push(tripleExprStack, new TripleExprRef(ref));
     }
 
@@ -768,14 +834,14 @@ public class ParserShExC extends LangParserBase {
     }
 
     private void debug(String fmt, Object...args) {
-        if ( DEBUG ) {
+        if ( DEBUG_DEV ) {
             out.print(String.format(fmt, args));
             out.println();
         }
     }
 
     private void debugNoIndent(String fmt, Object...args) {
-        if ( DEBUG ) {
+        if ( DEBUG_DEV ) {
             int x = out.getAbsoluteIndent();
             out.setAbsoluteIndent(0);
             out.print(String.format(fmt, args));
@@ -823,8 +889,8 @@ public class ParserShExC extends LangParserBase {
 
     public void parseShapeMapStart() {}
 
-    public ShexMap parseShapeMapFinish() {
-        return ShexMap.create(associations);
+    public ShapeMap parseShapeMapFinish() {
+        return ShapeMap.create(associations);
     }
 
     protected Triple createTriple(Node s, Node p, Node o, int line, int column) {
@@ -846,6 +912,4 @@ public class ParserShExC extends LangParserBase {
             throw new ShexParseException("No node nor triple in shape association");
         associations.add(assoc);
     }
-
-    private static Node nullToAny( Node n ) { return n == null ? Node.ANY : n; }
 }

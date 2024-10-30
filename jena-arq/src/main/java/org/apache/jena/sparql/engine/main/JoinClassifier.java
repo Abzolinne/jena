@@ -18,8 +18,10 @@
 
 package org.apache.jena.sparql.engine.main ;
 
+import java.util.Iterator;
 import java.util.Set ;
 
+import org.apache.jena.atlas.iterator.Iter;
 import org.apache.jena.atlas.lib.SetUtils ;
 import org.apache.jena.sparql.algebra.Op ;
 import org.apache.jena.sparql.algebra.OpVisitor ;
@@ -42,23 +44,32 @@ public class JoinClassifier
         // Modifiers that we don't touch
         //   OpSlice, OpTopN, OpOrder (which gets lost - could remove it!)
         // (These could be first and top - i.e. in call once position, and be safe)
-        
+
         Op left = effectiveOp(_left) ;
         Op right = effectiveOp(_right) ;
 
         if ( ! isSafeForLinear(left) || ! isSafeForLinear(right) )
             return false ;
-        
+
         // Modifiers.
         if ( right instanceof OpExtend )    return false ;
         if ( right instanceof OpAssign )    return false ;
         if ( right instanceof OpGroup )     return false ;
 //        if ( right instanceof OpDiff )      return false ;
 //        if ( right instanceof OpMinus )     return false ;
-        
+
         if ( right instanceof OpSlice )     return false ;
         if ( right instanceof OpTopN )      return false ;
         if ( right instanceof OpOrder )     return false ;
+
+        // Lateral is different.
+        if ( right instanceof OpLateral )   return false ;
+
+        // Do not linearize when effectively joining tables - i.e. force hash joins between tables.
+        Basis leftBasis = getBasis(left);
+        Basis rightBasis = getBasis(right);
+        if ( leftBasis == Basis.TABLE && rightBasis == Basis.TABLE )
+            return false ;
 
         // Assume something will not commute these later on.
         return check(left, right) ;
@@ -66,21 +77,25 @@ public class JoinClassifier
 
     // -- pre check for ops we can't handle in a linear fashion.
     // These are the negation patterns (minus and diff)
-    // FILTER NOT EXISTS is safe - it's defined by iteration like the linear execution algorithm. 
-    private static class UnsafeLineraOpException extends RuntimeException {}
+    // FILTER NOT EXISTS is safe - it's defined by iteration like the linear execution algorithm.
+    private static class UnsafeLinearOpException extends RuntimeException {
+        @Override public Throwable fillInStackTrace() { return this; }
+    }
     private static OpVisitor checkForUnsafeVisitor = new OpVisitorBase() {
-        @Override public void visit(OpMinus opMinus) { throw new UnsafeLineraOpException(); }
-        @Override public void visit(OpDiff opDiff)   { throw new UnsafeLineraOpException(); }
+        @Override public void visit(OpMinus opMinus) { throw new UnsafeLinearOpException(); }
+        @Override public void visit(OpDiff opDiff)   { throw new UnsafeLinearOpException(); }
     };
+
     private static boolean isSafeForLinear(Op op) {
         try { OpWalker.walk(op, checkForUnsafeVisitor); return true; }
-        catch (UnsafeLineraOpException e) { return false; }
+        catch (UnsafeLinearOpException e) { return false; }
     }
     // --
-    
+
     // Check left can stream into right
     static private boolean check(Op leftOp, Op rightOp) {
         if ( print ) {
+            System.err.println("== JoinClassifier");
             System.err.println("Left::");
             System.err.println(leftOp) ;
             System.err.println("Right::");
@@ -101,7 +116,7 @@ public class JoinClassifier
             System.err.println("Right") ;
             vfRight.print(System.err) ;
         }
-        
+
         Set<Var> vRightFixed        = vfRight.getFixed() ;
         Set<Var> vRightOpt          = vfRight.getOpt() ;
         Set<Var> vRightFilter       = vfRight.getFilter() ;
@@ -126,7 +141,7 @@ public class JoinClassifier
 //                System.err.println("vRightFilterOnly.not isEmpty");
 //            return false;
         }
-        
+
         // Step 2 : remove any variable definitely fixed from the floating sets
         // because the nature of the "join" will deal with that.
         vLeftOpt = SetUtils.difference(vLeftOpt, vLeftFixed) ;
@@ -168,7 +183,9 @@ public class JoinClassifier
         boolean bad1 = r11 || r12 ;
 
         if ( print )
-            System.err.println("Case 1 = " + bad1) ;
+            System.err.println("J: Case 1 (false=ok) = " + bad1) ;
+        if ( bad1 )
+            return false;
 
         // Case 2 : a filter in the RHS is uses a variable from the LHS (whether
         // fixed or optional)
@@ -179,7 +196,9 @@ public class JoinClassifier
 
         boolean bad2 = SetUtils.intersectionP(vRightFilter, vLeftFixed) ;
         if ( print )
-            System.err.println("Case 2 = " + bad2) ;
+            System.err.println("J: Case 2 (false=ok) = " + bad2) ;
+        if ( bad2 )
+            return false;
 
         // Case 3 : an assign in the RHS uses a variable not introduced
         // Scoping means we must hide the LHS value from the RHS
@@ -189,18 +208,15 @@ public class JoinClassifier
         // the RHS
         // vRightAssign.removeAll(vRightFixed);
         // boolean bad3 = vRightAssign.size() > 0;
-        
+
         boolean bad3 = SetUtils.intersectionP(vRightAssign, vLeftFixed) ;
         if ( print )
-            System.err.println("Case 3 = " + bad3) ;
-
-        // Linear if all conditions are false
-        boolean result = !bad1 && !bad2 && !bad3 ;
-        
-        if ( print ) {
-            System.err.println("Result: "+result) ;
-        }
-        return result ;
+            System.err.println("J: Case 3 (false=ok) = " + bad3) ;
+        if ( bad3 )
+            return false;
+        if ( print )
+            System.err.println("J: Result: OK");
+        return true;
     }
 
     /** Find the "effective op" - i.e. the one that may be sensitive to linearization */
@@ -210,9 +226,12 @@ public class JoinClassifier
                 op = ((OpExt)op).effectiveOp() ;
             else if (safeModifier(op))
                 op = ((OpModifier)op).getSubOp() ;
-            // JENA-1813, temporary fix.
+            // JENA-1813
             else if (op instanceof OpGraph )
                 op = ((OpGraph)op).getSubOp() ;
+            // JENA-2332
+            else if (op instanceof OpService )
+                op = ((OpService)op).getSubOp() ;
             else
                 return op;
         }
@@ -223,5 +242,86 @@ public class JoinClassifier
         if ( !(op instanceof OpModifier) )
             return false ;
         return op instanceof OpDistinct || op instanceof OpReduced || op instanceof OpProject || op instanceof OpList ;
+    }
+
+    /** Enumeration of the primitive op types in the SPARQL algebra. */
+    private enum Basis {
+        PATTERN,
+        TABLE,
+        PFUNCTION
+    }
+
+    /**
+     * This method checks whether the given op is based on {@link OpTable} or {@link OpPropFunc}.
+     * If neither is the case then the result is {@link Basis#PATTERN}.
+     * <p>
+     * This method is called for each side of a join from {@link #isLinear(Op, Op)}.
+     * If that side of the join is a property function then {@link Basis#PFUNCTION} is returned.
+     *
+     * <p>
+     * The special handling of property functions is due to that
+     * OpJoin(TABLE, PFUNCTION) needs to be linearized to OpSequence(TABLE, PFUNCTION).
+     *
+     * <p>
+     * This method resolves OpExt to its effective op.
+     */
+    private static Basis getBasis(Op op) {
+        Basis result;
+        if (op instanceof OpTable) {
+            result = Basis.TABLE;
+        } else if (op instanceof OpPropFunc) {
+            result = Basis.PFUNCTION;
+        } else if (op instanceof OpExt) {
+            Op effectiveOp = ((OpExt)op).effectiveOp();
+            result = effectiveOp == null
+                    ? Basis.PATTERN // Assume pattern
+                    : getBasis(effectiveOp);
+        } else if (op instanceof Op1) {
+            result = getBasis(((Op1)op).getSubOp());
+        } else {
+            Iterator<Op> it = getSubOps(op);
+            if (!it.hasNext()) { // Op0 that is not a table (e.g. OpPath, OpQuad, OpTriple, ...)
+                result = Basis.PATTERN;
+            } else { // Op2, OpN
+                result = Basis.TABLE; // Start with table; if any argument evaluates to pattern then change to pattern.
+                while (it.hasNext()) {
+                    Op subOp = it.next();
+                    Basis contrib = getBasis(subOp);
+
+                    // Treat property functions in sub operations with more than one argument as tables
+                    if (contrib == Basis.PFUNCTION) {
+                        contrib = Basis.TABLE;
+                    }
+
+                    if (contrib != Basis.TABLE) {
+                        result = Basis.PATTERN;
+                        break;
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    /***
+     * Return an iterator over the given op's immediate sub ops.
+     * An empty iterator is returned for Op0 and OpExt.
+     */
+    // XXX This method could go to OpLib or the Op interface directly
+    private static Iterator<Op> getSubOps(Op op) {
+        if (op instanceof Op1)
+            return Iter.singletonIterator(((Op1)op).getSubOp());
+
+        if (op instanceof Op2) {
+            Op2 x = (Op2)op;
+            return Iter.of(x.getLeft(), x.getRight());
+        }
+
+        if (op instanceof OpN) {
+            return ((OpN)op).iterator();
+        }
+
+        // Op0 and OpExt are treated as having no sub ops
+        return Iter.empty();
     }
 }

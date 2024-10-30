@@ -27,6 +27,7 @@ import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.Transactional;
 import org.apache.jena.sparql.exec.QueryExec;
 import org.apache.jena.sparql.exec.QueryExecBuilder;
+import org.apache.jena.sparql.exec.UpdateExecBuilder;
 import org.apache.jena.update.UpdateRequest;
 
 /**
@@ -71,6 +72,12 @@ public class RDFLinkModular implements RDFLink {
         this.transactional = connection;
     }
 
+    // Accessors - not for internal use.
+    public LinkSparqlQuery queryLink()     { return queryConnection; }
+    public LinkSparqlUpdate updateLink()   { return updateConnection; }
+    public LinkDatasetGraph datasetLink()  { return datasetConnection; }
+
+    // For use in a query / update/data operation. Must be non-null.
     private LinkSparqlQuery queryConnection() {
         if ( queryConnection == null )
             throw new UnsupportedOperationException("No LinkSparqlQuery");
@@ -90,10 +97,24 @@ public class RDFLinkModular implements RDFLink {
     }
 
     @Override
-    public QueryExec query(Query query) { return queryConnection().query(query); }
+    public QueryExec query(Query query) {
+        return queryConnection().query(query);
+    }
 
     @Override
-    public QueryExecBuilder newQuery() { return queryConnection().newQuery(); }
+    public QueryExec query(String queryString) {
+        return queryConnection().query(queryString);
+    }
+
+    @Override
+    public QueryExecBuilder newQuery() {
+        return queryConnection().newQuery();
+    }
+
+    @Override
+    public UpdateExecBuilder newUpdate() {
+        return updateConnection().newUpdate();
+    }
 
     @Override
     public void update(UpdateRequest update) {
@@ -184,12 +205,14 @@ public class RDFLinkModular implements RDFLink {
     }
 
     @Override
-    public void clearDataset() { datasetConnection().clearDataset(); }
+    public void clearDataset() {
+        datasetConnection().clearDataset();
+    }
 
     @Override
     public boolean isClosed() { return false; }
 
-    /** Close this connection.  Use with try-resource. */
+    /** Close this connection. */
     @Override
     public void close() {
         if ( queryConnection != null )

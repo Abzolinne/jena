@@ -86,7 +86,11 @@ import org.apache.jena.vocabulary.RDFS;
         QuerySolutionMap initValues = null;
         if ( varName != null && value != null )
             initValues = querySolution(varName, value);
-        try ( QueryExecution qExec = QueryExecutionFactory.create(query, ds, initValues) ) {
+        try ( QueryExecution qExec = QueryExecution
+                    .dataset(ds)
+                    .query(query)
+                    .substitution(initValues)
+                    .build() ) {
             return ResultSetFactory.copyResults(qExec.execSelect());
         }
     }
@@ -102,8 +106,8 @@ import org.apache.jena.vocabulary.RDFS;
         return qsm;
     }
 
-    /*package*/ static RDFNode getOne(Resource svc, String property) {
-        ResultSet rs = BuildLib.query("SELECT * { ?svc " + property + " ?x}", svc.getModel(), "svc", svc);
+    /*package*/ static RDFNode getOne(Resource svc, Property property) {
+        ResultSet rs = BuildLib.query("SELECT * { ?svc <" + property.getURI() + "> ?x}", svc.getModel(), "svc", svc);
         if ( !rs.hasNext() )
             throw new FusekiConfigException("No property '" + property + "' for service " + BuildLib.nodeLabel(svc));
         RDFNode x = rs.next().get("x");
@@ -139,8 +143,8 @@ import org.apache.jena.vocabulary.RDFS;
     /*package*/ static String nodeLabel(RDFNode n) {
         if ( n == null )
             return "<null>";
-        if ( n instanceof Resource )
-            return strForResource((Resource)n);
+        if ( n instanceof Resource r)
+            return strForResource(r);
 
         Literal lit = (Literal)n;
         return lit.getLexicalForm();
@@ -155,8 +159,8 @@ import org.apache.jena.vocabulary.RDFS;
             return "NULL ";
         if ( r.hasProperty(RDFS.label) ) {
             RDFNode n = r.getProperty(RDFS.label).getObject();
-            if ( n instanceof Literal )
-                return ((Literal)n).getString();
+            if ( n instanceof Literal literal )
+                return literal.getString();
         }
 
         if ( r.isAnon() )

@@ -18,79 +18,87 @@
 
 package org.apache.jena.riot.resultset;
 
-import org.apache.jena.riot.Lang ;
-import org.apache.jena.riot.LangBuilder ;
-import org.apache.jena.riot.RDFLanguages ;
-import org.apache.jena.riot.WebContent ;
+import java.util.HashSet;
+import java.util.Set;
 
-/** The {@code RS_*} is the preferred constant */
+import org.apache.jena.riot.Lang;
+import org.apache.jena.riot.LangBuilder;
+import org.apache.jena.riot.RDFLanguages;
+import org.apache.jena.riot.WebContent;
+import org.apache.jena.riot.rowset.RowSetReaderRegistry;
+import org.apache.jena.riot.rowset.RowSetWriterRegistry;
+
+/** {@link Lang} related to SPARQL result sets. */
 public class ResultSetLang {
 
+    private ResultSetLang() {}
+
     /** SPARQL results in XML syntax */
-    public static final Lang RS_XML
-        = LangBuilder.create("SPARQL-Results-XML", WebContent.contentTypeResultsXML)
+    public static final Lang RS_XML = LangBuilder.create("SPARQL-Results-XML", WebContent.contentTypeResultsXML)
                      .addAltNames("SRX")
                      .addFileExtensions("srx")
-                     .build() ;
+                     .build();
 
-    /** @deprecated Use {@link #RS_XML}. */
-    @Deprecated
-    public static final Lang SPARQLResultSetXML = RS_XML;
-
-    public static final Lang RS_JSON
-        = LangBuilder.create("SPARQL-Results-JSON", WebContent.contentTypeResultsJSON)
+    public static final Lang RS_JSON = LangBuilder.create("SPARQL-Results-JSON", WebContent.contentTypeResultsJSON)
                      .addAltNames("SRJ")
                      .addFileExtensions("srj")
-                     .build() ;
-    /** @deprecated Use {@link #RS_JSON}. */
-    @Deprecated
-    public static final Lang SPARQLResultSetJSON = RS_JSON;
+                     .build();
 
     public static final Lang RS_CSV = Lang.CSV;
-    /** @deprecated Use {@link #RS_CSV}. */
-    @Deprecated
-    public static final Lang SPARQLResultSetCSV = Lang.CSV;
 
     public static final Lang RS_TSV = Lang.TSV;
-    /** @deprecated Use {@link #RS_TSV}. */
-    @Deprecated
-    public static final Lang SPARQLResultSetTSV = Lang.TSV;
 
-    public static final Lang RS_Thrift
-        = LangBuilder.create("SPARQL-Results-Thrift", WebContent.contentTypeResultsThrift)
+    public static final Lang RS_Thrift = LangBuilder.create("SPARQL-Results-Thrift", WebContent.contentTypeResultsThrift)
                      .addAltNames("SRT")
                      .addFileExtensions("srt")
-                     .build() ;
-    /** @deprecated Use {@link #RS_Thrift}. */
-    @Deprecated
-    public static final Lang SPARQLResultSetThrift = RS_Thrift;
+                     .build();
 
-    public static final Lang RS_Text
-        = LangBuilder.create("SPARQL-Results-Text", WebContent.contentTypeTextPlain)
+    public static final Lang RS_Protobuf = LangBuilder.create("SPARQL-Results-Protobuf", WebContent.contentTypeResultsProtobuf)
+                     .addAltNames("SRP")
+                     .addFileExtensions("srp")
+                     .build();
+
+    public static final Lang RS_Text = LangBuilder.create("SPARQL-Results-Text", WebContent.contentTypeTextPlain)
                      .addFileExtensions("txt")
-                     .build() ;
-    /** @deprecated Use {@link #RS_Text}. */
-    @Deprecated
-    public static final Lang SPARQLResultSetText = RS_Text;
+                     .build();
 
-    public static final Lang RS_None
-        = LangBuilder.create("SPARQL-Results-None", "application/sparql-results+none").build() ;
-    /** @deprecated Use {@link #RS_None}. */
-    @Deprecated
-    public static final Lang SPARQLResultSetNone = RS_None;
+    public static final Lang RS_None = LangBuilder.create("SPARQL-Results-None", "application/sparql-results+none").build();
 
-    private static boolean initialized = false ;
+    private static boolean initialized = false;
+
+    /** System initialization function */
     public static void init() {
         if ( initialized )
-            return ;
-        initialized = true ;
-        RDFLanguages.register(RS_XML) ;
-        RDFLanguages.register(RS_JSON) ;
-        RDFLanguages.register(RS_CSV) ;
-        RDFLanguages.register(RS_TSV) ;
-        RDFLanguages.register(RS_Thrift) ;
-        RDFLanguages.register(RS_None) ;
+            return;
+        initialized = true;
+        registerResultSetLang(RS_XML);
+        registerResultSetLang(RS_JSON);
+        registerResultSetLang(RS_CSV);
+        registerResultSetLang(RS_TSV);
+        registerResultSetLang(RS_Thrift);
+        registerResultSetLang(RS_Protobuf);
+        // Not output-only text.
+        registerResultSetLang(RS_None);
+
+        RowSetReaderRegistry.init();
+        RowSetWriterRegistry.init();
+
         ResultSetReaderRegistry.init();
         ResultSetWriterRegistry.init();
+        registered = Set.copyOf(registered);
+    }
+
+    /**
+     * Is a lang a registered {@link ResultSetLang}?
+     * @param lang
+     */
+    public static boolean isRegistered(Lang lang) {
+        return registered.contains(lang);
+    }
+
+    private static Set<Lang> registered = new HashSet<>();
+    private static void registerResultSetLang(Lang rsLang)  {
+        registered.add(rsLang);
+        RDFLanguages.register(rsLang);
     }
 }

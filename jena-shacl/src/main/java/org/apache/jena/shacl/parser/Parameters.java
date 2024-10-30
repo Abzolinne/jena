@@ -23,18 +23,20 @@ import static org.apache.jena.shacl.sys.C.TRUE;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.apache.jena.ext.com.google.common.collect.ArrayListMultimap;
-import org.apache.jena.ext.com.google.common.collect.Multimap;
+import org.apache.commons.collections4.MultiMapUtils;
+import org.apache.commons.collections4.MultiValuedMap;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
-import org.apache.jena.riot.other.G;
 import org.apache.jena.shacl.engine.Parameter;
 import org.apache.jena.shacl.engine.constraint.SparqlComponent;
 import org.apache.jena.shacl.vocabulary.SHACL;
+import org.apache.jena.system.G;
 
 public class Parameters {
 
-    public static List<Parameter> parseParameters(Graph shapesGraph, Node sccNode) {
+    /** Parse a parameter declaration */
+    /*package*/ static List<Parameter> parseParameters(Graph shapesGraph, Node sccNode) {
+        // scc is the SPARQL Constraint Component or SPARQL target type node.
         List<Parameter> params =
             G.listSP(shapesGraph, sccNode, SHACL.parameter).stream()
                 .map(pn->parseParameter(shapesGraph, sccNode, pn))
@@ -42,7 +44,7 @@ public class Parameters {
         return params;
     }
 
-    public static Parameter parseParameter(Graph shapesGraph, Node sccNode, Node parameterNode) {
+    private static Parameter parseParameter(Graph shapesGraph, Node sccNode, Node parameterNode) {
         Node path = G.getZeroOrOneSP(shapesGraph, parameterNode, SHACL.path);
         if ( ! path.isURI() )
             throw new ShaclParseException("SparqlConstraintComponent: Not a URI for parameter name: "+path);
@@ -54,9 +56,9 @@ public class Parameters {
         return new Parameter(path, sparqlName, isOptional, constraints);
     }
 
-    /** For a specific nodeShape or propertyShape, extract the parameter->value* map. */
-    public static Multimap<Parameter, Node> parameterValues(Graph shapesGraph, Node sh, SparqlComponent scc) {
-        Multimap<Parameter, Node> paramValues = ArrayListMultimap.create();
+    /** For a specific nodeShape or propertyShape, extract the parameter-&gt;value* map. */
+    public static MultiValuedMap<Parameter, Node> parameterValues(Graph shapesGraph, Node sh, SparqlComponent scc) {
+        MultiValuedMap<Parameter, Node> paramValues = MultiMapUtils.newListValuedHashMap();
         scc.getParams().forEach(param->{
             List<Node> values = G.listSP(shapesGraph, sh, param.getParameterPath());
             if ( ! values.isEmpty() ) {
@@ -75,5 +77,4 @@ public class Parameters {
         }
         return true;
     }
-
 }

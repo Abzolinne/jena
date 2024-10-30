@@ -35,6 +35,8 @@ import org.apache.jena.sparql.expr.aggregate.lib.* ;
 import org.apache.jena.update.* ;
 import org.apache.jena.sparql.modify.request.* ;
 import org.apache.jena.sparql.core.Quad ;
+import java.util.List;
+import java.util.ArrayList;
 public class ARQParser extends ARQParserBase
 {}
 PARSER_END(ARQParser)
@@ -297,6 +299,26 @@ void OrderCondition() :
           getQuery().addOrderBy(expr, direction) ;
       else
           getQuery().addOrderBy(v, direction) ; }
+}
+SortCondition OrderConditionForAggregationFunction() :
+{ int direction = 0 ; Expr expr = null ; Node v = null ; }
+{
+  { direction = Query.ORDER_DEFAULT ; }
+  (
+    (
+      ( <ASC> { direction = Query.ORDER_ASCENDING ; }
+      | <DESC> { direction = Query.ORDER_DESCENDING ; } )
+      expr = BrackettedExpression()
+    )
+  |
+    ( expr = Constraint()
+    | v = Var()
+    )
+  )
+  { if ( v == null )
+          return new SortCondition(expr, direction) ;
+      else
+          return new SortCondition(v, direction) ; }
 }
 void LimitOffsetClauses() : { }
 {
@@ -613,6 +635,8 @@ Element GraphPatternNotTriples() : { Element el = null ; }
  |
    el = OptionalGraphPattern()
  |
+   el = LateralGraphPattern()
+ |
    el = MinusGraphPattern()
  |
    el = GraphGraphPattern()
@@ -630,12 +654,18 @@ Element GraphPatternNotTriples() : { Element el = null ; }
    el = ExistsElt()
  |
    el = NotExistsElt()
+ |
+   el = Unfold()
  )
  { return el ; }
 }
 Element OptionalGraphPattern() : { Element el ; }
 { <OPTIONAL> el = GroupGraphPattern()
     { return new ElementOptional(el) ; }
+}
+Element LateralGraphPattern() : { Element el ; }
+{ <LATERAL> el = GroupGraphPattern()
+    { return new ElementLateral(el) ; }
 }
 Element GraphGraphPattern() : { Element el ; Node n ;}
 {
@@ -721,13 +751,12 @@ void InlineDataFull() : { Var v ; Node n ; Token t ; int beginLine; int beginCol
 }
 Node DataBlockValue() : { Node n ; String iri ; }
 {
-  n = TripleTermData() { return n ; }
-|
   iri = iri() { return createNode(iri) ; }
 | n = RDFLiteral() { return n ; }
 | n = NumericLiteral() { return n ; }
 | n = BooleanLiteral() { return n ; }
 | <UNDEF> { return null ; }
+| n = QuotedTripleData() { return n ; }
 }
 Element Assignment() : { Var v ; Expr expr ; }
 {
@@ -750,6 +779,17 @@ Element NotExistsElt() : { Element el ; }
     <NOT> <EXISTS>
     el = GroupGraphPattern()
     { return new ElementNotExists(el) ; }
+}
+Element Unfold() : { Var v1 ; Var v2 = null ; Expr expr ; }
+{
+  <UNFOLD>
+  <LPAREN>
+  expr = Expression()
+  <AS>
+  v1 = Var()
+  (<COMMA> v2 = Var() { ; } )?
+  <RPAREN>
+  { return new ElementUnfold(expr, v1, v2) ; }
 }
 Element MinusGraphPattern() : { Element el ; }
 {
@@ -1155,7 +1195,7 @@ void AnnotationPath(TripleCollector acc, Node s, Node p, Path path, Node o) : {}
   (
     <L_ANN>
       { Node pAnn = preConditionAnnotation(s, p, path, o, token.beginLine, token.beginColumn) ;
-        Node x = createTripleTerm(s, pAnn, o, token.beginLine, token.beginColumn);
+        Node x = createQuotedTriple(s, pAnn, o, token.beginLine, token.beginColumn);
       }
       PropertyListPathNotEmpty(x, acc)
     <R_ANN>
@@ -1166,7 +1206,7 @@ void Annotation(TripleCollector acc, Node s, Node p, Path path, Node o) : { }
   (
     <L_ANN>
       { Node pAnn = preConditionAnnotation(s, p, path, o, token.beginLine, token.beginColumn) ;
-        Node x = createTripleTerm(s, p, o, token.beginLine, token.beginColumn);
+        Node x = createQuotedTriple(s, p, o, token.beginLine, token.beginColumn);
       }
       PropertyListNotEmpty(x, acc)
     <R_ANN>
@@ -1184,31 +1224,36 @@ Node GraphNodePath(TripleCollectorMark acc) : { Node n ; }
  |
   n = TriplesNodePath(acc) { return n ; }
 }
-Node VarOrTerm() : { Node n = null ; }
+Node VarOrTerm() : { Node n = null ; String iri ; }
 {
-  ( n = TripleTerm()
-  | n = Var()
-  | n = GraphTerm()
-  )
+  ( n = Var()
+  | iri = iri() { return createNode(iri) ; }
+  | n = RDFLiteral() { return n ; }
+  | n = NumericLiteral() { return n ; }
+  | n = BooleanLiteral() { return n ; }
+  | n = BlankNode() { return n ; }
+  | <NIL> { return nRDFnil ; }
+  | n = QuotedTriple()
+)
   { return n ; }
 }
-Node TripleTerm() : { Node n = null ; Token t ; Node s , p , o ; }
+Node QuotedTriple() : { Node n = null ; Token t ; Node s , p , o ; }
 {
   t = <LT2>
   s = VarOrTerm()
   p = Verb()
   o = VarOrTerm()
-  { n = createTripleTerm(s, p, o, t.beginLine, t.beginColumn); }
+  { n = createQuotedTriple(s, p, o, t.beginLine, t.beginColumn); }
   <GT2>
   { return n; }
 }
-Node TripleTermData() : { Node n = null ; Token t ; String iri ; Node s , p , o ; }
+Node QuotedTripleData() : { Node n = null ; Token t ; String iri ; Node s , p , o ; }
 {
   t = <LT2>
   ( s = DataValueTerm() )
   ( iri = iri() { p = createNode(iri) ; } | <KW_A> { p = nRDFtype ; } )
   ( o = DataValueTerm() )
-  { n = createTripleTerm(s, p, o, t.beginLine, t.beginColumn); }
+  { n = createQuotedTriple(s, p, o, t.beginLine, t.beginColumn); }
   <GT2>
   { return n; }
 }
@@ -1218,7 +1263,7 @@ Node DataValueTerm() : { Node n = null ; String iri ; Node s , p , o ; }
 | n = RDFLiteral() { return n ; }
 | n = NumericLiteral() { return n ; }
 | n = BooleanLiteral() { return n ; }
-| n = TripleTermData() { return n ; }
+| n = QuotedTripleData() { return n ; }
 }
 Node VarOrIri() : {Node n = null ; String iri ; }
 {
@@ -1234,15 +1279,6 @@ Var Var() : { Token t ;}
 {
     ( t = <VAR1> | t = <VAR2> )
     { return createVariable(t.image, t.beginLine, t.beginColumn) ; }
-}
-Node GraphTerm() : { Node n ; String iri ; }
-{
-  iri = iri() { return createNode(iri) ; }
-| n = RDFLiteral() { return n ; }
-| n = NumericLiteral() { return n ; }
-| n = BooleanLiteral() { return n ; }
-| n = BlankNode() { return n ; }
-| <NIL> { return nRDFnil ; }
 }
 Expr Expression() : { Expr expr ; }
 {
@@ -1365,7 +1401,7 @@ Expr PrimaryExpression() : { Expr expr ; Node n ; }
   | n = NumericLiteral() { return asExpr(n) ; }
   | n = BooleanLiteral() { return asExpr(n) ; }
   | n = Var() { return asExpr(n) ; }
-  | n = ExprTripleTerm() { return asExpr(n) ; }
+  | n = ExprQuotedTriple() { return asExpr(n) ; }
   )
 }
 Node ExprVarOrTerm() : { Node n; String s;}
@@ -1375,16 +1411,16 @@ Node ExprVarOrTerm() : { Node n; String s;}
   | n = NumericLiteral()
   | n = BooleanLiteral()
   | n = Var()
-  | n = ExprTripleTerm()
+  | n = ExprQuotedTriple()
   )
   { return n; }
 }
-Node ExprTripleTerm() : { Token t ; Node s,p,o,n; }
+Node ExprQuotedTriple() : { Token t ; Node s,p,o,n; }
 { t = <LT2>
   s = ExprVarOrTerm()
   p = Verb()
   o = ExprVarOrTerm()
-  { n = createTripleTerm(s, p, o, t.beginLine, t.beginColumn); }
+  { n = createQuotedTriple(s, p, o, t.beginLine, t.beginColumn); }
   <GT2>
   { return n; }
 }
@@ -1409,15 +1445,15 @@ Expr BuiltInCall() : { Expr expr ;
     { return new E_Datatype(expr) ; }
   | <BOUND> <LPAREN> gn = Var() <RPAREN>
     { return new E_Bound(new ExprVar(gn)) ; }
-  | <IRI> <LPAREN> expr = Expression() <RPAREN>
-    { return new E_IRI(expr) ; }
-  | <URI> <LPAREN> expr = Expression() <RPAREN>
-    { return new E_URI(expr) ; }
+  | <IRI> <LPAREN> expr1 = Expression() (<COMMA> expr2 = Expression())? <RPAREN>
+    { return makeFunction_IRI(expr1, expr2) ; }
+  | <URI> <LPAREN> expr1 = Expression() (<COMMA> expr2 = Expression())? <RPAREN>
+    { return makeFunction_URI(expr1, expr2) ; }
   | <BNODE>
     ( <LPAREN> expr1 = Expression() <RPAREN>
-      { return new E_BNode(expr1) ; }
+      { return makeFunction_BNode(expr1) ; }
     |
-      <NIL> { return new E_BNode() ; }
+      <NIL> { return makeFunction_BNode() ; }
     )
   | <RAND> <NIL> { return new E_Random() ; }
   | <ABS> <LPAREN> expr1 = Expression() <RPAREN> { return new E_NumAbs(expr1) ; }
@@ -1451,6 +1487,9 @@ Expr BuiltInCall() : { Expr expr ;
   | <SECONDS> <LPAREN> expr1 = Expression() <RPAREN> { return new E_DateTimeSeconds(expr1) ; }
   | <TIMEZONE> <LPAREN> expr1 = Expression() <RPAREN> { return new E_DateTimeTimezone(expr1) ; }
   | <TZ> <LPAREN> expr1 = Expression() <RPAREN> { return new E_DateTimeTZ(expr1) ; }
+  | <ADJUST>
+    <LPAREN> expr1 = Expression() (<COMMA> expr2 = Expression())? <RPAREN>
+    { return new E_AdjustToTimezone(expr1, expr2) ; }
   | <NOW> <NIL> { return new E_Now() ; }
   | <UUID> <NIL> { return new E_UUID() ; }
   | <STRUUID> <NIL> { return new E_StrUUID() ; }
@@ -1493,10 +1532,10 @@ Expr BuiltInCall() : { Expr expr ;
     expr = RegexExpression() { return expr ; }
   | expr = ExistsFunc() { return expr ; }
   | expr = NotExistsFunc() { return expr ; }
-  | <IS_TRIPLE> <LPAREN> expr = Expression() <RPAREN>
+| <IS_TRIPLE> <LPAREN> expr = Expression() <RPAREN>
     { return new E_IsTriple(expr) ; }
   | <TRIPLE> <LPAREN> expr1 = Expression() <COMMA> expr2 = Expression() <COMMA> expr3 = Expression() <RPAREN>
-    { return new E_TripleTerm(expr1, expr2, expr3) ; }
+    { return new E_TripleFn(expr1, expr2, expr3) ; }
   | <SUBJECT> <LPAREN> expr = Expression() <RPAREN>
     { return new E_TripleSubject(expr) ; }
   | <PREDICATE> <LPAREN> expr = Expression() <RPAREN>
@@ -1605,6 +1644,26 @@ Expr Aggregate() : { Aggregator agg = null ; String sep = null ;
     { agg = AggregatorFactory.createCustom(AggURI.var_samp, distinct, expr) ; }
   | t = <VAR_POP> <LPAREN> ( <DISTINCT> { distinct = true ; } )? expr = Expression() <RPAREN>
     { agg = AggregatorFactory.createCustom(AggURI.var_pop, distinct, expr) ; }
+  | t = <FOLD>
+    { java.util.List<SortCondition> scs = null ;
+      SortCondition sc = null ; }
+    <LPAREN>
+    ( <DISTINCT> { distinct = true ; } )?
+    expr = Expression()
+    ( <COMMA> expr2 = Expression() )?
+    (
+       <ORDER> <BY>
+       (
+         sc = OrderConditionForAggregationFunction()
+         {
+           if ( scs == null )
+             scs = new java.util.ArrayList<SortCondition>();
+           scs.add(sc);
+         }
+       )+
+    )?
+    <RPAREN>
+    { agg = AggregatorFactory.createFold(distinct, expr, expr2, scs) ; }
   | t = <AGG>
     { String iri ; }
     iri = iri()
@@ -1778,6 +1837,8 @@ TOKEN [IGNORE_CASE] :
 | < BIND: "bind" >
 | < SERVICE: "service" >
 | < LET: "LET" >
+| < LATERAL: "LATERAL" >
+| < UNFOLD: "unfold" >
 | < TRIPLE: "TRIPLE" >
 | < IS_TRIPLE: "isTRIPLE" >
 | < SUBJECT: "SUBJECT" >
@@ -1803,6 +1864,7 @@ TOKEN [IGNORE_CASE] :
 | < VARIANCE: "variance" >
 | < VAR_SAMP: "var_samp" >
 | < VAR_POP: "var_pop" >
+| < FOLD: "fold" >
 | < SAMPLE: "sample" >
 | < GROUP_CONCAT: "group_concat" >
 | < FILTER: "filter" >
@@ -1857,6 +1919,7 @@ TOKEN [IGNORE_CASE] :
 | < SECONDS: "SECONDS" >
 | < TIMEZONE: "TIMEZONE" >
 | < TZ: "TZ" >
+| < ADJUST: "ADJUST" >
 | < NOW: "NOW" >
 | < UUID: "UUID" >
 | < STRUUID: "STRUUID" >

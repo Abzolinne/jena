@@ -36,6 +36,8 @@ import org.apache.jena.graph.Triple;
 import org.apache.jena.query.ReadWrite;
 import org.apache.jena.query.TxnType;
 import org.apache.jena.riot.system.PrefixMap;
+import org.apache.jena.shared.AddDeniedException;
+import org.apache.jena.shared.DeleteDeniedException;
 import org.apache.jena.sparql.core.DatasetGraphBaseFind;
 import org.apache.jena.sparql.core.DatasetGraphTriplesQuads;
 import org.apache.jena.sparql.core.Quad;
@@ -43,18 +45,17 @@ import org.apache.jena.sparql.core.Transactional;
 
 /** Alternative: DatasetGraph over RDFStorage, using DatasetGraphBaseFind
  *  Collapses DatasetGraphTriplesQuads into this adapter class.
-<pre>
-DatasetGraph
-  DatasetGraphBase
-    DatasetGraphBaseFind
-      DatasetGraphStorageDirect
-</pre>
-/**
+ *  <pre>
+ *   DatasetGraph
+ *     DatasetGraphBase
+ *       DatasetGraphBaseFind
+ *         DatasetGraphStorage
+ *    </pre>
+ *
  * A DatasetGraph base class for triples+quads storage. The machinery is really
  * the splitting between default and named graphs. This happens in two classes,
  * {@link DatasetGraphBaseFind} (for find splitting) and
- * {@link DatasetGraphTriplesQuads} add/delete splitting (it inherits
- * {@link DatasetGraphBaseFind}).
+ * {@link DatasetGraphTriplesQuads} add/delete splitting (it inherits {@link DatasetGraphBaseFind}).
  * <p>
  * Because storage is usually decomposing quads and triples, the default
  * behaviour is to work in s/p/o and g/s/p/o.
@@ -108,9 +109,8 @@ public class DatasetGraphStorage extends DatasetGraphBaseFind implements Databas
     }
 
     private <T> Iterator<T> isolate(Iterator<T> iterator) {
-        if ( txn.isInTransaction() && txn instanceof TransactionalSystem) {
+        if ( txn.isInTransaction() && txn instanceof TransactionalSystem txnSystem) {
             // Needs TxnId to track.
-            TransactionalSystem txnSystem = (TransactionalSystem)txn;
             TxnId txnId = txnSystem.getThreadTransaction().getTxnId();
             // Add transaction protection.
             return new IteratorTxnTracker<>(iterator, txnSystem, txnId);
@@ -159,7 +159,7 @@ public class DatasetGraphStorage extends DatasetGraphBaseFind implements Databas
 
     @Override
     public void add(Quad quad) {
-        if ( Quad.isDefaultGraph(quad.getGraph()) )
+        if ( quad.getGraph() == Quad.tripleInQuad || Quad.isDefaultGraph(quad.getGraph()) )
             storage.add(quad.getSubject(), quad.getPredicate(), quad.getObject());
         else
             storage.add(quad);
@@ -167,7 +167,7 @@ public class DatasetGraphStorage extends DatasetGraphBaseFind implements Databas
 
     @Override
     public void delete(Quad quad) {
-        if ( Quad.isDefaultGraph(quad.getGraph()) )
+        if ( quad.getGraph() == Quad.tripleInQuad || Quad.isDefaultGraph(quad.getGraph()) )
             storage.delete(quad.getSubject(), quad.getPredicate(), quad.getObject());
         else
             storage.delete(quad);
@@ -175,7 +175,9 @@ public class DatasetGraphStorage extends DatasetGraphBaseFind implements Databas
 
     @Override
     public void add(Node g, Node s, Node p, Node o) {
-        if ( g == null || Quad.isDefaultGraph(g) )
+        if ( Quad.isUnionGraph(g))
+            throw new AddDeniedException("Can't add to the union graph");
+        if ( g == Quad.tripleInQuad || Quad.isDefaultGraph(g) )
             storage.add(s,p,o);
         else
             storage.add(g,s,p,o);
@@ -183,7 +185,9 @@ public class DatasetGraphStorage extends DatasetGraphBaseFind implements Databas
 
     @Override
     public void delete(Node g, Node s, Node p, Node o) {
-        if ( g == null || Quad.isDefaultGraph(g) )
+        if ( Quad.isUnionGraph(g))
+            throw new DeleteDeniedException("Can't remove from the union graph");
+        if ( g == Quad.tripleInQuad || Quad.isDefaultGraph(g) )
             storage.delete(s,p,o);
         else
             storage.delete(g,s,p,o);
@@ -199,5 +203,17 @@ public class DatasetGraphStorage extends DatasetGraphBaseFind implements Databas
     public void removeGraph(Node graphName) {
         storage.removeAll(graphName, Node.ANY, Node.ANY, Node.ANY);
         prefixes.deleteAll(graphName);
+    }
+
+    @Override
+    public long size() {
+        // Slow!
+        return stream()
+                .map(Quad::getGraph).filter(gn->gn != null && !Quad.isDefaultGraph(gn)).distinct().count();
+    }
+
+    @Override
+    public String toString() {
+        return "DB: "+getClass().getSimpleName() + "@" + Integer.toHexString(System.identityHashCode(this));
     }
 }

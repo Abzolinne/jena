@@ -17,23 +17,25 @@
  */
 package org.apache.jena.geosparql.implementation.index;
 
-import io.github.galbiston.expiring_map.ExpiringMap;
-import static io.github.galbiston.expiring_map.MapDefaultValues.MAP_EXPIRY_INTERVAL;
-import static io.github.galbiston.expiring_map.MapDefaultValues.UNLIMITED_MAP;
-import java.util.Map.Entry;
+import org.apache.jena.atlas.lib.Cache;
 import org.apache.jena.geosparql.configuration.GeoSPARQLConfig;
 import org.apache.jena.geosparql.geo.topological.GenericPropertyFunction;
+import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
+import org.apache.jena.graph.Triple;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
-import org.apache.jena.rdf.model.Property;
-import org.apache.jena.rdf.model.Resource;
-import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.sparql.engine.ExecutionContext;
+import org.apache.jena.sparql.graph.GraphFactory;
 import org.apache.jena.sparql.util.Context;
 import org.apache.jena.sparql.util.Symbol;
+
+import java.util.Iterator;
+
+import static org.apache.jena.geosparql.implementation.index.CacheConfiguration.MAP_EXPIRY_INTERVAL;
+import static org.apache.jena.geosparql.implementation.index.CacheConfiguration.UNLIMITED_MAP;
 
 /**
  *
@@ -41,29 +43,20 @@ import org.apache.jena.sparql.util.Symbol;
 public class QueryRewriteIndex {
 
     private boolean indexActive;
-    private final String queryRewriteLabel;
-    private ExpiringMap<String, Boolean> index;
-    private static String LABEL_DEFAULT = "Query Rewrite";
+    private Cache<Triple, Boolean> index;
     private static int MAP_SIZE_DEFAULT = UNLIMITED_MAP;
     private static long MAP_EXPIRY_INTERVAL_DEFAULT = MAP_EXPIRY_INTERVAL;
-    private static final String KEY_SEPARATOR = "@";
 
     public static final Symbol QUERY_REWRITE_INDEX_SYMBOL = Symbol.create("http://jena.apache.org/spatial#query-index");
 
     public QueryRewriteIndex() {
-        this.queryRewriteLabel = LABEL_DEFAULT;
         this.indexActive = GeoSPARQLConfig.isQueryRewriteEnabled();
-        this.index = new ExpiringMap<>(queryRewriteLabel, MAP_SIZE_DEFAULT, MAP_EXPIRY_INTERVAL_DEFAULT);
-        if (indexActive) {
-            index.startExpiry();
-        }
+        this.index = CacheConfiguration.create(MAP_SIZE_DEFAULT, MAP_EXPIRY_INTERVAL_DEFAULT);
     }
 
     public QueryRewriteIndex(String queryRewriteLabel, int maxSize, long expiryInterval) {
-        this.queryRewriteLabel = queryRewriteLabel;
         this.indexActive = true;
-        this.index = new ExpiringMap<>(queryRewriteLabel, maxSize, expiryInterval);
-        this.index.startExpiry();
+        this.index = CacheConfiguration.create(maxSize, expiryInterval);
     }
 
     /**
@@ -74,23 +67,16 @@ public class QueryRewriteIndex {
      * @param propertyFunction
      * @return Result of relation between subject and object.
      */
-    public final Boolean test(Node subjectGeometryLiteral, Property predicate, Node objectGeometryLiteral, GenericPropertyFunction propertyFunction) {
+    public final Boolean test(Node subjectGeometryLiteral, Node predicate, Node objectGeometryLiteral, GenericPropertyFunction propertyFunction) {
 
         if (!subjectGeometryLiteral.isLiteral() || !objectGeometryLiteral.isLiteral()) {
             return false;
         }
 
         if (indexActive) {
-            String key = subjectGeometryLiteral.getLiteralLexicalForm() + KEY_SEPARATOR + predicate.getURI() + KEY_SEPARATOR + objectGeometryLiteral.getLiteralLexicalForm();
+            Triple key = Triple.create(subjectGeometryLiteral, predicate, objectGeometryLiteral);
             try {
-                Boolean result;
-                if (index.containsKey(key)) {
-                    result = index.get(key);
-                } else {
-                    result = propertyFunction.testFilterFunction(subjectGeometryLiteral, objectGeometryLiteral);
-                    index.put(key, result);
-                }
-                return result;
+                return index.get(key, k -> propertyFunction.testFilterFunction(subjectGeometryLiteral, objectGeometryLiteral));
             } catch (NullPointerException ex) {
                 //Catch NullPointerException and fall through to default action.
             }
@@ -107,26 +93,6 @@ public class QueryRewriteIndex {
     }
 
     /**
-     * Sets whether the Query Rewrite Index is active.
-     * <br> The index will be empty after this process.
-     *
-     * @param maxSize : use -1 for unlimited size
-     */
-    public final void setMapSize(int maxSize) {
-        index.setMaxSize(maxSize);
-    }
-
-    /**
-     * Sets the expiry time in milliseconds of the Query Rewrite Index, if
-     * active.
-     *
-     * @param expiryInterval : use 0 or negative for unlimited timeout
-     */
-    public final void setMapExpiry(long expiryInterval) {
-        index.setExpiryInterval(expiryInterval);
-    }
-
-    /**
      *
      * @return True if index is active.
      */
@@ -135,24 +101,20 @@ public class QueryRewriteIndex {
     }
 
     /**
-     * COnverts the index to a model of asserted spatial relation statements.
+     * Converts the index to a model of asserted spatial relation statements.
      *
      * @return Model containing all true assertions.
      */
     public Model toModel() {
-        Model model = ModelFactory.createDefaultModel();
-        for (Entry<String, Boolean> entry : index.entrySet()) {
-            Boolean value = entry.getValue();
-            if (value) {
-                String[] parts = entry.getKey().split(KEY_SEPARATOR);
-                Resource subject = ResourceFactory.createResource(parts[0]);
-                Property property = ResourceFactory.createProperty(parts[1]);
-                Resource object = ResourceFactory.createResource(parts[2]);
-                model.add(subject, property, object);
+        Graph graph = GraphFactory.createDefaultGraph();
+        for (Iterator<Triple> it = index.keys(); it.hasNext(); ) {
+            Triple key = it.next();
+            Boolean value = index.getIfPresent(key);
+            if (value != null && value) {
+                graph.add(key);
             }
         }
-
-        return model;
+        return ModelFactory.createModelForGraph(graph);
     }
 
     /**
@@ -162,12 +124,6 @@ public class QueryRewriteIndex {
      */
     public final void setActive(boolean indexActive) {
         this.indexActive = indexActive;
-
-        if (indexActive) {
-            index.startExpiry();
-        } else {
-            index.stopExpiry();
-        }
     }
 
     /**
@@ -175,18 +131,18 @@ public class QueryRewriteIndex {
      * @return Number of items in the index.
      */
     public final long getIndexSize() {
-        return index.mappingCount();
+        return index.size();
     }
 
     /**
      * Reset the index to the provided max size and expiry interval.<br>
      * All contents will be lost.
      *
-     * @param maxSize
-     * @param expiryInterval
+     * @param maxSize Maximum size
+     * @param expiryInterval Expiry interval
      */
     public void reset(int maxSize, long expiryInterval) {
-        index = new ExpiringMap<>(queryRewriteLabel, maxSize, expiryInterval);
+        index = CacheConfiguration.create(maxSize, expiryInterval);
     }
 
     /**
@@ -275,7 +231,7 @@ public class QueryRewriteIndex {
      * @return QueryRewriteIndex contained in the Context.
      */
     public static final QueryRewriteIndex retrieve(Context context) {
-        QueryRewriteIndex queryRewriteIndex = (QueryRewriteIndex) context.get(QUERY_REWRITE_INDEX_SYMBOL, null);
+        QueryRewriteIndex queryRewriteIndex = context.get(QUERY_REWRITE_INDEX_SYMBOL, null);
 
         if (queryRewriteIndex == null) {
             queryRewriteIndex = createDefault();

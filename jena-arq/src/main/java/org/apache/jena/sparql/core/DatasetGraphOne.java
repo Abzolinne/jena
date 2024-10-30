@@ -21,20 +21,20 @@ package org.apache.jena.sparql.core;
 import java.util.Iterator;
 
 import org.apache.jena.atlas.iterator.Iter;
-import org.apache.jena.atlas.iterator.NullIterator;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.query.ReadWrite;
 import org.apache.jena.query.TxnType;
 import org.apache.jena.reasoner.InfGraph;
-import org.apache.jena.riot.other.G;
 import org.apache.jena.riot.system.PrefixMap;
 import org.apache.jena.riot.system.Prefixes;
 import org.apache.jena.sparql.graph.GraphOps;
 import org.apache.jena.sparql.graph.GraphZero;
+import org.apache.jena.system.G;
 
-/** DatasetGraph of a single graph as default graph.
+/**
+ * DatasetGraph of a single graph as default graph.
  * <p>
  *  Fixed as one graph (the default) - named graphs can not be added nor the default graph changed, only the contents modified.
  *  <p>
@@ -48,6 +48,10 @@ public class DatasetGraphOne extends DatasetGraphBaseFind {
     private final DatasetGraph backingDGS;
     private final Transactional txn;
     private final boolean supportsAbort;
+
+    public static DatasetGraph createRaw(Graph graph) {
+        return new DatasetGraphOne(graph);
+    }
 
     public static DatasetGraph create(Graph graph) {
         // Find the deepest graph, the one that may be attached to a DatasetGraph.
@@ -93,15 +97,16 @@ public class DatasetGraphOne extends DatasetGraphBaseFind {
         this.supportsAbort = supportsAbort;
     }
 
-    @Override public void begin(TxnType txnType)        { txn.begin(txnType); }
-    @Override public void begin(ReadWrite mode)         { txn.begin(mode); }
-    @Override public void commit()                      { txn.commit(); }
-    @Override public boolean promote(Promote txnType)   { return txn.promote(txnType); }
-    @Override public void abort()                       { txn.abort(); }
-    @Override public boolean isInTransaction()          { return txn.isInTransaction(); }
-    @Override public void end()                         { txn.end(); }
-    @Override public ReadWrite transactionMode()        { return txn.transactionMode(); }
-    @Override public TxnType transactionType()          { return txn.transactionType(); }
+    private final Transactional txn()                   { return txn; }
+    @Override public void begin(TxnType txnType)        { txn().begin(txnType); }
+    @Override public void begin(ReadWrite mode)         { txn().begin(mode); }
+    @Override public void commit()                      { txn().commit(); }
+    @Override public boolean promote(Promote txnType)   { return txn().promote(txnType); }
+    @Override public void abort()                       { txn().abort(); }
+    @Override public boolean isInTransaction()          { return txn().isInTransaction(); }
+    @Override public void end()                         { txn().end(); }
+    @Override public ReadWrite transactionMode()        { return txn().transactionMode(); }
+    @Override public TxnType transactionType()          { return txn().transactionType(); }
     @Override public boolean supportsTransactions()     { return true; }
     @Override public boolean supportsTransactionAbort() { return supportsAbort; }
 
@@ -133,7 +138,7 @@ public class DatasetGraphOne extends DatasetGraphBaseFind {
 
     @Override
     public Iterator<Node> listGraphNodes() {
-        return new NullIterator<>();
+        return Iter.nullIterator();
     }
 
     @Override
@@ -149,7 +154,7 @@ public class DatasetGraphOne extends DatasetGraphBaseFind {
     @Override
     public void add(Node g, Node s, Node p, Node o) {
         if ( Quad.isDefaultGraph(g) )
-            graph.add(new Triple(s, p, o));
+            graph.add(Triple.create(s, p, o));
         else
             unsupportedMethod(this, "add(named graph)");
     }
@@ -165,7 +170,7 @@ public class DatasetGraphOne extends DatasetGraphBaseFind {
     @Override
     public void delete(Node g, Node s, Node p, Node o) {
         if ( Quad.isDefaultGraph(g) )
-            graph.delete(new Triple(s, p, o));
+            graph.delete(Triple.create(s, p, o));
         else
             unsupportedMethod(this, "delete(named graph)");
     }
@@ -176,11 +181,6 @@ public class DatasetGraphOne extends DatasetGraphBaseFind {
             graph.delete(quad.asTriple());
         else
             unsupportedMethod(this, "delete(named graph)");
-    }
-
-    @Override
-    public void setDefaultGraph(Graph g) {
-        unsupportedMethod(this, "setDefaultGraph");
     }
 
     @Override
@@ -225,7 +225,7 @@ public class DatasetGraphOne extends DatasetGraphBaseFind {
         if ( isWildcard(g) || isDefaultGraph(g) )
             return G.triples2quadsDftGraph(graph.find(s, p, o));
         else
-            return new NullIterator<>();
+            return Iter.nullIterator();
     }
 
     @Override

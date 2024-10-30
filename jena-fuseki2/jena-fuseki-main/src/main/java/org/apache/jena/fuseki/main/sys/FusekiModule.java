@@ -18,8 +18,10 @@
 
 package org.apache.jena.fuseki.main.sys;
 
-import org.apache.jena.base.module.SubsystemLifecycle;
+import java.util.Set;
+
 import org.apache.jena.fuseki.main.FusekiServer;
+import org.apache.jena.fuseki.server.DataAccessPoint;
 import org.apache.jena.fuseki.server.DataAccessPointRegistry;
 import org.apache.jena.rdf.model.Model;
 
@@ -30,73 +32,74 @@ import org.apache.jena.rdf.model.Model;
  * the application code. Calls are made to each module at certain points in the
  * lifecycle of a Fuseki server.
  * <p>
- * <ul>
- * <li>{@linkplain #start()} - called when the module is loaded.</li>
- * <li>{@linkplain #configuration} -- called at the beginning of the
+ * A module must provide a no-argument constructor if it is to be loaded automatically.
+ * <p>
+ *
+ * When a server is being built:
+ * * <ul>
+ * <li>{@linkplain #prepare}
+ *      -- called at the beginning of the
  *     {@link org.apache.jena.fuseki.main.FusekiServer.Builder#build() FusekiServer.Builder build()}
- *      step. This call can manipulate the server configuration.</li>
- * <li>{@linkplain #server(FusekiServer)} -- called at the end of the "build" step.</li>
+ *      step. This call can manipulate the server configuration. This is the usual operation for customizing a server.</li>
+ * <li>{@linkplain #configured} -- called after the DataAccessPoint registry has been built.</li>
+ * <li>{@linkplain #server(FusekiServer)} -- called at the end of the "build" step before
+ *     {@link org.apache.jena.fuseki.main.FusekiServer.Builder#build() FusekiServer.Builder build()}
+ *     returns.</li>
+ * </ul>
+ * At server start-up:
+ * <ul>
  * <li>{@linkplain #serverBeforeStarting(FusekiServer)} -- called before {@code server.start} happens.</li>
  * <li>{@linkplain #serverAfterStarting(FusekiServer)} -- called after {@code server.start} happens.</li>
  * <li>{@linkplain #serverStopped(FusekiServer)} -- call after {@code server.stop}, but only if a clean shutdown happens.
- *     Servers may simply exit without shutdown phase.
+ *     Servers may simply exit without a shutdown phase.
  *     The JVM may exit or be killed without clean shutdown.
  *     Modules must not rely on a call to {@code serverStopped} happening.</li>
  * </ul>
  */
-public interface FusekiModule extends SubsystemLifecycle {
-    /**
-     * Display name id to identify this module.
-     * <p>
-     * Modules are loaded once by the service loader
-     * <p>
-     * Modules added programmatically should be added once only.
-     */
-    public String name();
+public interface FusekiModule extends FusekiBuildCycle, FusekiStartStop, FusekiActionCycle {
+    // Gather all interface method together.
+    // Inherited javadoc.
 
-    /** Module loaded */
     @Override
-    public default void start() { }
+    public String name();
 
     // ---- Build cycle
 
-    /**
-     * Called at the start of "build" step. The builder has been set according to the
-     * configuration. The "configModel" parameter is set if a configuration file was
-     * used otherwise it is null.
-     */
-    public default void configuration(FusekiServer.Builder builder, DataAccessPointRegistry dapRegistry, Model configModel) {}
+    @Override
+    public default void prepare(FusekiServer.Builder serverBuilder, Set<String> datasetNames, Model configModel) { }
 
-    /**
-     * Built, not started, about to be returned to the builder caller.
-     */
+    @Override
+    public default void configured(FusekiServer.Builder serverBuilder, DataAccessPointRegistry dapRegistry, Model configModel) {
+        dapRegistry.accessPoints().forEach(accessPoint->configDataAccessPoint(accessPoint, configModel));
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public default void configDataAccessPoint(DataAccessPoint dap, Model configModel) {}
+
+    /** {@inheritDoc} */
+    @Override
     public default void server(FusekiServer server) { }
 
-    /**
-     * Server starting - called just before server.start happens.
-     */
+    /** {@inheritDoc} */
+    @Override
+    public default boolean serverConfirmReload(FusekiServer server) { return true; }
+
+    /** {@inheritDoc} */
+    @Override
+    public default void serverReload(FusekiServer server) { }
+
+    // ---- Server start-stop.
+
+    /** {@inheritDoc} */
+    @Override
     public default void serverBeforeStarting(FusekiServer server) { }
 
-    /**
-     * Server started - called just after server.start happens, and before server
-     * .start() returns to the application.
-     */
+    /** {@inheritDoc} */
+    @Override
     public default void serverAfterStarting(FusekiServer server) { }
 
-    /** Server stopping.
-     * Do not rely on this to clear up external resources.
-     * Usually there is no stop phase and the JVM just exits or is killed externally.
-     *
-     */
-    public default void serverStopped(FusekiServer server) { }
-
-    /** Module unloaded : do not rely on this happening. */
+    /** {@inheritDoc} */
     @Override
-    public default void stop() {}
-
-    // Maybe later.
-//    // ---- Execution.
-//
-//    public default void action(HttpAction action) { }
-//    public default void action(Endpoint endpoint) { }
+    public default void serverStopped(FusekiServer server) { }
 }

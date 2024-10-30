@@ -44,6 +44,7 @@ public interface Transform
     public Op transform(OpLabel opLabel, Op subOp) ;
     public Op transform(OpAssign opAssign, Op subOp) ;
     public Op transform(OpExtend opExtend, Op subOp) ;
+    public Op transform(OpUnfold opUnfold, Op subOp) ;
 
     // Op2
     public Op transform(OpJoin opJoin, Op left, Op right) ;
@@ -51,6 +52,7 @@ public interface Transform
     public Op transform(OpDiff opDiff, Op left, Op right) ;
     public Op transform(OpMinus opMinus, Op left, Op right) ;
     public Op transform(OpUnion opUnion, Op left, Op right) ;
+    public Op transform(OpLateral opLater, Op left, Op right) ;
     public Op transform(OpConditional opCondition, Op left, Op right) ;
     public Op transform(OpSimJoin opSimJoin, Op left, Op right);
 

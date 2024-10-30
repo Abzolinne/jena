@@ -115,9 +115,9 @@ void start() : { }
     { finishStartClause(); }
 }
 
-void startActions() : {}
+void startActions() : {SemAct semAct;}
 {
-    (codeDecl())+
+    (semAct = codeDecl() { semActs(semAct, token.beginLine, token.beginColumn); })+
 }
 
 void statement() : {}
@@ -170,9 +170,9 @@ void shapeAtom() : { int idx; }
 {
     { idx = startShapeAtom(); }
       // No literals-as-subjects.
-    ( nonLitNodeConstraint() (shapeOrRef())?
-    | litNodeConstraint()
-    | shapeOrRef() (nonLitNodeConstraint())?
+    ( nonLitOutlineNodeConstraint() (shapeOrRef())?
+    | litOutlineNodeConstraint()
+    | shapeOrRef() (nonLitOutlineNodeConstraint())?
     | <LPAREN> shapeExpression() <RPAREN>
     | <DOT> { shapeAtomDOT(); }
     )
@@ -224,9 +224,9 @@ void inlineShapeAtom() : { int idx; }
 {
   { idx = startInlineShapeAtom(); }
     // No literals-as-subjects.
-  ( nonLitNodeConstraint() (inlineShapeOrRef())?
-  | litNodeConstraint()
-  | inlineShapeOrRef() (nonLitNodeConstraint())?
+  ( nonLitInlineNodeConstraint() (inlineShapeOrRef())?
+  | litInlineNodeConstraint()
+  | inlineShapeOrRef() (nonLitInlineNodeConstraint())?
   | <LPAREN> shapeExpression() <RPAREN>
   | <DOT> { shapeAtomDOT(); }
   )
@@ -254,36 +254,58 @@ void shapeRef() : { Token t ; Node ref; }
     { shapeReference(ref); }
 }
 
-void litNodeConstraint() : { String str; Token t; int idx; } {
+void litInlineNodeConstraint() : { int idx; } {
   { idx = startLiteralNodeConstraint(token.beginLine, token.beginColumn); }
+  litNodeConstraint()
+  { finishLiteralNodeConstraint(null, idx, token.beginLine, token.beginColumn); }
+}
+
+void litOutlineNodeConstraint() : { int idx; List<SemAct> semActs; } {
+  { idx = startLiteralNodeConstraint(token.beginLine, token.beginColumn); }
+  litNodeConstraint()
+  semActs = semanticActions()
+  { finishLiteralNodeConstraint(semActs, idx, token.beginLine, token.beginColumn); }
+}
+
+void litNodeConstraint() : { String str; Token t; } {
   (
     t = <LITERAL>
-    { cNodeKind(t.image, t.beginLine, t.beginColumn); }
+    { constraintNodeKind(t.image, t.beginLine, t.beginColumn); }
     (xsFacet())*
   | str = datatype()
-    { cDatatype(str, token.beginLine, token.beginColumn); }
+    { constraintDatatype(str, token.beginLine, token.beginColumn); }
     (xsFacet())*
   | valueSet()
     (xsFacet())*
   | (numericFacet())+
   )
-  { finishLiteralNodeConstraint(idx, token.beginLine, token.beginColumn); }
 }
 
 // Check precedence
 
-void nonLitNodeConstraint() : { int idx; } {
+void nonLitInlineNodeConstraint() : { int idx; } {
   { idx = startNonLiteralNodeConstraint(token.beginLine, token.beginColumn); }
+  nonLitNodeConstraint()
+  { finishNonLiteralNodeConstraint(null, idx, token.beginLine, token.beginColumn); }
+}
+
+void nonLitOutlineNodeConstraint() : { int idx; List<SemAct> semActs; } {
+  { idx = startNonLiteralNodeConstraint(token.beginLine, token.beginColumn); }
+  nonLitNodeConstraint()
+  semActs = semanticActions()
+  { finishNonLiteralNodeConstraint(semActs, idx, token.beginLine, token.beginColumn); }
+}
+
+void nonLitNodeConstraint() : { } {
   (  nonLiteralKind() (stringFacet())*
   | (stringFacet())+
   )
-  { finishNonLiteralNodeConstraint(idx, token.beginLine, token.beginColumn); }
 }
 
 void nonLiteralKind() : { Token t; }
 {
     ( t = <IRI> | t = <BNODE> | t = <NONLITERAL> )
-    { cNodeKind(t.image, t.beginLine, t.beginColumn); }
+    { constraintNodeKind(t.image, t.beginLine, t.beginColumn); }
 }
 
 void xsFacet() : { }
@@ -334,17 +356,17 @@ String numericLength() : { Token t; }
 
 // "{ ... }"
 void shapeDefinition() :
-{ boolean closed = false ;
-  TripleExpression tripleExpr = null;
+{ boolean closed = false; TripleExpression tripleExpr = null;
   List<Node> extras = new ArrayList<Node>();
+  List<SemAct> semActs;
 }
 {
     { startShapeDefinition(); }
  	(extraPropertySet(extras) | <CLOSED> { closed = true; } )*
     <LBRACE> (tripleExpr = tripleExpression())? <RBRACE>
     (annotation())*
-    semanticActions()
-    { finishShapeDefinition(tripleExpr, extras, closed); }
+    semActs = semanticActions()
+    { finishShapeDefinition(tripleExpr, extras, closed, semActs); }
 }
 
 void inlineShapeDefinition() :
@@ -356,7 +378,7 @@ void inlineShapeDefinition() :
     { startShapeDefinition(); }
    	( extraPropertySet(extras) | <CLOSED> { closed = true; } )*
     <LBRACE> (tripleExpr = tripleExpression())? <RBRACE>
-    { finishShapeDefinition(tripleExpr, extras, closed); }
+    { finishShapeDefinition(tripleExpr, extras, closed, null); }
 }
 
 void extraPropertySet(List<Node> extras) : { Node p; }
@@ -408,22 +430,15 @@ TripleExpression tripleExpression() : { int idx; }
 {
   { idx = startTripleExpression(); }
   tripleExpressionClause() (<VBAR> tripleExpressionClause())*
-  { return finishTripleExpression(idx); }
+  { return finishTripleExpression(idx, null); }
 }
 
 void tripleExpressionClause() : { int idx; } {
    { idx = startTripleExpressionClause(); }
+   // One of the rules below.
    tripleExpressionClause_1()
-   { finishTripleExpressionClause(idx); }
+   { finishTripleExpressionClause(idx, null); }
 }
-
-// // Can end in single ";"
-// void tripleExpressionClause_0() : {}
-// {
-//     unaryTripleExpr()
-// // Allows ";;;"
-//     (<SEMI_COLON> ( unaryTripleExpr() )?)*
-// }
 
 // Iterative, but needs LOOKAHEAD(2)
 void tripleExpressionClause_1() : { }
@@ -453,17 +468,17 @@ void unaryTripleExpr() : { Node n = null; }
     { finishUnaryTripleExpr(); }
 }
 
-void bracketedTripleExpr(Node label): { TripleExpression tripleExpr = null; Cardinality cardinality = null; }
+void bracketedTripleExpr(Node label): { TripleExpression tripleExpr = null; Cardinality cardinality = null; List<SemAct> semActs; }
 {
     { startBracketedTripleExpr(); }
    	<LPAREN> tripleExpr = tripleExpression() <RPAREN>
     (cardinality = cardinality())?
     (annotation())*
-    semanticActions()
-    { finishBracketedTripleExpr(label, tripleExpr, cardinality); }
+    semActs = semanticActions()
+    { finishBracketedTripleExpr(label, tripleExpr, cardinality, semActs); }
 }
 
-void tripleConstraint(Node label) : { Node p; int idx; boolean reverse = false; Cardinality cardinality = null; }
+void tripleConstraint(Node label) : { Node p; int idx; boolean reverse = false; Cardinality cardinality = null; List<SemAct> semActs; }
 {
     { idx = startTripleConstraint(); }
   	( reverse = senseFlags() )?
@@ -471,8 +486,8 @@ void tripleConstraint(Node label) : { Node p; int idx; boolean reverse = false; 
     inlineShapeExpression()
     (cardinality = cardinality())?
     (annotation())*
-    semanticActions()
-    { finishTripleConstraint(label, idx, p, reverse, cardinality); }
+    semActs = semanticActions()
+    { finishTripleConstraint(label, idx, p, reverse, cardinality, semActs); }
 }
 
 Cardinality cardinality() : {}
@@ -656,28 +671,31 @@ void annotation() : {}
     "//" predicate() (iri() | literal())
 }
 
-void semanticActions() : {}
+List<SemAct> semanticActions() : {
+  List<SemAct> semActs = new ArrayList<SemAct>();
+  SemAct semAct;
+}
 {
-    (codeDecl())*
+    // semanticAction	: '%' iri (CODE | '%') ;
+    (LOOKAHEAD(2)semAct = codeDecl() { semActs.add(semAct); })* { return semActs; }
 }
 
-void codeDecl() : {}
+SemAct codeDecl() : { Token t; }
 {
-    // Spec:
-    // <CODE>                 ::=         "{" ([^%\\] | "\\" [%\\] | UCHAR)* "%" "}"
-    //    <PERCENT_CHAR> iri() (<CODE> | <PERCENT_CHAR> )
+    // Spec: - 2.1:
+    // codeDecl	   ::=   	'%' iri (CODE | '%'){
+    // i.e.  <PERCENT_CHAR> iri() (<CODE> | <PERCENT_CHAR> )
+    //  <CODE>         ::=      "{" ([^%\\] | "\\" [%\\] | UCHAR)* "%" "}"
     
-    // Avoid <CODE> token which causes a lot of backtracking.
-    // It starts "{" which is used for blocks - and it is only the "%}"
-    // that causes the decision of <CODE> or <LBRACE>
+    // Avoid <CODE> token which causes a lot of backtracking in the tokenizer.
+    // It starts "{" which is used for blocks - and it is only when the "%}"
+    // is seen that the tokenizer can decide between <CODE> or the <LBRACE>
+    // of a <LBRACE>...<RBRACE> block (pushing back all the characters used in
+    // scanning ahead).
     
     // CODE_BLOCK this as a single token introduced with "%".
     
-    <CODE_BLOCK>
-
-    // try:
-    // 
-    //  <PERCENT_CHAR> and token state change
+    (t = <CODE_BLOCK>) { return crackSemanticAction(t.image, t.beginLine, t.beginColumn); }
 }
 
 Node literal() : { Node n ; }
@@ -948,15 +966,13 @@ TOKEN [IGNORE_CASE] :
 //| <CODE             : "{" (~[ "%","\\"] | "\\" ["%","\\"] )* "%" "}" >
 
 | <CODE_BLOCK    : <PERCENT_CHAR>
-                         (" ")*
+                         (" " | "\t" | "\n" | "\r" | "\f")*
                          (<IRIref>|<PNAME_LN>|<PNAME_NS>)
-                         (" ")*
+                         (" " | "\t" | "\n" | "\r" | "\f")*
                          (  <LBRACE>
                             ( ~[ "%","\\"] | ("\\" ["%","\\"]) | <UCHAR> )*
                             <PERCENT_CHAR><RBRACE>
                          |  <PERCENT_CHAR> ) >
-                            
-
 // Why is this a token?
 | <REPEAT_RANGE	    : <LBRACE> <INTEGER> ( <COMMA> (<INTEGER> | <STAR> )? )? <RBRACE> >
 
@@ -1054,14 +1070,16 @@ TOKEN [IGNORE_CASE] :
 | <LANGTAG: <AT> (<A2Z>)+("-" (<A2ZN>)+)* >
 | <#A2Z: ["a"-"z","A"-"Z"]>
 | <#A2ZN: ["a"-"z","A"-"Z","0"-"9"]>
+| <#SURROGATE_PAIR: ["\uD800"-"\uDBFF"] ["\uDC00"-"\uDFFF"] >
 | <#PN_CHARS_BASE:
           ["A"-"Z"] | ["a"-"z"] |
           ["\u00C0"-"\u00D6"] | ["\u00D8"-"\u00F6"] | ["\u00F8"-"\u02FF"] |
           ["\u0370"-"\u037D"] | ["\u037F"-"\u1FFF"] |
           ["\u200C"-"\u200D"] | ["\u2070"-"\u218F"] | ["\u2C00"-"\u2FEF"] |
           ["\u3001"-"\uD7FF"] | ["\uF900"-"\uFFFD"] 
-          >
           // [#x10000-#xEFFFF]
+          | <SURROGATE_PAIR>
+          >
 |
   // With underscore
   <#PN_CHARS_U: <PN_CHARS_BASE> | "_" >

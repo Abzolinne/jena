@@ -171,21 +171,6 @@ public class Query extends Prologue implements Cloneable, Printable
     /** Return the {@link QueryType} */
     public QueryType queryType()                       { return queryType ; }
 
-    /** @deprecated Use {@link #queryType()} which returns a {@link QueryType} */
-    @Deprecated
-    public int getQueryType() {
-        // Old constants.
-        switch(queryType) {
-            case SELECT :           return QueryTypeSelect;
-            case ASK :              return QueryTypeAsk;
-            case CONSTRUCT :        return QueryTypeConstruct;
-            case CONSTRUCT_JSON :   return QueryTypeJson;
-            //case CONSTRUCT_QUADS :  return QueryTypeConstruct;
-            case DESCRIBE :         return QueryTypeDescribe;
-            default :               return QueryTypeUnknown;
-        }
-    }
-
     public boolean isSelectType()               { return queryType == QueryType.SELECT; }
 
     public boolean isConstructType()            { return queryType == QueryType.CONSTRUCT ; }
@@ -317,9 +302,9 @@ public class Query extends Prologue implements Cloneable, Printable
 
     public Element getQueryPattern() { return queryPattern ; }
 
-     /** Location of the source for the data.  If the model is not set,
+    /** Location of the source for the data.  If the model is not set,
      *  then the QueryEngine will attempt to load the data from these URIs
-     *  into the default (unamed) graph.
+     *  into the default (unnamed) graph.
      */
     public void addGraphURI(String s)
     {

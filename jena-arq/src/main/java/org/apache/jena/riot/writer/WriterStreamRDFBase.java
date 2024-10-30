@@ -18,71 +18,86 @@
 
 package org.apache.jena.riot.writer;
 import static org.apache.jena.riot.writer.WriterConst.rdfNS;
-import java.io.BufferedWriter ;
-import java.io.OutputStream ;
-import java.io.Writer ;
+import java.io.BufferedWriter;
+import java.io.OutputStream;
+import java.io.Writer;
 
-import org.apache.jena.atlas.io.IndentedWriter ;
-import org.apache.jena.graph.Node ;
-import org.apache.jena.graph.Triple ;
+import org.apache.jena.atlas.io.IndentedWriter;
+import org.apache.jena.graph.Node;
+import org.apache.jena.graph.Triple;
 import org.apache.jena.riot.RIOT;
-import org.apache.jena.riot.out.NodeFormatterTTL ;
-import org.apache.jena.riot.out.NodeToLabel ;
-import org.apache.jena.riot.system.PrefixMap ;
-import org.apache.jena.riot.system.PrefixMapFactory ;
-import org.apache.jena.riot.system.RiotLib ;
-import org.apache.jena.riot.system.StreamRDF ;
-import org.apache.jena.sparql.core.Quad ;
+import org.apache.jena.riot.out.NodeFormatterTTL;
+import org.apache.jena.riot.out.NodeToLabel;
+import org.apache.jena.riot.system.PrefixMap;
+import org.apache.jena.riot.system.PrefixMapFactory;
+import org.apache.jena.riot.system.RiotLib;
+import org.apache.jena.riot.system.StreamRDF;
+import org.apache.jena.sparql.core.Quad;
 import org.apache.jena.sparql.util.Context;
 
-/** Core engine for output of triples / quads that is streaming.
- *  Handles prefixes and base, together with the environment for processing.
- *  If fed quads, the output is valid TriG.
- *  If fed only triples, the output is valid Turtle.
- *  Not for N-Quads and N-triples.
+/**
+ * Core engine for output of triples / quads that is streaming. It covers Turtle and
+ * TriG "{@link WriterStreamRDFFlat flat}" and "{@link WriterStreamRDFBlocks blocks}"
+ * variants.
+ * <p>
+ * It handles prefixes and base and node formats which is controlled by a {@link NodeFormatterTTL}.
+ * <p>
+ * The output is valid TriG.<br/>
+ * If fed only triples, the output is valid Turtle.
+ * <p>
+ * For N-Quads and N-triples use {@link WriterStreamRDFPlain}.
  */
-
 public abstract class WriterStreamRDFBase implements StreamRDF
 {
     // What did we do last?
-    protected boolean activeTripleData  = false ;
-    protected boolean activeQuadData    = false ;
-    protected boolean lastWasDirective  = false ;
+    protected boolean activeTripleData  = false;
+    protected boolean activeQuadData    = false;
+    protected boolean lastWasDirective  = false;
 
-    protected final PrefixMap pMap ;
-    protected String baseURI = null ;
-    protected final NodeToLabel nodeToLabel ;
+    protected final PrefixMap pMap;
+    protected String baseURI = null;
+    protected final NodeToLabel nodeToLabel;
 
-    protected NodeFormatterTTL fmt ;
-    protected final IndentedWriter out ;
-    protected final DirectiveStyle prefixStyle;
+    protected NodeFormatterTTL fmt;
+    protected final IndentedWriter out;
+    protected final DirectiveStyle directiveStyle;
+    // Allows for ability to write RDF without writing the base URI.
     protected final boolean printBase;
     // Is there an active prefix mapping for the RDF namespace.
     protected int countPrefixesForRDF = 0;
 
-    public WriterStreamRDFBase(OutputStream output, Context context) {
-        this(new IndentedWriter(output), context) ;
+    protected WriterStreamRDFBase(OutputStream output, Context context) {
+        this(new IndentedWriter(output), context);
     }
 
-    public WriterStreamRDFBase(Writer output, Context context) {
+    protected WriterStreamRDFBase(Writer output, Context context) {
         this(wrap(output), context);
     }
 
-    public WriterStreamRDFBase(IndentedWriter output, Context context) {
-        out = output ;
-        pMap = PrefixMapFactory.create() ;
-        nodeToLabel = NodeToLabel.createScopeByDocument() ;
+    protected WriterStreamRDFBase(IndentedWriter output, Context context) {
+        this(output,
+             NodeToLabel.createScopeByDocument(),
+             WriterLib.directiveStyle(context),
+             context.isFalseOrUndef(RIOT.symTurtleOmitBase));
+    }
 
+    protected WriterStreamRDFBase(IndentedWriter output,
+                                  NodeToLabel nodeToLabel,
+                                  DirectiveStyle directiveStyle,
+                                  boolean printBase) {
         // Stream writing does not take an external base URI from the API "write"
         // call. The base URI is output if StreamRDF.base() called, which means BASE
         // was in the data stream.
-        baseURI = null ;
-        prefixStyle = WriterLib.directiveStyle(context);
-        printBase =
-            ( context == null ) ? true : context.isFalseOrUndef(RIOT.symTurtleOmitBase);
-        setFormatter() ;
+        this.out = output;
+        this.baseURI = null;
+        this.pMap = PrefixMapFactory.create();
+        this.nodeToLabel = nodeToLabel;
+        this.directiveStyle = directiveStyle;
+        this.printBase = printBase;
+        setFormatter();
     }
 
+    // Set and reset the formatter. It needs resetting if BASE is encountered.
     private void setFormatter() {
         fmt = new NodeFormatterTTL(baseURI, pMap, nodeToLabel);
     }
@@ -129,7 +144,7 @@ public abstract class WriterStreamRDFBase implements StreamRDF
         lastWasDirective = true;
         setFormatter();
         if ( printBase )
-            RiotLib.writeBase(out, base, prefixStyle == DirectiveStyle.SPARQL);
+            RiotLib.writeBase(out, base, directiveStyle);
     }
 
     @Override
@@ -150,7 +165,7 @@ public abstract class WriterStreamRDFBase implements StreamRDF
         }
 
         pMap.add(prefix, iri);
-        RiotLib.writePrefix(out, prefix, iri, prefixStyle == DirectiveStyle.SPARQL);
+        RiotLib.writePrefix(out, prefix, iri, directiveStyle);
     }
 
     protected void prefixSetup(String prefix, String iri) {}
@@ -167,7 +182,7 @@ public abstract class WriterStreamRDFBase implements StreamRDF
         if ( countPrefixesForRDF <= 0 && WriterConst.RDF_type.equals(p) )
             out.print('a');
         else
-            outputNode(p) ;
+            outputNode(p);
     }
 
     // Subclass contract

@@ -25,13 +25,30 @@ import java.util.ServiceLoader;
 
 import org.apache.jena.atlas.logging.FmtLog;
 import org.apache.jena.atlas.logging.Log;
-import org.slf4j.LoggerFactory;
 
 /**
- * Implementation of {@link SubsystemRegistry} for use in the simple but common case
- * of running Jena as a collection of jars on the classpath.
+ * Implementation of {@link SubsystemRegistry} that uses {@link ServiceLoader} to find sub-systems.
  * <p>
- * Uses {@link ServiceLoader} to find sub-systems.
+ * In unnamed modules, the {@link ServiceLoader} used to use {@code META-INF/service/interface-name.}
+ * <p>
+ * With modules, the application {@code module-info.java} contains:
+ * <pre>
+ * module com.example.app {
+ *     requires java.sql;
+ *      uses java.sql.Driver;
+ * }
+ * </pre>
+ * and the provider {@code module-info.java} contains:
+ * <pre>
+ * module com.example.jdbc {
+ *     requires java.sql;
+ *     provides java.sql.Driver
+ *         with com.example.jdbc.MyDriver;
+ * }
+ * </pre>
+ * <p>
+ * With classpath, not module path and automatic modules, the application (here, Jena initialization)
+ * need not do anything, and the automatic modules implicitly provide an interface.
  */
 public class SubsystemRegistryServiceLoader<T extends SubsystemLifecycle> implements SubsystemRegistry<T> {
 
@@ -61,8 +78,8 @@ public class SubsystemRegistryServiceLoader<T extends SubsystemLifecycle> implem
                     T module = provider.get();
                     this.add(module);
                 } catch (ServiceConfigurationError ex) {
-                    FmtLog.error(LoggerFactory.getLogger(this.getClass()),
-                                 "Error instantiating class %s for %s", provider.type().getName(), moduleClass.getName(), ex);
+                    FmtLog.error(this.getClass(), ex,
+                                 "Error instantiating class %s for %s", provider.type().getName(), moduleClass.getName());
                     throw ex;
                 }
             });

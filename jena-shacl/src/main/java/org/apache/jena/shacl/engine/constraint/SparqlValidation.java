@@ -23,8 +23,8 @@ import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.commons.collections4.MultiValuedMap;
 import org.apache.jena.atlas.logging.Log;
-import org.apache.jena.ext.com.google.common.collect.Multimap;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.NodeFactory;
@@ -33,6 +33,7 @@ import org.apache.jena.query.*;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.RDFNode;
+import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.riot.out.NodeFmtLib;
 import org.apache.jena.shacl.engine.Parameter;
 import org.apache.jena.shacl.engine.ShaclPaths;
@@ -40,9 +41,8 @@ import org.apache.jena.shacl.engine.ValidationContext;
 import org.apache.jena.shacl.lib.ShLib;
 import org.apache.jena.shacl.parser.Constraint;
 import org.apache.jena.shacl.parser.Shape;
-import org.apache.jena.sparql.core.PathBlock;
-import org.apache.jena.sparql.core.TriplePath;
-import org.apache.jena.sparql.core.Var;
+import org.apache.jena.shacl.validation.event.ConstraintEvaluatedOnSinglePathNodeEvent;
+import org.apache.jena.sparql.core.*;
 import org.apache.jena.sparql.engine.binding.Binding;
 import org.apache.jena.sparql.path.P_Link;
 import org.apache.jena.sparql.path.Path;
@@ -60,7 +60,7 @@ import org.apache.jena.sparql.util.ModelUtils;
 
     public static void validate(ValidationContext vCxt, Graph data, Shape shape,
                                 Node focusNode, Path path, Node valueNode,
-                                Query query, Multimap<Parameter, Node> parameterMap,
+                                Query query, MultiValuedMap<Parameter, Node> parameterMap,
                                 String violationTemplate, Constraint reportConstraint) {
         // Two sub-cases:
         //    Syntax rule: https://www.w3.org/TR/shacl/#syntax-rule-multiple-parameters
@@ -87,13 +87,11 @@ import org.apache.jena.sparql.util.ModelUtils;
         validateMap(vCxt, data, shape, focusNode, path, valueNode, query, pmap, violationTemplate, reportConstraint);
     }
 
-    private static Map<Parameter, Node> flatten(Multimap<Parameter, Node> parameterMap) {
+    private static Map<Parameter, Node> flatten(MultiValuedMap<Parameter, Node> parameterMap) {
         if ( parameterMap == null )
             return null;
         Map<Parameter, Node> pmap = new HashMap<>(parameterMap.size());
-        parameterMap.forEach((p,v)->{
-            pmap.put(p, v);
-        });
+        parameterMap.mapIterator().forEachRemaining(k->parameterMap.get(k).forEach(v->pmap.put(k,v)) );
         return pmap;
     }
 
@@ -110,6 +108,7 @@ import org.apache.jena.sparql.util.ModelUtils;
         if ( path != null && !(path instanceof P_Link ) )
             query = QueryTransformOps.transform(query, new ElementTransformPath(SparqlConstraint.varPath, path));
 
+
         if ( USE_QueryTransformOps ) {
             // Done with QueryTransformOps.transform
             Map<Var, Node> substitutions = parameterMapToSyntaxSubstitutions(parameterMap, focusNode, path);
@@ -122,7 +121,18 @@ import org.apache.jena.sparql.util.ModelUtils;
             QuerySolutionMap qsm = parameterMapToPreBinding(parameterMap, focusNode, path, model);
             if ( query.isAskType() )
                 qsm.add("value", ModelUtils.convertGraphNodeToRDFNode(valueNode, model));
-            qExec = QueryExecution.create().query(query).model(model).initialBinding(qsm).build();
+            //qExec = QueryExecution.create().query(query).model(model).initialBinding(qsm).build();
+
+            // ---- Dataset needed for the shapes graph
+            Resource shapesGraphResource = model.createResource("foo");
+            qsm.add("currentShape", ModelUtils.convertGraphNodeToRDFNode(shape.getShapeNode(), model));
+            qsm.add("shapesGraph", shapesGraphResource);
+
+            // No copying of graphs.  Set the default graph on creation.
+            DatasetGraph dsg = DatasetGraphFactory.createGeneral(model.getGraph()); // Dataset by links.
+            dsg.addGraph(shapesGraphResource.asNode(), shape.getShapeGraph());
+            Dataset ds = DatasetFactory.wrap(dsg);
+            qExec = QueryExecution.create().query(query).dataset(ds).initialBinding(qsm).build();
         }
 
         // ASK validator.
@@ -134,12 +144,18 @@ import org.apache.jena.sparql.util.ModelUtils;
                     : substitute(violationTemplate, parameterMap, focusNode, path, valueNode);
                 vCxt.reportEntry(msg, shape, focusNode, path, valueNode, reportConstraint);
             }
+            vCxt.notifyValidationListener(() ->
+                new ConstraintEvaluatedOnSinglePathNodeEvent(vCxt, shape, focusNode, reportConstraint, path, valueNode,b));
             return b;
         }
 
+        // SELECT validator.
         ResultSet rs = qExec.execSelect();
-        if ( ! rs.hasNext() )
+        if ( ! rs.hasNext() ) {
+            vCxt.notifyValidationListener(() ->
+                new ConstraintEvaluatedOnSinglePathNodeEvent(vCxt, shape, focusNode, reportConstraint, path, valueNode, true));
             return true;
+        }
 
         while(rs.hasNext()) {
             Binding row = rs.nextBinding();
@@ -163,6 +179,10 @@ import org.apache.jena.sparql.util.ModelUtils;
                 if ( qPath != null )
                     rPath = PathFactory.pathLink(qPath);
             }
+            final Path finalRPath = rPath;
+            final Node finalValue = value;
+            vCxt.notifyValidationListener(() ->
+                new ConstraintEvaluatedOnSinglePathNodeEvent(vCxt, shape, focusNode, reportConstraint, finalRPath, finalValue, false));
             vCxt.reportEntry(msg, shape, focusNode, rPath, value, reportConstraint);
         }
         return false;
@@ -202,9 +222,9 @@ import org.apache.jena.sparql.util.ModelUtils;
 
     /** regex-safe string */
     private static String strQuoted(Node node) {
-        String x =
-        node.isLiteral() ?node.getLiteralLexicalForm()
-        : NodeFmtLib.str(node);
+        String x = node.isLiteral()
+                ? node.getLiteralLexicalForm()
+                : ShLib.displayStr(node);
         x = Matcher.quoteReplacement(x);
         return x;
     }
@@ -256,7 +276,7 @@ import org.apache.jena.sparql.util.ModelUtils;
         Pattern pattern = Pattern.compile("{[$?][^{}]+}");
         if ( path != null )
             // PATH is special.
-            substitions.put(Var.alloc("PATH"), NodeFactory.createLiteral(ShaclPaths.pathToString(path)));
+            substitions.put(Var.alloc("PATH"), NodeFactory.createLiteralString(ShaclPaths.pathToString(path)));
         return subsitute(message, substitions);
     }
 

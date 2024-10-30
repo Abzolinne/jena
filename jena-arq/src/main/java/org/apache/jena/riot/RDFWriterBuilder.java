@@ -27,8 +27,11 @@ import org.apache.jena.sparql.core.DatasetGraph ;
 import org.apache.jena.sparql.util.Context;
 import org.apache.jena.sparql.util.ContextAccumulator;
 import org.apache.jena.sparql.util.Symbol;
+import org.apache.jena.sys.JenaSystem;
 
 public class RDFWriterBuilder {
+    static { JenaSystem.init(); }
+
     private DatasetGraph dataset = null;
     private Graph        graph   = null;
     private Lang         lang    = null;
@@ -197,7 +200,9 @@ public class RDFWriterBuilder {
     }
 
 
-    /** Short form for {@code build().output(outputStream)}.
+    /**
+     * Write output to a file.
+     * This is a short form for {@code build().output(OutputStream)}.
      *
      * @param outputStream
      */
@@ -205,7 +210,9 @@ public class RDFWriterBuilder {
         build().output(outputStream);
     }
 
-    /** Short form for {@code build().output(filename)}.
+    /**
+     * Write output to a file.
+     * This is a short form for {@code build().output(String)}.
      *
      * @param filename
      */
@@ -213,9 +220,20 @@ public class RDFWriterBuilder {
         build().output(filename);
     }
 
-    /** Short form for {@code build().asString()}.
+    /**
+     * Write and return the output as a string.
+     * This is a short form for {@code build().asString()}.
      */
     public String asString() {
         return build().asString();
+    }
+
+    /**
+     * Write and return the output as a string.
+     * This is a short form for {@code build().toString()}.
+     */
+    @Override
+    public String toString() {
+        return build().toString();
     }
 }

@@ -32,7 +32,7 @@ public abstract class UpdateBinaryOp extends Update
     {
         checkTarget(src) ;
         checkTarget(dest) ;
-        this.src = src ; 
+        this.src = src ;
         this.dest = dest ;
         this.silent = silent ;
     }
@@ -40,15 +40,15 @@ public abstract class UpdateBinaryOp extends Update
     private static void checkTarget(Target target)
     {
         if ( ! target.isDefault() && ! target.isOneNamedGraph() )
-            throw new ARQException("Illegal target: must identify a single graph: "+target) ; 
+            throw new ARQException("Illegal target: must identify a single graph: "+target) ;
     }
 
     public Target getSrc()      { return src ; }
 
     public Target getDest()     { return dest ; }
-    
-    public boolean getSilent()  { return silent ; }
-    
+
+    public boolean isSilent()   { return silent ; }
+
     @Override
     final
     public boolean equalTo(Update obj, NodeIsomorphismMap isoMap) {

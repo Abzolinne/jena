@@ -150,10 +150,12 @@ public class IRILib
     }
 
     /** Create a string that is a IRI for the filename.
+     *  <ul>
      *  <li>The file name may already have {@code file:}.
      *  <li>The file name may be relative.
      *  <li>Encode using the rules for a path (e.g. ':' and'/' do not get encoded)
      *  <li>Non-IRI characters get %-encoded.
+     *  </ul>
      */
     public static String filenameToIRI(String fn) {
         if ( fn == null ) return cwdURL ;
@@ -284,8 +286,18 @@ public class IRILib
      */
     public static String encodeUriQueryFrag(String string) {
         String encStr = StrUtils.encodeHex(string,'%', charsQueryFrag) ;
-        return encStr ;
+        // Space is special.
+        String encStr1 = encStr.replace("%20",  "+");
+        return encStr1 ;
     }
+
+    public static String decodeUriQueryFrag(String string) {
+        // Space is special. Reverse order compared to encodeUriQueryFrag
+        String decStr0 = string.replace("+",  " ");
+        String decStr = StrUtils.decodeHex(decStr0,'%') ;
+        return decStr ;
+    }
+
 
     /** Encode using the rules for a file: URL.
      *  Does not encode non-ASCII characters

@@ -69,12 +69,6 @@ public interface DatasetGraph extends Transactional, Closeable
      */
     public boolean containsGraph(Node graphNode) ;
 
-    /** Set the default graph.  Set the active graph if it was null.
-     *  This replaces the contents default graph, not merge data into it.
-     *  Do not assume that the same object is returned by {@link #getDefaultGraph}
-     */
-    public void setDefaultGraph(Graph g) ;
-
     /**
      * Add the given graph to the dataset.
      * <em>Replaces</em> any existing data for the named graph; to add data,

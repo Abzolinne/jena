@@ -18,23 +18,20 @@
 
 package org.apache.jena.query.text.assembler;
 
-import static org.junit.Assert.assertTrue ;
+import static org.junit.Assert.assertTrue;
 
-import org.apache.jena.assembler.Assembler ;
+import org.apache.jena.assembler.Assembler;
 import org.apache.jena.assembler.exceptions.AssemblerException;
-import org.apache.jena.graph.Node ;
-import org.apache.jena.query.Dataset ;
-import org.apache.jena.query.text.* ;
+import org.apache.jena.graph.Node;
+import org.apache.jena.query.Dataset;
+import org.apache.jena.query.text.*;
 import org.apache.jena.query.text.changes.TextQuadAction;
-import org.apache.jena.rdf.model.Resource ;
+import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.sys.JenaSystem;
-import org.apache.jena.tdb.assembler.AssemblerTDB ;
-import org.apache.jena.tdb.sys.TDBInternal;
-import org.apache.jena.vocabulary.RDF ;
+import org.apache.jena.vocabulary.RDF;
 import org.junit.After;
 import org.junit.BeforeClass;
-import org.junit.Test ;
-
+import org.junit.Test;
 
 /**
  * Test the text dataset assembler.
@@ -49,11 +46,13 @@ public class TestTextDatasetAssembler extends AbstractTestTextAssembler {
     private static final Resource customTextDocProducerSpec;
 
     @BeforeClass public static void clearBefore() {
-        TDBInternal.reset();
+        org.apache.jena.tdb1.sys.TDBInternal.reset();
+        org.apache.jena.tdb2.sys.TDBInternal.reset();
     }
 
     @After public void clearAfter() {
-        TDBInternal.reset();
+        org.apache.jena.tdb1.sys.TDBInternal.reset();
+        org.apache.jena.tdb2.sys.TDBInternal.reset();
     }
 
     @Test
@@ -75,16 +74,14 @@ public class TestTextDatasetAssembler extends AbstractTestTextAssembler {
 
     @Test
     public void testCustomTextDocProducer() {
-        Dataset dataset = (Dataset)Assembler.general.open(customTextDocProducerSpec) ;
-        DatasetGraphText dsgText = (DatasetGraphText)dataset.asDatasetGraph() ;
-        assertTrue(dsgText.getMonitor() instanceof CustomTextDocProducer) ;
+        Dataset dataset = (Dataset)Assembler.general.open(customTextDocProducerSpec);
+        DatasetGraphText dsgText = (DatasetGraphText)dataset.asDatasetGraph();
+        assertTrue(dsgText.getMonitor() instanceof CustomTextDocProducer);
         dataset.close();
     }
 
     static {
         JenaSystem.init();
-        TextAssembler.init();
-        AssemblerTDB.init();
         spec1 =
             model.createResource(TESTBASE + "spec1")
                  .addProperty(RDF.type, TextVocab.textDataset)

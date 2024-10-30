@@ -18,32 +18,34 @@
 
 package org.apache.jena.sparql.engine.ref;
 
-import java.util.List ;
+import java.util.List;
 
-import org.apache.jena.graph.Node ;
-import org.apache.jena.query.SortCondition ;
+import org.apache.jena.graph.Node;
+import org.apache.jena.query.SortCondition;
 import org.apache.jena.query.cluster.ClusterConfiguration;
-import org.apache.jena.sparql.algebra.Table ;
+import org.apache.jena.sparql.algebra.Op;
+import org.apache.jena.sparql.algebra.Table;
 import org.apache.jena.sparql.algebra.op.OpSimJoin;
-import org.apache.jena.sparql.core.BasicPattern ;
-import org.apache.jena.sparql.core.TriplePath ;
-import org.apache.jena.sparql.core.Var ;
-import org.apache.jena.sparql.core.VarExprList ;
-import org.apache.jena.sparql.engine.ExecutionContext ;
-import org.apache.jena.sparql.expr.ExprAggregator ;
-import org.apache.jena.sparql.expr.ExprList ;
-import org.apache.jena.sparql.pfunction.PropFuncArg ;
+import org.apache.jena.sparql.core.BasicPattern;
+import org.apache.jena.sparql.core.TriplePath;
+import org.apache.jena.sparql.core.Var;
+import org.apache.jena.sparql.core.VarExprList;
+import org.apache.jena.sparql.engine.ExecutionContext;
+import org.apache.jena.sparql.expr.Expr;
+import org.apache.jena.sparql.expr.ExprAggregator;
+import org.apache.jena.sparql.expr.ExprList;
+import org.apache.jena.sparql.pfunction.PropFuncArg;
 
 public interface Evaluator
 {
-    public ExecutionContext getExecContext() ;
-    
-    public Table basicPattern(BasicPattern pattern) ;
-    public Table pathPattern(TriplePath triplePath) ;
+    public ExecutionContext getExecContext();
+
+    public Table basicPattern(BasicPattern pattern);
+    public Table pathPattern(TriplePath triplePath);
 
     // Two forms that provide custom code evaluation
-    public Table procedure(Table table, Node procId, ExprList args) ;
-    public Table propertyFunction(Table table, Node procId, PropFuncArg subjArgs, PropFuncArg objArgs) ;
+    public Table procedure(Table table, Node procId, ExprList args);
+    public Table propertyFunction(Table table, Node procId, PropFuncArg subjArgs, PropFuncArg objArgs);
 
     public Table assign(Table table, VarExprList exprs) ;
     public Table extend(Table table, VarExprList exprs) ;
@@ -55,9 +57,12 @@ public interface Evaluator
     public Table minus(Table left, Table right) ;
     public Table union(Table tableLeft, Table tableRight) ;
     public Table condition(Table left, Table right) ;
+    public Table unfold(Table table, Expr expr, Var var1, Var var2);
+    public Table lateral(Table left, Op right);
 
-    public Table filter(ExprList expressions, Table tableLeft) ;
 
+    public Table filter(ExprList expressions, Table tableLeft);
+    
     public Table unit() ; 
     public Table list(Table table) ;
     

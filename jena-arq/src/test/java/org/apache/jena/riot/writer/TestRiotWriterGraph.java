@@ -19,6 +19,7 @@
 package org.apache.jena.riot.writer;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.ByteArrayInputStream;
@@ -40,6 +41,7 @@ public class TestRiotWriterGraph extends AbstractWriterTest
     @Parameters(name = "{index}: {0}")
     public static Iterable<Object[]> data() {
         return Arrays.asList(new Object[][] {
+
             { RDFFormat.RDFNULL }
 
             , { RDFFormat.NTRIPLES_UTF8 }
@@ -49,19 +51,26 @@ public class TestRiotWriterGraph extends AbstractWriterTest
             , { RDFFormat.TURTLE_PRETTY }
             , { RDFFormat.TURTLE_BLOCKS }
             , { RDFFormat.TURTLE_FLAT }
+            , { RDFFormat.TURTLE_LONG }
             , { RDFFormat.RDFXML }
             , { RDFFormat.RDFXML_PRETTY }
             , { RDFFormat.RDFXML_PLAIN }
+
             , { RDFFormat.JSONLD }
             , { RDFFormat.JSONLD_PRETTY }
             , { RDFFormat.JSONLD_FLAT }
+
+            , { RDFFormat.JSONLD11 }
+            , { RDFFormat.JSONLD11_PRETTY }
+            , { RDFFormat.JSONLD11_FLAT }
+
             , { RDFFormat.RDFJSON }
 
-            // graph in quad formats.
             , { RDFFormat.TRIG }
             , { RDFFormat.TRIG_PRETTY }
             , { RDFFormat.TRIG_BLOCKS }
             , { RDFFormat.TRIG_FLAT }
+            , { RDFFormat.TRIG_LONG }
             , { RDFFormat.NQUADS_UTF8}
             , { RDFFormat.NQUADS_ASCII}
             , { RDFFormat.NQUADS}
@@ -92,15 +101,19 @@ public class TestRiotWriterGraph extends AbstractWriterTest
     @Test public void writer07() { test("writer-rt-07.ttl"); }
     @Test public void writer08() { test("writer-rt-08.ttl"); }
 
+    private static boolean isJsonLDJava(RDFFormat format) {
+        return Lang.JSONLD.equals(format.getLang());
+    }
+
     @Test public void writer09() {
-        if ( format.getLang() != Lang.JSONLD )
-            // Fails in jsonld-java
+        // Bad list
+        if ( ! isJsonLDJava(format) )
             test("writer-rt-09.ttl");
-        }
+    }
 
     @Test public void writer10() {
-        if ( format.getLang() != Lang.JSONLD )
-            // Fails in jsonld-java
+        // Bad list
+        if ( ! isJsonLDJava(format) )
             test("writer-rt-10.ttl");
     }
 
@@ -119,6 +132,7 @@ public class TestRiotWriterGraph extends AbstractWriterTest
         Lang lang = format.getLang();
 
         WriterGraphRIOT rs = RDFWriterRegistry.getWriterGraphFactory(format).create(format);
+        assertNotNull(rs);
         assertEquals(lang, rs.getLang());
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();

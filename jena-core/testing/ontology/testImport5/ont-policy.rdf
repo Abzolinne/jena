@@ -1,18 +1,9 @@
 <?xml version='1.0'?>
 
-<!DOCTYPE rdf:RDF [
-    <!ENTITY jena    'http://jena.hpl.hp.com/schemas/'>
-
-    <!ENTITY rdf     'http://www.w3.org/1999/02/22-rdf-syntax-ns#'>
-    <!ENTITY rdfs    'http://www.w3.org/2000/01/rdf-schema#'>
-    <!ENTITY xsd     'http://www.w3.org/2000/10/XMLSchema#'>
-    <!ENTITY ont     '&jena;2003/03/ont-manager#'>
-]>
-
 <rdf:RDF
-  xmlns:rdf ="&rdf;"
-  xmlns:rdfs="&rdfs;"
-  xmlns     ="&ont;"
+  xmlns:rdf ="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+  xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+  xmlns     ="http://jena.hpl.hp.com/schemas/2003/03/ont-manager#"
 >
 
 <!--
@@ -25,7 +16,7 @@
 <OntologySpec>
 	<!-- local version of the OWL language ontology (in OWL) -->
 	<publicURI rdf:resource="http://example.org/foo/bar/b.owl" />
-	<altURL    rdf:resource="file:testing/ontology/testImport5/b.owl" />
+	<altURL    rdf:resource="b.owl" />
 	<language  rdf:resource="http://www.w3.org/2002/07/owl" />
 </OntologySpec>
 

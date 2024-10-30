@@ -25,7 +25,7 @@ import java.util.List ;
 
 import junit.framework.TestSuite ;
 import org.apache.jena.graph.* ;
-import org.apache.jena.mem.GraphMem ;
+import org.apache.jena.mem2.GraphMem2Fast;
 
 /**
  * Version of graph tests that set up a listener that copies all changes
@@ -36,11 +36,11 @@ public class TestGraphListener extends MetaTestGraph {
 	public TestGraphListener(String name) {
 		super(name);
 	}
-    public TestGraphListener( Class<? extends Graph> graphClass, String name) 
+    public TestGraphListener( Class<? extends Graph> graphClass, String name)
     { super( graphClass, name); }
-    
+
     public static TestSuite suite()
-    { return MetaTestGraph.suite( TestGraphListener.class, GraphMem.class ); }
+    { return MetaTestGraph.suite( TestGraphListener.class, GraphMem2Fast.class ); }
 	/**
 	 * A listener to check that a graph is being tracked
 	 * correctly by its events.
@@ -65,7 +65,7 @@ public class TestGraphListener extends MetaTestGraph {
 		@Override
         public void notifyAddIterator(Graph g, Iterator<Triple> it) {
 			while (it.hasNext()) copy.add(it.next());
-			verify();		
+			verify();
 	    }
 
 		@Override
@@ -143,10 +143,10 @@ public class TestGraphListener extends MetaTestGraph {
 	}
 
     @Override
-	public Graph getGraph() { 
-    	Graph g = Factory.createGraphMem();
-    	
+	public Graph getGraph() {
+    	Graph g = GraphMemFactory.createGraphMem();
+
     	g.getEventManager().register(new CheckChanges("simple tracking",g));
-	    return g; 
+	    return g;
 	}
 }

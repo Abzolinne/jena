@@ -31,7 +31,12 @@ import org.apache.jena.shex.sys.ValidationContext;
 public class ShapeExprRef extends ShapeExpression {
     private final Node ref;
 
-    public ShapeExprRef(Node ref) { this.ref = ref; }
+    public ShapeExprRef(Node ref) {
+        super();
+        this.ref = ref;
+    }
+
+    public Node getRef() { return ref; }
 
     @Override
     public boolean satisfies(ValidationContext vCxt, Node data) {

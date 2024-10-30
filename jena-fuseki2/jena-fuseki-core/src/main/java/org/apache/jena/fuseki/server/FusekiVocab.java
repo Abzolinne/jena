@@ -37,6 +37,16 @@ public class FusekiVocab
 
     public static final Property pServices          = property("services");
 
+    // Server endpoints.
+    public static final Property pServerPing        = property("pingEP");
+    public static final Property pServerStats       = property("statsEP");
+    public static final Property pServerMetrics     = property("metricsEP");
+    public static final Property pServerCompact     = property("compactEP");
+
+    // Server features
+    // Fuseki main - servlet context.
+    public static final Property pServerContextPath = property("contextPath");
+
     // Endpoint description.
     public static final Property pServiceName               = property("name");
     public static final Property pEndpointName              = property("name");
@@ -52,12 +62,7 @@ public class FusekiVocab
     public static final Property pUnionDefaultGraph         = property("unionDefaultGraph");
     public static final Property pAllowTimeoutOverride      = property("allowTimeoutOverride");
     public static final Property pMaximumTimeoutOverride    = property("maximumTimeoutOverride");
-
-    // Server endpoints.
-    public static final Property pServerPing        = property("pingEP");
-    public static final Property pServerStats       = property("statsEP");
-    public static final Property pServerMetrics     = property("metricsEP");
-    public static final Property pServerCompact     = property("compactEP");
+    public static final Property pDataset                   = property("dataset");
 
     // Endpoint description - old style.
     public static final Property pServiceQueryEP                = property("serviceQuery");
@@ -82,6 +87,10 @@ public class FusekiVocab
     public static final Resource opNoOp        = resource("no-op");
     public static final Resource opNoOp_alt    = resource("no_op");
     public static final Resource opShacl       = resource("shacl");
+    public static final Resource opPatch       = resource("patch");
+
+    public static final Resource opPREFIXES_R       = resource("prefixes-r");
+    public static final Resource opPREFIXES_RW      = resource("prefixes-rw");
 
     // Internal
     private static final String stateNameActive     = DataServiceStatus.ACTIVE.name;

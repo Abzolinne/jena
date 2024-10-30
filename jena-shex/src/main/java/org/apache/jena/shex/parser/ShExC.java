@@ -22,7 +22,6 @@ import static java.lang.String.format;
 
 import java.io.*;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 import org.apache.jena.atlas.io.IO;
@@ -32,7 +31,7 @@ import org.apache.jena.datatypes.xsd.XSDDatatype;
 import org.apache.jena.irix.IRIxResolver;
 import org.apache.jena.riot.system.*;
 import org.apache.jena.shex.ShexShape;
-import org.apache.jena.shex.ShexMap;
+import org.apache.jena.shex.ShapeMap;
 import org.apache.jena.shex.ShexSchema;
 import org.apache.jena.shex.expressions.*;
 import org.apache.jena.shex.parser.javacc.ParseException;
@@ -116,7 +115,7 @@ public class ShExC {
      * @param filename
      * @return ShexShapeMap
      */
-    public static ShexMap parseShapeMap(String filename) {
+    public static ShapeMap parseShapeMap(String filename) {
         return parseShapeMap(filename, IRILib.filenameToIRI(filename));
     }
 
@@ -126,7 +125,7 @@ public class ShExC {
      * @param baseURI
      * @return ShexShapeMap
      */
-    public static ShexMap parseShapeMap(String filename, String baseURI) {
+    public static ShapeMap parseShapeMap(String filename, String baseURI) {
         InputStream input = IO.openFile(filename);
         return parseShapeMap(input, baseURI);
     }
@@ -137,7 +136,7 @@ public class ShExC {
      * @param baseURI
      * @return ShexShapeMap
      */
-    public static ShexMap parseShapeMap(InputStream input, String baseURI) {
+    public static ShapeMap parseShapeMap(InputStream input, String baseURI) {
         try ( Reader r = setReader(input) ) {
             ShExJavacc parser = new ShExJavacc(r);
             return parseShapeMap$(parser, baseURI, null);
@@ -153,7 +152,7 @@ public class ShExC {
      * @param baseURI
      * @return ShexShapeMap
      */
-    public static ShexMap parseShapeMap(StringReader input, String baseURI) {
+    public static ShapeMap parseShapeMap(StringReader input, String baseURI) {
         ShExJavacc parser = new ShExJavacc(input);
         return parseShapeMap$(parser, baseURI, null);
     }
@@ -206,26 +205,20 @@ public class ShExC {
     private static void validatePhase2(ShexSchema shapes, ShexShape shape) {
         ShapeExpression shExpr = shape.getShapeExpression();
         ShapeExprVisitor checker = new CheckFacets();
-        TripleExprVisitor tExprVisitor = new TripleExprVisitor() {
-            @Override public void visit(TripleConstraint object) {
-                // One level call of visitor.
-                //object.getPredicate();
-                ShapeExpression theShapeExpression = object.getShapeExpression();
-                if ( theShapeExpression != null )
-                    theShapeExpression.visit(checker);
-            }
-        };
-        ShexLib.walk(shExpr, checker, null);
+        ShexLib.walk(shExpr, checker, null, null);
     }
 
     private static class CheckFacets implements ShapeExprVisitor {
-        // Inside TripleConstraint
         @Override
-        public void visit(ShapeExprAND shape) {
-            List<ShapeExpression> elements = shape.expressions();
-            Set<StrLengthKind> x = new HashSet<>(3);
+        public void visit(ShapeNodeConstraint shape) {
+            NodeConstraint nc = shape.getNodeConstraint();
+            if ( nc == null )
+                return;
+            // XXX [NodeConstraint]
             DatatypeConstraint dtConstraint = null;
-            for ( ShapeExpression expr : elements ) {
+            Set<StrLengthKind> x = new HashSet<>(3);
+            for ( NodeConstraintComponent expr: nc.components() ) {
+                // Visitor!
                 if ( expr instanceof StrLengthConstraint ) {
                     StrLengthConstraint constraint = (StrLengthConstraint)expr;
                     StrLengthKind lenType = constraint.getLengthType();
@@ -256,11 +249,13 @@ public class ShExC {
                         }
                     }
                 }
+
             }
+
         }
     }
 
-    private static ShexMap parseShapeMap$(ShExJavacc parser, String baseURI, Context context) {
+    private static ShapeMap parseShapeMap$(ShExJavacc parser, String baseURI, Context context) {
         ParserProfile profile = new ParserProfileStd(RiotLib.factoryRDF(),
                                                      ErrorHandlerFactory.errorHandlerStd,
                                                      IRIxResolver.create(baseURI).build(),
@@ -273,7 +268,7 @@ public class ShExC {
         try {
             parser.parseShapeMapStart();
             parser.UnitShapeMap();
-            ShexMap map = parser.parseShapeMapFinish();
+            ShapeMap map = parser.parseShapeMapFinish();
             return map;
         } catch (ParseException ex) {
             throw new ShexParseException(ex.getMessage(), ex.currentToken.beginLine, ex.currentToken.beginColumn);

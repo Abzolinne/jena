@@ -89,7 +89,7 @@ void Statement() : {}
 void Directive() : { Token t ; String iri ; }
 {
     <PREFIX> t = <PNAME_NS> iri = IRIREF()
-    { String s = fixupPrefix(t.image, t.beginLine, t.beginColumn) ;
+    { String s = canonicalPrefix(t.image, t.beginLine, t.beginColumn) ;
       setPrefix(s, iri, t.beginLine, t.beginColumn) ; }
  |
     t = <BASE> iri = IRIREF()
@@ -99,7 +99,7 @@ void Directive() : { Token t ; String iri ; }
 void DirectiveOld() : { Token t ; String iri ; }
 {
     <PREFIX_OLD> t = <PNAME_NS> iri = IRIREF() <DOT>
-    { String s = fixupPrefix(t.image, t.beginLine, t.beginColumn) ;
+    { String s = canonicalPrefix(t.image, t.beginLine, t.beginColumn) ;
       setPrefix(s, iri, t.beginLine, t.beginColumn) ; }
  |
     t = <BASE_OLD> iri = IRIREF() <DOT>
@@ -142,7 +142,7 @@ void Annotation(Node s, Node p, Node o) : {}
 {
   (
     <L_ANN>
-      { Node x = createTripleTerm(s, p, o, token.beginLine, token.beginColumn); }
+      { Node x = createQuotedTriple(s, p, o, token.beginLine, token.beginColumn); }
       PredicateObjectList(x)
     <R_ANN>
   )?
@@ -158,13 +158,13 @@ Node Verb() : { Node p ; }
 Node Subject() : { Node s; String iri ; }
 {
   (
-    iri = iri() { s = createNode(iri, token.beginLine, token.beginColumn) ; }
+    iri = iri() { s = createURI(iri, token.beginLine, token.beginColumn) ; }
   |
     s = BlankNode()
   |
     s = Collection()
   |
-    s = EmbTriple()
+    s = QuotedTriple()
   )
   { return s ; }
 }
@@ -174,51 +174,50 @@ Node Subject() : { Node s; String iri ; }
 Node Predicate() : { String iri;}
 {
   iri = iri()
-  { return createNode(iri, token.beginLine, token.beginColumn); }
+  { return createURI(iri, token.beginLine, token.beginColumn); }
 }
 
 // Turtle [12] object
 Node Object(): { Node o ; String iri; }
 {
-  ( iri = iri() { o = createNode(iri, token.beginLine, token.beginColumn) ; }
+  ( iri = iri() { o = createURI(iri, token.beginLine, token.beginColumn) ; }
   | o = BlankNode()
   | o = Collection()
   | o = BlankNodePropertyList()
   | o = Literal()
-  | o = EmbTriple()
+  | o = QuotedTriple()
   )
   { return o; }
 }
 
-Node EmbSubject(): { Node o ; String iri; }
+Node QuotedTripleSubject(): { Node o ; String iri; }
 {
-  ( iri = iri() { o = createNode(iri, token.beginLine, token.beginColumn) ; }
+  ( iri = iri() { o = createURI(iri, token.beginLine, token.beginColumn) ; }
   | o = BlankNode()
-  | o = EmbTriple()
+  | o = QuotedTriple()
   )
   { return o; }
 }
 
-Node EmbObject(): { Node o ; String iri; }
+Node QuotedTripleObject(): { Node o ; String iri; }
 {
-  ( iri = iri() { o = createNode(iri, token.beginLine, token.beginColumn) ; }
+  ( iri = iri() { o = createURI(iri, token.beginLine, token.beginColumn) ; }
   | o = BlankNode()
   | o = Literal()
-  | o = EmbTriple()
+  | o = QuotedTriple()
   )
   { return o ; } 
 }
 
 // The syntax for RDF-star <<>>
-Node EmbTriple() : { Node s , p , o ; Token t ; }
+Node QuotedTriple() : { Node s , p , o ; Token t ; }
 {
   t = <LT2>
-    { int beginLine = t.beginLine; int beginColumn = t.beginColumn; t = null; }
-  s = EmbSubject()
+  s = QuotedTripleSubject()
   p = Verb()
-  o = EmbObject()
+  o = QuotedTripleObject()
   <GT2>
-  { Node n = createTripleTerm(s, p, o, beginLine, beginColumn);
+  { Node n = createQuotedTriple(s, p, o, t.beginLine, t.beginColumn);
     return n;
   }
 }

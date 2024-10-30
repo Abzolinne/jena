@@ -29,6 +29,7 @@ import org.apache.jena.query.*;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdfconnection.RDFConnection;
 import org.apache.jena.sparql.exec.*;
+import org.apache.jena.update.UpdateExecutionBuilder;
 import org.apache.jena.update.UpdateRequest;
 
 /** Provide {@link RDFConnection} using a {@link RDFLink} */
@@ -36,8 +37,8 @@ import org.apache.jena.update.UpdateRequest;
 public class RDFConnectionAdapter implements RDFConnection {
 
     public static RDFConnection adapt(RDFLink link) {
-        if ( link instanceof RDFLinkAdapter )
-            return ((RDFLinkAdapter)link).getConnection();
+        if ( link instanceof RDFLinkAdapter adapter )
+            return adapter.getConnection();
         return new RDFConnectionAdapter(link);
     }
 
@@ -96,7 +97,6 @@ public class RDFConnectionAdapter implements RDFConnection {
 
     @Override
     public QueryExecution query(Query query) {
-        QueryExec queryExec = get().query(query);
         return adapt(get().query(query));
     }
 
@@ -107,7 +107,12 @@ public class RDFConnectionAdapter implements RDFConnection {
 
     @Override
     public QueryExecutionBuilder newQuery() {
-        return new QueryExecutionBuilderAdapter(get().newQuery());
+        return QueryExecutionBuilderAdapter.adapt(get().newQuery());
+    }
+
+    @Override
+    public UpdateExecutionBuilder newUpdate() {
+        return UpdateExecutionBuilderAdapter.adapt(get().newUpdate());
     }
 
     private static QueryExecution adapt(QueryExec queryExec) {

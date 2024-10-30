@@ -43,7 +43,7 @@ public abstract class AbstractTestDistinctReduced {
 
     private static List<Binding> build(List<String> items) {
         return items.stream().sequential()
-                .map((s)-> BindingFactory.binding(var_a, NodeFactory.createLiteral(s)))
+                .map((s)-> BindingFactory.binding(var_a, NodeFactory.createLiteralString(s)))
                 .collect(Collectors.toList());
     }
 
@@ -82,8 +82,8 @@ public abstract class AbstractTestDistinctReduced {
         assertEquals(output+" :: "+iterList,
                      output.size() , iterList.size()) ;
         // Assume results has no duplicates so same size, same members => order dependent same.
-        Set<Binding> testExpected = new HashSet<>(output) ;
-        Set<Binding> testResult = new HashSet<>(iterList) ;
+        Set<Binding> testExpected = Set.copyOf(output) ;
+        Set<Binding> testResult = Set.copyOf(iterList) ;
         assertEquals(testExpected , testResult) ;
 
     }

@@ -38,7 +38,7 @@ import java.util.Collection;
 import java.util.Enumeration;
 import java.util.List;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 
 import org.apache.jena.atlas.io.IO;
 import org.apache.jena.atlas.lib.Bytes;
@@ -83,7 +83,7 @@ public class SPARQL_Update extends ActionService
 
     @Override
     public void execGet(HttpAction action) {
-        ServletOps.errorMethodNotAllowed(HttpNames.METHOD_GET, "GET not support for SPARQL Update. Use POST or PATCH");
+        ServletOps.errorMethodNotAllowed(HttpNames.METHOD_GET, "SPARQL Update is not supported with GET. Use POST or PATCH instead");
     }
 
     @Override
@@ -124,8 +124,8 @@ public class SPARQL_Update extends ActionService
         if ( HttpNames.METHOD_OPTIONS.equals(action.getRequestMethod()) )
             return;
 
-        if ( ! HttpNames.METHOD_POST.equalsIgnoreCase(action.getRequestMethod()) )
-            ServletOps.errorMethodNotAllowed("SPARQL Update : use POST");
+        if ( ! HttpNames.METHOD_POST.equalsIgnoreCase(action.getRequestMethod()) && ! HttpNames.METHOD_PATCH.equalsIgnoreCase(action.getRequestMethod()) )
+            ServletOps.errorMethodNotAllowed("SPARQL Update : use POST or PATCH");
 
         ContentType ct = ActionLib.getContentType(action);
         if ( ct == null )
@@ -258,7 +258,7 @@ public class SPARQL_Update extends ActionService
                 abortSilent(action);
                 ServletOps.errorOccurred(ex.getMessage(), ex);
             }
-        } finally { action.end(); }
+        } finally { action.endWrite(); }
     }
 
     /* [It is an error to supply the using-graph-uri or using-named-graph-uri parameters

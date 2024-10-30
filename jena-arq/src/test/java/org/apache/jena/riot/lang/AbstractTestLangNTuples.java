@@ -35,7 +35,7 @@ import org.apache.jena.riot.ErrorHandlerTestLib.ExWarning;
 import org.apache.jena.riot.Lang ;
 import org.apache.jena.riot.RIOT;
 import org.apache.jena.riot.system.*;
-import org.apache.jena.riot.tokens.TokenizeTextBuilder;
+import org.apache.jena.riot.tokens.TokenizerTextBuilder;
 import org.apache.jena.riot.tokens.Tokenizer ;
 import org.apache.jena.riot.tokens.TokenizerText;
 import org.junit.AfterClass ;
@@ -177,7 +177,7 @@ abstract public class AbstractTestLangNTuples
         byte b[] = StrUtils.asUTF8bytes(string);
         ByteArrayInputStream in = new ByteArrayInputStream(b);
 
-        TokenizeTextBuilder builder = TokenizerText.create()
+        TokenizerTextBuilder builder = TokenizerText.create()
                 .source(in)
                 .errorHandler(ErrorHandlerFactory.errorHandlerExceptions());
         if ( charSpace == CharSpace.ASCII )
@@ -201,7 +201,7 @@ abstract public class AbstractTestLangNTuples
         String string = String.join("\n", strings);
         Tokenizer tokenizer = tokenizer(string);
         StreamRDFCounting sink = StreamRDFLib.count();
-        LangRIOT x = RiotParsers.createParserNQuads(tokenizer, sink, parserProfile(new ErrorHandlerEx()));
+        LangRIOT x = IteratorParsers.createParserNQuads(tokenizer, sink, parserProfile(new ErrorHandlerEx()));
         x.parse();
     }
 
@@ -209,7 +209,7 @@ abstract public class AbstractTestLangNTuples
         String string = String.join("\n", strings);
         Tokenizer tokenizer = tokenizer(charSpace, string);
         StreamRDFCounting sink = StreamRDFLib.count();
-        LangRIOT x = RiotParsers.createParserNTriples(tokenizer, sink, parserProfile(new ErrorHandlerEx()));
+        LangRIOT x = IteratorParsers.createParserNTriples(tokenizer, sink, parserProfile(new ErrorHandlerEx()));
         x.parse();
         return sink.count();
     }
@@ -226,7 +226,7 @@ abstract public class AbstractTestLangNTuples
 
     protected abstract Lang getLang();
 
-    protected long parseCount(String... strings) {
-        return ParserTestBaseLib.parseCount(getLang(), strings);
+    protected long parseCount(String string) {
+        return ParserTests.parseCount(getLang(), string);
     }
 }

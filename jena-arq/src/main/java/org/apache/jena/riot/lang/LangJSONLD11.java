@@ -24,6 +24,8 @@ import java.util.Set;
 import java.util.function.BiConsumer;
 
 import com.apicatalog.jsonld.JsonLd;
+import com.apicatalog.jsonld.JsonLdError;
+import com.apicatalog.jsonld.JsonLdOptions;
 import com.apicatalog.jsonld.document.Document;
 import com.apicatalog.jsonld.document.JsonDocument;
 import com.apicatalog.jsonld.lang.Keywords;
@@ -33,48 +35,85 @@ import jakarta.json.JsonObject;
 import jakarta.json.JsonString;
 import jakarta.json.JsonStructure;
 import jakarta.json.JsonValue;
+import jakarta.json.stream.JsonLocation;
 import org.apache.jena.atlas.logging.Log;
 import org.apache.jena.atlas.web.ContentType;
+import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.ReaderRIOT;
 import org.apache.jena.riot.RiotException;
+import org.apache.jena.riot.system.ErrorHandler;
 import org.apache.jena.riot.system.JenaTitanium;
+import org.apache.jena.riot.system.ParserProfile;
 import org.apache.jena.riot.system.StreamRDF;
-import org.apache.jena.riot.system.SysJSONLD11;
+import org.apache.jena.sparql.SystemARQ;
 import org.apache.jena.sparql.util.Context;
+import org.apache.jena.sparql.util.Symbol;
 
 /**
  * JSON-LD 1.1 {@link ReaderRIOT}.
  */
 public class LangJSONLD11 implements ReaderRIOT {
-    public LangJSONLD11() {}
+    private final ErrorHandler errorHandler;
+    private final ParserProfile profile;
+
+    private static final String SYMBOLS_NS = "http://jena.apache.org/riot/jsonld#";
+    /**
+     * value: the option object expected by JsonLdProcessor (instance of JsonLdOptions)
+     */
+    public static final Symbol JSONLD_OPTIONS = SystemARQ.allocSymbol(SYMBOLS_NS, "options");
+
+    public LangJSONLD11(Lang language, ParserProfile profile, ErrorHandler errorHandler) {
+        this.profile = profile;
+        this.errorHandler = errorHandler;
+    }
 
     @Override
     public void read(InputStream input, String baseURI, ContentType ct, StreamRDF output, Context context) {
-        SysJSONLD11.checkForTitanium();
         try {
             Document document = JsonDocument.of(input);
-            read(document, output, context);
+            read(document, baseURI, output, context);
+        } catch (JsonLdError ex) {
+            handleJsonLdError(ex);
         } catch (Exception ex) {
+            errorHandler.error(ex.getMessage(), -1, -1);
             throw new RiotException(ex);
         }
+    }
+
+    private void handleJsonLdError(JsonLdError ex) {
+        Throwable cause = ex.getCause();
+
+        if (cause instanceof jakarta.json.stream.JsonParsingException exp) {
+            JsonLocation loc = exp.getLocation();
+            errorHandler.error(ex.getMessage(), loc.getLineNumber(), loc.getColumnNumber());
+        } else if ( cause instanceof JsonLdError ex2) {
+            // Avoid seemingly circular causes.
+            if ( ex != ex2 )
+                errorHandler.error(ex2.getMessage(), -1, -1);
+        }
+        throw new RiotException(ex);
     }
 
     @Override
     public void read(Reader in, String baseURI, ContentType ct, StreamRDF output, Context context) {
-        SysJSONLD11.checkForTitanium();
         try {
             Document document = JsonDocument.of(in);
-            read(document, output, context);
+            read(document, baseURI, output, context);
+        } catch (JsonLdError ex) {
+            ex.printStackTrace();
+            handleJsonLdError(ex);
         } catch (Exception ex) {
+            errorHandler.error(ex.getMessage(), -1, -1);
             throw new RiotException(ex);
         }
     }
 
-    private void read(Document document, StreamRDF output, Context context) throws Exception {
+    private void read(Document document, String baseURI, StreamRDF output, Context context) throws JsonLdError {
         // JSON-LD to RDF
-        RdfDataset dataset = JsonLd.toRdf(document).get();
+        JsonLdOptions opts = getJsonLdOptions(baseURI, context);
+        RdfDataset dataset = JsonLd.toRdf(document).options(opts).base(baseURI).get();
         extractPrefixes(document, output::prefix);
-        JenaTitanium.convert(dataset, output);
+        JenaTitanium.convert(dataset, profile, output);
     }
 
     /**
@@ -84,9 +123,9 @@ public class LangJSONLD11 implements ReaderRIOT {
      * {@literal @context} even if intended for a URI e.g a property.
      * </p>
      * <p>
-     * We could extract any {"key" : "value"} from the context but we add a pragmatic
-     * filter to to see if the URI value ends in "#", "/" or ":" (for "urn:" and "did:"
-     * cases).
+     * We could extract any {"key" : "value"} from the context but we add a
+     * pragmatic filter to to see if the URI value ends in "#", "/" or ":" (for
+     * "urn:" and "did:" cases).
      * </p>
      * <p>
      * In addition, {@literal @vocab} becomes prefix "".
@@ -95,50 +134,71 @@ public class LangJSONLD11 implements ReaderRIOT {
     private static void extractPrefixes(Document document, BiConsumer<String, String> action) {
         try {
             JsonStructure js = document.getJsonContent().get();
-            JsonValue jv = js.asJsonObject().get(Keywords.CONTEXT);
-            extractPrefixes(jv, action);
-        } catch(Throwable ex) {
-            Log.warn(LangJSONLD11.class, "Unexpected problem while extracting prefixes: "+ex.getMessage(), ex);
+            switch (js.getValueType()) {
+            case ARRAY:
+                extractPrefixes(js, action);
+                break;
+            case OBJECT:
+                JsonValue jv = js.asJsonObject().get(Keywords.CONTEXT);
+                extractPrefixes(jv, action);
+                break;
+            default:
+                break;
+            }
+        } catch (Throwable ex) {
+            Log.warn(LangJSONLD11.class, "Unexpected problem while extracting prefixes: " + ex.getMessage(), ex);
         }
     }
 
     private static void extractPrefixes(JsonValue jsonValue, BiConsumer<String, String> action) {
+        if (jsonValue == null)
+            return;
         // JSON-LD 1.1 section 9.4
-        switch(jsonValue.getValueType()) {
-            case ARRAY :
-                jsonValue.asJsonArray().forEach(jv -> extractPrefixes(jv, action));
-                break;
-            case OBJECT :
-                extractPrefixesCxtDefn(jsonValue.asJsonObject(), action);
-                break;
-            case NULL: break;       // We are only interested in prefixes
-            case STRING: break;     // We are only interested in prefixes
-            default :
-                break;
+        switch (jsonValue.getValueType()) {
+        case ARRAY:
+            jsonValue.asJsonArray().forEach(jv -> extractPrefixes(jv, action));
+            break;
+        case OBJECT:
+            extractPrefixesCxtDefn(jsonValue.asJsonObject(), action);
+            break;
+        case NULL:
+            break;      // We are only interested in prefixes
+        case STRING:
+            break;      // We are only interested in prefixes
+        default:
+            break;
         }
     }
 
     private static void extractPrefixesCxtDefn(JsonObject jCxt, BiConsumer<String, String> action) {
         Set<String> keys = jCxt.keySet();
-        keys.stream().forEach(k->{
+        keys.stream().forEach(k -> {
             // "@vocab" : "uri"
             // "shortName" : "uri"
             // "shortName" : { "@type":"@id" , "@id": "uri" } -- presumed to be a single property aliases, not a prefix.
             JsonValue jvx = jCxt.get(k);
-            if ( JsonValue.ValueType.STRING != jvx.getValueType() )
+            if (JsonValue.ValueType.STRING != jvx.getValueType())
                 return;
             String prefix = k;
-            if ( Keywords.VOCAB.equals(k) )
+            if (Keywords.VOCAB.equals(k))
                 prefix = "";
-            else if ( k.startsWith("@") )
+            else if (k.startsWith("@"))
                 // Keyword, not @vocab.
                 return;
             // Pragmatic filter: URI ends in "#" or "/" or ":"
             String uri = JsonString.class.cast(jvx).getString();
-            if ( uri.endsWith("#") || uri.endsWith("/") || uri.endsWith(":") ) {
+            if (uri.endsWith("#") || uri.endsWith("/") || uri.endsWith(":")) {
                 action.accept(prefix, uri);
                 return;
             }
         });
+    }
+
+    /**
+     * Get the (jsonld) options from the jena context if exists or create default
+     */
+    private static JsonLdOptions getJsonLdOptions(String baseURI, Context jenaContext) {
+        JsonLdOptions opts = jenaContext.get(JSONLD_OPTIONS);
+        return (opts != null) ? opts : new JsonLdOptions();
     }
 }

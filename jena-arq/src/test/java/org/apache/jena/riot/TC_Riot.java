@@ -24,6 +24,7 @@ import org.apache.jena.riot.out.TS_Out ;
 import org.apache.jena.riot.process.TS_Process ;
 import org.apache.jena.riot.protobuf.TS_RDFProtobuf;
 import org.apache.jena.riot.resultset.TS_ResultSetRIOT ;
+import org.apache.jena.riot.rowset.TS_RowSetRIOT;
 import org.apache.jena.riot.stream.TS_IO2 ;
 import org.apache.jena.riot.system.TS_RiotSystem ;
 import org.apache.jena.riot.thrift.TS_RDFThrift ;
@@ -48,9 +49,8 @@ import org.junit.runners.Suite ;
     , TS_ResultSetRIOT.class
     , TS_RDFProtobuf.class
     , TS_RDFThrift.class
-
-    , Scripts_LangSuite.class
-    , Scripts_AltTurtle.class
+    , TS_RowSetRIOT.class
+    // Scripted parser tests in ARQTestSuite.
 })
 
 public class TC_Riot

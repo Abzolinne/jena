@@ -22,12 +22,15 @@ import org.apache.jena.shared.PrefixMapping ;
 import org.apache.jena.shared.impl.PrefixMappingImpl ;
 import org.apache.jena.sparql.core.Prologue;
 import org.apache.jena.sparql.util.Symbol ;
+import org.apache.jena.sys.JenaSystem;
 
 /**
  * Internal constants - configuration is in class ARQ
  */
 public class ARQConstants
 {
+    static { JenaSystem.init(); }
+
     /** The prefix of XQuery/Xpath functions and operator */
     public static final String fnPrefix = "http://www.w3.org/2005/xpath-functions#" ;
 
@@ -76,6 +79,9 @@ public class ARQConstants
 
     /** URI scheme that triggers the loader to load a java class */
     public static final String javaClassURIScheme = "java:" ;
+
+    /** The ARQ function library URI space */
+    public static final String CDTFunctionLibraryURI = "http://w3id.org/awslabs/neptune/SPARQL-CDTs/" ;
 
     /** The ARQ function library URI space */
     public static final String ARQFunctionLibraryURI = "http://jena.apache.org/ARQ/function#" ;
@@ -257,10 +263,10 @@ public class ARQConstants
     /** Context key for the execution-scoped bNode variable generator */
     public static final Symbol sysVarAllocAnon          = Symbol.create(systemVarNS+"namedVarAnon") ;
 
-    /** Graphs forming the default graph (List&lt;String&gt;) (Dynamic dataset) */
+    /** Graphs forming the default graph (Collection&lt;Node&gt;) (Dynamic dataset) */
     public static final Symbol symDatasetDefaultGraphs  = SystemARQ.allocSymbol("datasetDefaultGraphs") ;
 
-    /** Graphs forming the named graphs (List&lt;String&gt;) (Dynamic dataset) */
+    /** Graphs forming the named graphs (Collection&lt;Node&gt;) (Dynamic dataset) */
     public static final Symbol symDatasetNamedGraphs    = SystemARQ.allocSymbol("datasetNamedGraphs") ;
 
     /** Context symbol for a supplied {@link Prologue} (used for text out of result sets). */
@@ -276,8 +282,6 @@ public class ARQConstants
     /** Context key for making all SELECT queries have DISTINCT applied, whether stated or not */
     public static final Symbol autoDistinct             = SystemARQ.allocSymbol("autoDistinct") ;
 
-    // Context keys : some here, some in ARQ - sort out
-
     /** The property function registry key */
     public static final Symbol registryPropertyFunctions =
         SystemARQ.allocSymbol("registryPropertyFunctions") ;
@@ -285,6 +289,10 @@ public class ARQConstants
     /** The describe handler registry key */
     public static final Symbol registryDescribeHandlers =
         SystemARQ.allocSymbol("registryDescribeHandlers") ;
+
+    /** The query engine registry key */
+    public static final Symbol registryQueryEngines =
+        SystemARQ.allocSymbol("registryQueryEngines") ;
 
     /** The function library registry key */
     public static final Symbol registryFunctions =
@@ -301,4 +309,7 @@ public class ARQConstants
     /** The extension library registry key */
     public static final Symbol registryExtensions =
         SystemARQ.allocSymbol("registryExtensions") ;
+
+    public static void init() {}
+
 }

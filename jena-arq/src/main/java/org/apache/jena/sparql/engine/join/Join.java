@@ -58,12 +58,26 @@ public class Join {
      * @return QueryIterator
      */
     public static QueryIterator join(QueryIterator left, QueryIterator right, ExecutionContext execCxt) {
+        return join(null, left, right, execCxt);
+    }
+
+    /**
+     * Standard entry point to a join of two streams.
+     * This is not a substitution/index join.
+     * (See {@link OpExecutor} for streamed execution using substitution).
+     * @param joinKey
+     * @param left
+     * @param right
+     * @param execCxt
+     * @return QueryIterator
+     */
+    public static QueryIterator join(JoinKey joinKey, QueryIterator left, QueryIterator right, ExecutionContext execCxt) {
         if ( false )
             return debug(left, right, execCxt,
-                         (_left, _right)->hashJoin(_left, _right, execCxt)) ;
+                         (_left, _right)->hashJoin(joinKey, _left, _right, execCxt)) ;
         if ( useNestedLoopJoin )
             return nestedLoopJoin(left, right, execCxt) ;
-        return hashJoin(left, right, execCxt) ;
+        return hashJoin(joinKey, left, right, execCxt) ;
     }
 
     /** Standard entry point to a left join of two streams.
@@ -294,7 +308,11 @@ public class Join {
 	private static void probeToMap(Map<Expr, PairOfSameType<Number>> result, Binding current, Expr expr) {
 		if(current.get(expr.asVar())==null)
 			throw new IllegalArgumentException("Similarity Join variables should not be obtained from an OPTIONAL clause");
-		Number currentValue = (Number) current.get(expr.asVar()).getLiteralValue();
+	    Object literalValue = current.get(expr.asVar()).getLiteralValue();
+	    if (literalValue instanceof String) {
+	    	return;
+	    } 
+		Number currentValue = (Number) literalValue;
 		if (!result.containsKey(expr)) {
 			result.put(expr, new PairOfSameType<Number>(currentValue, currentValue));
 			return;

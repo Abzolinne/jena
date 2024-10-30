@@ -35,7 +35,7 @@ function grammar
     (cd "$DIR" ; rm -f TokenMgrError.java ParseException.java Token.java JavaCharStream.java )
 
     echo "---- Process grammar -- $1"
-    javacc -OUTPUT_DIRECTORY=$DIR  -JDK_VERSION=1.7 "${FILE}"
+    javacc -OUTPUT_DIRECTORY=$DIR  -JDK_VERSION=1.8 "${FILE}"
     RC=$?
 
     [ "$RC" = 0 ] || return
@@ -45,62 +45,42 @@ function grammar
     echo "---- Create text form"
     jjdoc -TEXT=true -OUTPUT_FILE=${FILE%%.jj}.txt "${FILE}"
 
-  # Fix unnecessary imports
-    echo "---- Fixing Java warnings in ${NAME}TokenManager ..."
-
-    F="$DIR/${CLASS}TokenManager.java"
-
-    sed -e 's/@SuppressWarnings."unused".//' \
-        -e 's/import .*//' -e 's/MatchLoop: do/do/' \
-        -e 's/int hiByte = (int)(curChar/int hiByte = (curChar/' \
-	< $F > F
-    mv F $F
-
-##     # Java5+ fixups
-##     echo "---- Fixing Java warnings in JavaCharStream ..."
-##     # Deprecated:
-##     #   public int getColumn()
-##     #   public int getLine()
-##     F="$DIR/JavaCharStream.java"
-##     if [ -e "$F" ]
-## 	then
-## 	sed -e 's/@Deprecated //' \
-## 	    -e 's/public int getColumn/@Deprecated public int getColumn/' \
-## 	    -e 's/public int getLine/@Deprecated public int getLine/' < $F > F
-## 	mv F $F
-##     fi
+    ## ---- Fixups
+    
+    # Fix unnecessary imports
+##     echo "---- Fixing Java warnings in ${NAME}TokenManager ..."
 ## 
-
-##     echo "---- Fixing Java warnings in ParseException ..."
-##     #Override:
-##     #   public String getMessage()
-##     F="$DIR/ParseException.java"
-##     sed -e 's/@Override //' \
-## 	-e 's/public String getMessage/@Override public String getMessage/' < $F > F
+##     F="$DIR/${CLASS}TokenManager.java"
+## 
+##     sed -e 's/@SuppressWarnings."unused".//' \
+##         -e 's/import .*//' -e 's/MatchLoop: do/do/' \
+##         -e 's/int hiByte = (int)(curChar/int hiByte = (curChar/' \
+## 	< $F > F
 ##     mv F $F
 
-    echo "---- Fixing Java warnings in Token ..."
-    F="$DIR/Token.java"
-    sed -e 's/@Override //' \
-	-e 's/public String toString/@Override public String toString/' < $F > F
-    mv F $F
+    ## JavaCharStream -- SimpleCharStream is OK.
+    echo "---- Fixing Java warnings in JavaCharStream..."
+    F="$DIR/JavaCharStream.java"
+    if [ -e "$F" ]
+    then
+	sed -e 's/public/\n@SuppressWarnings("all")\npublic/' < $F > F 
+	mv F $F
+    fi
 
-
-    echo "---- Fixing Java warnings in TokenMgrError ..."
-    # Override:
-    #   public String getMessage()
+    ## TokenMgrError
+    echo "---- Fixing Java warnings in TokenMgrError"
     F="$DIR/TokenMgrError.java"
-    sed -e 's/@Override //' \
-	-e 's/public String getMessage/@Override public String getMessage/' < $F > F
-    mv F $F
+    if [ -e "$F" ]
+    then
+	sed -e 's/public class TokenMgrError/\n@SuppressWarnings("all")\npublic class TokenMgrError/' < $F > F 
+	mv F $F
+    fi
 
+    ## -- In the parser itself
     echo "---- Fixing Java warnings in ${CLASS} ..."
     F="$DIR/${CLASS}.java"
-    sed -e 's/public class /\n@SuppressWarnings("all")\npublic class /' < $F > F 
-##     sed -e 's/for (java.util.Iterator/for (java.util.Iterator<int[]>/' \
-## 	-e 's/(int\[\])//' < $F > F
+    sed -e 's/public class /\n@SuppressWarnings("all")\npublic class /' < $F > F
     mv F $F
-
     echo "---- Done"
 }
 
@@ -109,8 +89,9 @@ function grammar
 if [ $# == 0 ]
 then
     # Not sparql10
-    set -- sparql11 arq
-    ## echo "Usage: grammar [arq|sparql]" 1>&2
+    # Not sparql11
+    set -- sparql12 arq
+    ## echo "Usage: grammar [arq|sparql12]" 1>&2
     ## exit 1
     fi
 
@@ -124,17 +105,22 @@ do
 ##           #### cat "$GRAMMAR" | cpp -P -DSPARQL -DSPARQL_10 > sparql_10.jj
 ##           grammar sparql_10.jj sparql_10 SPARQLParser10
 ##           ;;
-         echo "SPARQL 1.0 - not rebuilt"
+          echo "SPARQL 1.0 - not rebuilt"	  
           ;;
 
       sparql11|sparql_11.jj)
-	  # License header.  cpp is run to exclude comments from \$GRAMMAR
-	  # because thay picks up unwanted material as well as the comments
-	  # in $GRAMMAR
-	  cp header.jj sparql_11.jj
+##           # The parser that is exactly the working group grammar.
+##           ##cat "$GRAMMAR" | cpp -P -DSPARQL -DSPARQL_11 >> sparql_11.jj
+##           grammar sparql-dev-final.jj sparql_11 SPARQLParser11	  
+##           ##grammar sparql_11.jj sparql_11 SPARQLParser11
+	  echo "SPARQL 1.1 - not rebuilt"
+	  ;;
+      
+      sparql12|sparql_12.jj)
+	  cp header.jj sparql_12.jj
           # The parser that is exactly the working group grammar.
-          cat "$GRAMMAR" | cpp -P -DSPARQL -DSPARQL_11 >> sparql_11.jj
-          grammar sparql_11.jj sparql_11 SPARQLParser11
+          cat "$GRAMMAR" | cpp -P -DSPARQL -DSPARQL_12 >> sparql_12.jj
+          grammar sparql_12.jj sparql_12 SPARQLParser12
           ;;
 
       arq|arq.jj)

@@ -27,7 +27,8 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.runners.Parameterized.Parameters;
 
-/** Test suite driver for IRIx.
+/**
+ * Test suite driver for IRIx.
  * The test execution environment is set to be "strict".
  * Tests can change this; it is reset after each test.
  */
@@ -44,22 +45,15 @@ public class AbstractTestIRIx {
         return data;
     }
 
-    protected static void setProvider(IRIProvider provider) {
-        provider.strictMode("http", true);
-        provider.strictMode("urn",  true);
-        provider.strictMode("file", true);
-        provider.strictMode("did",  true);
-        SystemIRIx.setProvider(provider);
-    }
-
     protected static IRIProvider getProvider() {
         return SystemIRIx.getProvider();
     }
 
     protected void notStrict(String scheme, Runnable action) {
+        boolean b = provider.isStrictMode(scheme);
         provider.strictMode(scheme, false);
         try { action.run(); }
-        finally { provider.strictMode(scheme, true); }
+        finally { provider.strictMode(scheme, b); }
     }
 
     private final IRIProvider provider;
@@ -80,7 +74,10 @@ public class AbstractTestIRIx {
     }
 
     @AfterClass static public void afterClass_RestoreSystemProvider() {
-        restore();
+        systemProvider.strictMode("http", StrictHTTP);
+        systemProvider.strictMode("urn",  StrictURN);
+        systemProvider.strictMode("file", StrictFILE);
+        systemProvider.strictMode("did",  StrictDID);
     }
 
     @Before public void beforeTest_setStrict() {
@@ -88,7 +85,6 @@ public class AbstractTestIRIx {
         provider.strictMode("urn",  true);
         provider.strictMode("file", true);
         provider.strictMode("did",  true);
-        setProvider(provider);
     }
 
     @After public void afterTest_restoreSystemProvider() {
@@ -100,10 +96,14 @@ public class AbstractTestIRIx {
         systemProvider.strictMode("urn",  StrictURN);
         systemProvider.strictMode("file", StrictFILE);
         systemProvider.strictMode("did",  StrictDID);
-        setProvider(systemProvider);
     }
 
     protected AbstractTestIRIx(String name, IRIProvider provider) {
         this.provider = provider;
+    }
+
+    /** Create an IRIx using the test' provider. */
+    protected IRIx test_create(String iriStr) {
+        return provider.create(iriStr);
     }
 }

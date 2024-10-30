@@ -18,10 +18,6 @@
 
 package org.apache.jena.sparql;
 
-import java.util.ArrayList ;
-import java.util.Iterator ;
-import java.util.List ;
-
 import org.apache.jena.atlas.lib.Sync ;
 import org.apache.jena.graph.Graph ;
 import org.apache.jena.graph.compose.Polyadic ;
@@ -33,8 +29,6 @@ import org.apache.jena.reasoner.InfGraph ;
 import org.apache.jena.sparql.core.DatasetGraph ;
 import org.apache.jena.sparql.core.GraphView ;
 import org.apache.jena.sparql.graph.GraphWrapper ;
-import org.apache.jena.sparql.mgt.ARQMgt ;
-import org.apache.jena.sparql.mgt.SystemInfo ;
 import org.apache.jena.sparql.util.Symbol ;
 
 public class SystemARQ
@@ -43,31 +37,31 @@ public class SystemARQ
     // ** This can be loaded before the rest of ARQ is initialized **
 
     // NodeValues work without the context so some things only have global settings.
-    
+
     /** Control whether addition datatypes, over and above strict, minimal SPARQL compliance, are handled.
      *  Examples include xsd:date and simple literal/xsd:string.
      */
     public static boolean ValueExtensions       = true ;
 
     /**
-     * Under strict {@literal F&O}, dateTimes and dates with no timezone have one magically applied. 
+     * Under strict {@literal F&O}, dateTimes and dates that have no timezone have one magically applied.
      * This default timezone is implementation dependent and can lead to different answers
-     * to queries depending on the timezone. Normally, ARQ uses XMLSchema dateTime comparions,
-     * which an yield "indeterminate", which in turn is an evaluation error. 
-     * {@literal F&O} insists on true/false and so can lead to false positves and negatives. 
+     * to queries depending on the timezone. Normally, ARQ uses XMLSchema dateTime comparisons,
+     * which an yield "indeterminate", which in turn is an evaluation error.
+     * {@literal F&O} insists on true/false and so can lead to false positives and negatives.
      */
     public static boolean StrictDateTimeFO      = false ;
-    
-    /** Whether support for roman numerals (datatype http://rome.example.org/Numeral).
+
+    /** Whether support for Roman numerals (datatype http://rome.example.org/Numeral).
      *  Mainly a test of datatype extension.
      */
-    public static boolean EnableRomanNumerals   = true ;  
-    
+    public static boolean EnableRomanNumerals   = true ;
+
     /**
      * Use a plain graph (sameValueAs is term equality)
      */
     public static boolean UsePlainGraph         = false ;
-    
+
     /**
      * Sync a Model if it provides the underlying graph provides sync . Do nothing
      * otherwise.
@@ -90,7 +84,7 @@ public class SystemARQ
             syncGraph(((Polyadic)graph).getBaseGraph()) ;
         else if ( graph instanceof GraphWrapper )
             syncGraph(((GraphWrapper)graph).get()) ;
-        else if ( graph instanceof WrappedGraph )   
+        else if ( graph instanceof WrappedGraph )
             syncGraph(((WrappedGraph)graph).getWrapped()) ;
         else
             syncObject(graph) ;
@@ -113,7 +107,7 @@ public class SystemARQ
             dataset.listGraphNodes().forEachRemaining( gn->syncIfNotView(dataset.getGraph(gn) )) ;
         }
     }
-    
+
     private static void syncIfNotView(Graph g) {
         // GraphView sync calls the DatasetGraph lead to possible recursion.
         if ( !( g instanceof GraphView) )
@@ -125,17 +119,6 @@ public class SystemARQ
         if ( object instanceof Sync )
             ((Sync)object).sync() ;
     }
-    
-    private static List<SystemInfo> versions = new ArrayList<>() ;
-    public static void registerSubSystem(SystemInfo systemInfo)
-    {
-        ARQMgt.register(systemInfo.getJmxPath() + ".system:type=SystemInfo", systemInfo) ;
-        versions.add(systemInfo) ;
-    }
-
-    public static Iterator<SystemInfo> registeredSubsystems() {
-        return versions.iterator() ;
-    }
 
     public static Symbol allocSymbol(String shortName) {
         // This must work even if initialization is happening.
@@ -146,6 +129,7 @@ public class SystemARQ
             throw new ARQInternalErrorException("Symbol short name begins with http: " + shortName) ;
         return SystemARQ.allocSymbol(ARQ.arqParamNS, shortName) ;
     }
+
     public static Symbol allocSymbol(String base, String shortName) {
         return Symbol.create(base + shortName) ;
     }

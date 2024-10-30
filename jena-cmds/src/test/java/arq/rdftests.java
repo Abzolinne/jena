@@ -24,12 +24,14 @@ import java.util.List;
 import java.util.function.Function;
 
 import arq.cmdline.ModContext;
+import org.apache.jena.Jena;
 import org.apache.jena.arq.junit.SurpressedTest;
 import org.apache.jena.arq.junit.TextTestRunner;
 import org.apache.jena.arq.junit.manifest.ManifestEntry;
 import org.apache.jena.arq.junit.riot.RiotTests;
 import org.apache.jena.arq.junit.riot.VocabLangRDF;
 import org.apache.jena.arq.junit.sparql.SparqlTests;
+import org.apache.jena.arq.junit.sparql.tests.QueryEvalTest;
 import org.apache.jena.atlas.legacy.BaseTest2;
 import org.apache.jena.atlas.lib.Lib;
 import org.apache.jena.atlas.logging.LogCtl;
@@ -55,10 +57,10 @@ import org.apache.jena.sparql.util.NodeFactoryExtra;
 import org.apache.jena.sparql.vocabulary.DOAP;
 import org.apache.jena.sparql.vocabulary.EARL;
 import org.apache.jena.sparql.vocabulary.FOAF;
-import org.apache.jena.sparql.vocabulary.TestManifest;
 import org.apache.jena.sys.JenaSystem;
 import org.apache.jena.vocabulary.DC;
 import org.apache.jena.vocabulary.RDF;
+import org.apache.jena.vocabulary.TestManifest;
 import org.apache.jena.vocabulary.XSD;
 
 /** A program to execute test suites by manifest.
@@ -86,22 +88,32 @@ public class rdftests extends CmdGeneral
         }
     }
 
-    protected ModContext modContext     = new ModContext();
-    protected ArgDecl  strictDecl       = new ArgDecl(ArgDecl.NoValue, "strict");
-    protected boolean  cmdStrictMode    = false;
+    protected ModContext modContext        = new ModContext();
+    protected ArgDecl    strictDecl        = new ArgDecl(ArgDecl.NoValue, "strict");
+    protected boolean    cmdStrictMode     = false;
 
-    protected ArgDecl earlDecl          = new ArgDecl(ArgDecl.NoValue, "earl");
+    protected ArgDecl    arqDecl           = new ArgDecl(ArgDecl.NoValue, "arq");
+    // Run with ".rq" as ARQ extended syntax.
+    protected boolean    arqAsNormal       = false;
 
-    protected boolean createEarlReport  = false;
+    protected ArgDecl    earlDecl          = new ArgDecl(ArgDecl.NoValue, "earl");
+    protected boolean    createEarlReport  = false;
+
+    protected ArgDecl    baseDecl          = new ArgDecl(ArgDecl.HasValue, "base");
+    protected String     baseURI           = null;
 
     private static final PrintStream earlOut = System.out;
 
+    private static boolean strictMode = false;
+
     protected rdftests(String[] argv) {
         super(argv);
-        super.add(strictDecl, "--strict", "Operate in strict mode (no extensions of any kind)");
-        super.modVersion.addClass(ARQ.class);
+//        super.add(baseDecl, "--base=URI", "Set the base URI");
+        super.modVersion.addClass(Jena.class);
         getUsage().startCategory("Tests (execute test manifest)");
         getUsage().addUsage("<manifest>", "run the tests specified in the given manifest");
+        add(arqDecl, "--arq",       "Operate with ARQ syntax");
+        add(strictDecl, "--strict", "Operate in strict mode (no extensions of any kind)");
         add(earlDecl, "--earl", "create EARL report");
         addModule(modContext);
     }
@@ -117,24 +129,31 @@ public class rdftests extends CmdGeneral
         if ( !hasPositional() )
             throw new CmdException("No manifest file");
         createEarlReport = contains(earlDecl);
+        cmdStrictMode = super.hasArg(strictDecl);
+        if ( contains(baseDecl) )
+            baseURI = super.getValue(baseDecl);
+        arqAsNormal = contains(arqDecl);
     }
 
     @Override
     protected void exec() {
-        BaseTest2.setTestLogging();
-
-        if ( contains(strictDecl) ) {
-            // Always done in test setups.
-            cmdStrictMode = true;
-            // Which will apply to reading the manifests!
-            ARQ.setStrictMode();
-            SysRIOT.setStrictMode(true);
-            SparqlTests.defaultSyntaxForTests = Syntax.syntaxSPARQL_11;
-        }
-
         NodeValue.VerboseWarnings = false;
         E_Function.WarnOnUnknownFunction = false;
         EarlReport report = new EarlReport(systemURI);
+
+        BaseTest2.setTestLogging();
+
+        if ( cmdStrictMode ) {
+            // Which will apply to reading the manifests!
+            ARQ.setStrictMode();
+            SysRIOT.setStrictMode(true);
+            QueryEvalTest.compareResultSetsByValue = false;
+        }
+
+        if ( arqAsNormal )
+            SparqlTests.defaultForSyntaxTests = Syntax.syntaxARQ;
+        else
+            SparqlTests.defaultForSyntaxTests = Syntax.syntaxSPARQL_12;
 
         for ( String fn : getPositional() ) {
             System.out.println("Run: "+fn);
@@ -199,7 +218,7 @@ public class rdftests extends CmdGeneral
 
     private static String name =  "Apache Jena";
     private static String releaseVersion =  ARQ.VERSION;
-    private static String homepageStr = "http://jena.apache.org/";
+    private static String homepageStr = "https://jena.apache.org/";
     private static String systemURI = "http://jena.apache.org/#jena";  // Null for bNode.
 
     // Generate metadata into a separate model. Does not update the report.

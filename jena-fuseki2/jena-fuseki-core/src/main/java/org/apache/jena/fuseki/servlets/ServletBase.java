@@ -20,9 +20,9 @@ package org.apache.jena.fuseki.servlets;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import org.apache.jena.fuseki.Fuseki;
 import org.apache.jena.riot.web.HttpNames;
@@ -76,7 +76,11 @@ public abstract class ServletBase extends HttpServlet {
     static final String varyHeaderSetting = String.join(",",
          HttpNames.hAccept,
          HttpNames.hAcceptEncoding,
-         HttpNames.hAcceptCharset);
+         HttpNames.hAcceptCharset,
+         HttpNames.hOrigin,
+         HttpNames.hAccessControlRequestMethod,
+         HttpNames.hAccessControlRequestHeaders
+            );
 
     public static void setVaryHeader(HttpServletResponse httpResponse) {
         httpResponse.setHeader(HttpNames.hVary, varyHeaderSetting);

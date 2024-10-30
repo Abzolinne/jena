@@ -18,44 +18,38 @@
 
 package org.apache.jena.shex.expressions;
 
-import org.apache.jena.atlas.io.IndentedLineBuffer;
 import org.apache.jena.atlas.io.IndentedWriter;
 import org.apache.jena.graph.Node;
 import org.apache.jena.riot.out.NodeFormatter;
-import org.apache.jena.riot.out.NodeFormatterTTL;
-import org.apache.jena.riot.system.PrefixMap;
-import org.apache.jena.riot.system.PrefixMapFactory;
 import org.apache.jena.shex.sys.ValidationContext;
-import org.apache.jena.vocabulary.OWL;
-import org.apache.jena.vocabulary.RDF;
-import org.apache.jena.vocabulary.RDFS;
-import org.apache.jena.vocabulary.XSD;
 
-public abstract class ShapeExpression {
+import java.util.List;
 
-    public ShapeExpression() { }
+public abstract class ShapeExpression implements ShapeElement {
 
-    /** The "satisfies" function. Return true for OK, false for not OK. */
+    private List<SemAct> semActs;
+
+    public ShapeExpression(List<SemAct> semActs) {
+        this.semActs = semActs;
+    }
+
+    protected ShapeExpression() { this(null); }
+
+    public List<SemAct> getSemActs() {
+        return semActs;
+    }
+
+    @Override
     public abstract boolean satisfies(ValidationContext vCxt, Node data);
 
-    private static PrefixMap displayPrefixMap = PrefixMapFactory.createForOutput();
-    static {
-        displayPrefixMap.add("owl",  OWL.getURI());
-        displayPrefixMap.add("rdf",  RDF.getURI());
-        displayPrefixMap.add("rdfs", RDFS.getURI());
-        displayPrefixMap.add("xsd",  XSD.getURI());
+    public boolean testShapeExprSemanticActions(ValidationContext v, Node focus) {
+        if (this.semActs == null)
+            return true;
+        return v.dispatchShapeExprSemanticAction(this, focus);
     }
 
-    public static NodeFormatter nodeFmtAbbrev = new NodeFormatterTTL(null, displayPrefixMap);
-
+    @Override
     public abstract void print(IndentedWriter out, NodeFormatter nFmt);
-
-    public String asString() {
-        IndentedLineBuffer x = new IndentedLineBuffer();
-        x.setFlatMode(true);
-        print(x, nodeFmtAbbrev);
-        return x.asString();
-    }
 
     public abstract void visit(ShapeExprVisitor visitor);
 

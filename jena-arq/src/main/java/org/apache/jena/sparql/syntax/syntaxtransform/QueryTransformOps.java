@@ -28,18 +28,15 @@ import org.apache.jena.graph.Triple;
 import org.apache.jena.query.Query;
 import org.apache.jena.query.QueryVisitor;
 import org.apache.jena.query.SortCondition;
-import org.apache.jena.rdf.model.Literal ;
-import org.apache.jena.rdf.model.RDFNode ;
-import org.apache.jena.rdf.model.Resource ;
+import org.apache.jena.rdf.model.Literal;
+import org.apache.jena.rdf.model.RDFNode;
+import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.shared.JenaException;
 import org.apache.jena.shared.PrefixMapping;
 import org.apache.jena.shared.impl.PrefixMappingImpl;
 import org.apache.jena.sparql.ARQException;
 import org.apache.jena.sparql.core.*;
-import org.apache.jena.sparql.expr.Expr;
-import org.apache.jena.sparql.expr.ExprTransform;
-import org.apache.jena.sparql.expr.ExprTransformer;
-import org.apache.jena.sparql.expr.ExprVar;
+import org.apache.jena.sparql.expr.*;
 import org.apache.jena.sparql.graph.NodeTransform;
 import org.apache.jena.sparql.modify.request.QuadAcc;
 import org.apache.jena.sparql.syntax.*;
@@ -82,6 +79,7 @@ public class QueryTransformOps {
             // Reset internal to only what now can be seen.
             q2.resetResultVars();
         }
+        setAggregators(q2, query, exprTransform);
         return q2;
     }
 
@@ -108,6 +106,12 @@ public class QueryTransformOps {
             }
             ElementData elData2 = (ElementData)rawElData2;
             q2.setValuesDataBlock(elData2.getVars(), elData2.getRows());
+        }
+    }
+
+    private static void setAggregators(Query newQuery, Query query, ExprTransform exprTransform) {
+        for (ExprAggregator aggregator : query.getAggregators()) {
+            newQuery.getAggregators().add((ExprAggregator) exprTransform.transform(aggregator));
         }
     }
 
@@ -274,7 +278,7 @@ public class QueryTransformOps {
         if (e2 == null || e2 == ev )
             return node;
         if ( ! e2.isConstant() )
-            return node ;
+            return node;
         return e2.getConstant().getNode();
     }
 
@@ -300,14 +304,11 @@ public class QueryTransformOps {
                 for (String x : desc.getNamedGraphURIs())
                     newQuery.addNamedGraphURI(x);
             }
-
-            // Aggregators.
-            newQuery.getAggregators().addAll(query.getAggregators());
         }
 
         @Override
         public void visitPrologue(Prologue prologue) {
-            // newQuery.setBaseURI(prologue.getResolver()) ;
+            // newQuery.setBaseURI(prologue.getResolver());
             PrefixMapping pmap = new PrefixMappingImpl().setNsPrefixes(prologue.getPrefixMapping());
             newQuery.setPrefixMapping(pmap);
         }
@@ -320,6 +321,7 @@ public class QueryTransformOps {
         public void visitSelectResultForm(Query query) {
             newQuery.setQuerySelectType();
             newQuery.setDistinct(query.isDistinct());
+            newQuery.setReduced(query.isReduced());
             copyProjection(query);
         }
 

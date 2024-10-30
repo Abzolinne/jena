@@ -37,11 +37,15 @@ import org.apache.jena.sparql.core.Quad ;
 import org.apache.jena.sparql.core.Var ;
 import org.apache.jena.sparql.core.VarExprList ;
 import org.apache.jena.sparql.engine.QueryIterator ;
+import org.apache.jena.sparql.engine.Rename;
 import org.apache.jena.sparql.expr.* ;
 import org.apache.jena.sparql.expr.aggregate.Aggregator ;
 import org.apache.jena.sparql.pfunction.PropFuncArg ;
 import org.apache.jena.sparql.syntax.* ;
-import org.apache.jena.sparql.syntax.syntaxtransform.*;
+import org.apache.jena.sparql.syntax.syntaxtransform.ElementTransform;
+import org.apache.jena.sparql.syntax.syntaxtransform.ElementTransformCleanGroupsOfOne;
+import org.apache.jena.sparql.syntax.syntaxtransform.ElementTransformer;
+import org.apache.jena.sparql.syntax.syntaxtransform.ExprTransformApplyElementTransform;
 import org.apache.jena.sparql.util.graph.GraphList ;
 import org.apache.jena.vocabulary.RDF ;
 
@@ -253,12 +257,13 @@ public class OpAsQuery {
             } ;
 
             // The assignments will become part of the project.
-            Map<Var, Expr> assignments = new HashMap<>() ;
+            // Using VarExprList to preserve order; https://github.com/apache/jena/issues/1369
+            VarExprList assignments = new VarExprList();
             if ( level.opExtends != null ) {
                 processExtends(level.opExtends, (var,expr)->{
                     // Internal rename.
                     expr = rewrite(expr, varToExpr) ;
-                    assignments.put(var, expr) ;
+                    assignments.add(var, expr) ;
                 }) ;
 
             }
@@ -286,17 +291,70 @@ public class OpAsQuery {
                 // No project, Make BINDs
                 //processQueryPattern(op, assignments) ;
 
-
             } else {
-                level.opProject.getVars().forEach(v -> {
-                    if ( assignments.containsKey(v) ) {
-                        query.addResultVar(v, assignments.get(v)) ;
-                    } else
-                        query.getProjectVars().add(v) ;
+                // Where assignments and projections align the assignments will become part of the projection
+                // otherwise the assignments will become BINDs; https://github.com/apache/jena/issues/1369
+                List<Var> projectVars = level.opProject.getVars();
 
-                }) ;
+                List<Var> assignVars = assignments.getVars();
+                int assignVarsSize = assignVars.size();
+                int projectOffset = assignVarsSize; // Start at end and search backwards
+                int idxThreshold = Integer.MAX_VALUE; // Prevent adding later mentioned expressions earlier to the projection list
+
+                // Find an offset in the assignments from which on
+                // *all remaining* variables appears in the same order as in the projection
+                while (projectOffset-- > 0) {
+                    Var assignVar = assignVars.get(projectOffset);
+
+                    // Ensure that the projection does not shuffle the given order of expressions
+                    // A later assignment must also appear later in the built projection
+                    int idx = projectVars.indexOf(assignVar);
+                    if (idx < 0 || idx > idxThreshold) {
+                        break;
+                    }
+                    idxThreshold = idx;
+                }
+
+                // Assignments with index <= projectOffset become BINDs
+                // Note that a projectOffset of -1 means there won't be any BINDs
+                if (projectOffset >= 0) {
+                    Element activeElement = query.getQueryPattern();
+
+                    ElementGroup activeGroup;
+                    if (activeElement instanceof ElementGroup) {
+                        activeGroup = (ElementGroup)activeElement;
+                    } else {
+                        // Not sure whether it's possible here for BINDs to exist with the
+                        // activeElement NOT being a group pattern - but better safe than sorry
+                        activeGroup = new ElementGroup();
+                        activeGroup.addElement(activeElement);
+                        query.setQueryPattern(activeGroup);
+                    }
+
+                    for (int i = 0; i <= projectOffset; ++i) {
+                        Var v = assignVars.get(i);
+                        Expr e = assignments.getExpr(v);
+                        activeGroup.addElement(new ElementBind(v, e));
+                    }
+                }
+
+                // For each projected variable determine whether a possible expression was already
+                // added as a BIND or whether it needs to be projected
+                for (Var v : projectVars) {
+                    Expr e = assignments.getExpr(v);
+
+                    int offset = assignVars.indexOf(v);
+                    if (offset > projectOffset) {
+                        // Note that 'query.addResultVar' handles the case where e is null
+                        query.addResultVar(v, e) ;
+                    }
+                    else {
+                        // Either the variable did not map to an expression or
+                        // the expression was added as BIND - in any case just project the variable
+                        query.addResultVar(v, null) ;
+                    }
+                }
             }
-
 
             if ( level.opDistinct != null )
                 query.setDistinct(true) ;
@@ -314,7 +372,7 @@ public class OpAsQuery {
         /**
          * Collect the OpExtend in a stack of OpExtend into a list for later
          * processing. (Processing only uses opExtend in the list, not inner one
-         * which wil also be in the list.)
+         * which will also be in the list.)
          */
         private static Op processExtend(Op op, List<OpExtend> assignments) {
             while ( op instanceof OpExtend ) {
@@ -426,7 +484,7 @@ public class OpAsQuery {
         public void visit(OpPropFunc opPropFunc) {
             Node s = processPropFuncArg(opPropFunc.getSubjectArgs()) ;
             Node o = processPropFuncArg(opPropFunc.getObjectArgs()) ;
-            Triple t = new Triple(s, opPropFunc.getProperty(), o) ;
+            Triple t = Triple.create(s, opPropFunc.getProperty(), o) ;
             currentGroup().addElement(process(t)) ;
         }
 
@@ -445,7 +503,7 @@ public class OpAsQuery {
         }
 
         // There is one special case to consider:
-        // A path expression was expanded into a OpSequence during Algenra
+        // A path expression was expanded into a OpSequence during Algebra
         // generation. The simple path expressions become an OpSequence that could be
         // recombined into an ElementPathBlock.
 
@@ -470,7 +528,12 @@ public class OpAsQuery {
 
         @Override
         public void visit(OpDisjunction opDisjunction) {
-            throw new ARQNotImplemented("OpDisjunction") ;
+            ElementUnion elUnion = new ElementUnion();
+            for ( Op op : opDisjunction.getElements() ) {
+                Element el = asElement(op) ;
+                elUnion.addElement(el);
+            }
+            currentGroup().addElement(elUnion) ;
         }
 
         private Element process(BasicPattern pattern) {
@@ -485,7 +548,7 @@ public class OpAsQuery {
                 return e ;
             }
 
-            if ( query.getSyntax() == Syntax.syntaxSPARQL_11 || query.getSyntax() == Syntax.syntaxARQ ) {
+            if ( query.getSyntax() == Syntax.syntaxSPARQL_12 || query.getSyntax() == Syntax.syntaxSPARQL_11 || query.getSyntax() == Syntax.syntaxARQ ) {
                 ElementPathBlock e = new ElementPathBlock() ;
                 for ( Triple t : pattern )
                     // Leave bNode variables as they are
@@ -562,8 +625,12 @@ public class OpAsQuery {
 
         @Override
         public void visit(OpLeftJoin opLeftJoin) {
-            Element eLeft = asElement(opLeftJoin.getLeft()) ;
-            ElementGroup eRight = asElementGroup(opLeftJoin.getRight()) ;
+            convertLeftJoin(opLeftJoin.getLeft(), opLeftJoin.getRight(), opLeftJoin.getExprs());
+        }
+
+        private void convertLeftJoin(Op opLeft, Op opRight, ExprList exprs) {
+            Element eLeft = asElement(opLeft) ;
+            ElementGroup eRight = asElementGroup(opRight) ;
 
             // If the RHS is (filter) we need to protect it from becoming
             // part of the expr for the LeftJoin.
@@ -578,8 +645,8 @@ public class OpAsQuery {
                 eRight = eRight2 ;
             }
 
-            if ( opLeftJoin.getExprs() != null ) {
-                for ( Expr expr : opLeftJoin.getExprs() ) {
+            if ( exprs != null ) {
+                for ( Expr expr : exprs ) {
                     ElementFilter f = new ElementFilter(expr) ;
                     eRight.addElement(f) ;
                 }
@@ -648,8 +715,25 @@ public class OpAsQuery {
         }
 
         @Override
+        public void visit(OpLateral opLateral) {
+            Element eLeft = asElement(opLateral.getLeft()) ;
+            ElementGroup eRight = asElementGroup(opLateral.getRight()) ;
+            ElementGroup g = currentGroup() ;
+            if ( !emptyGroup(eLeft) ) {
+                if ( eLeft instanceof ElementGroup )
+                    g.getElements().addAll(((ElementGroup)eLeft).getElements()) ;
+                else
+                    g.addElement(eLeft) ;
+            }
+            ElementLateral eltLateral = new ElementLateral(eRight) ;
+            g.addElement(eltLateral) ;
+        }
+
+        @Override
         public void visit(OpConditional opCondition) {
-            throw new ARQNotImplemented("OpCondition") ;
+            // Possibly completely reversing a query exactly because
+            // there might be filters outside the OpConditional.
+            convertLeftJoin(opCondition.getLeft(), opCondition.getRight(), null);
         }
 
         @Override
@@ -757,6 +841,15 @@ public class OpAsQuery {
         }
 
         @Override
+        public void visit(OpUnfold opUnfold) {
+            Element e = asElement(opUnfold.getSubOp()) ;
+            // If (unfold ... (table unit)), and first in group, don't add the empty group.
+            insertIntoGroup(currentGroup(), e) ;
+            Element elmtUnfold = new ElementUnfold( opUnfold.getExpr(), opUnfold.getVar1(), opUnfold.getVar2() ) ;
+            currentGroup().addElement(elmtUnfold) ;
+        }
+
+        @Override
         public void visit(OpList opList) {
             opList.getSubOp().visit(this) ;
         }
@@ -770,7 +863,10 @@ public class OpAsQuery {
         }
 
         private void convertAsSubQuery(Op op) {
-            Converter subConverter = new Converter(op) ;
+            // Reverse scoped renaming.
+            // ?/x is illegal so the original query string must have had ?x at this point for any number of "/"
+            Op op1 = Rename.reverseVarRename(op, true);
+            Converter subConverter = new Converter(op1) ;
             ElementSubQuery subQuery = new ElementSubQuery(subConverter.convert()) ;
             ElementGroup g = currentGroup() ;
             g.addElement(subQuery) ;

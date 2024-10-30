@@ -42,6 +42,7 @@ public interface OpVisitor
     public void visit(OpLabel opLabel) ;
     public void visit(OpAssign opAssign) ;
     public void visit(OpExtend opExtend) ;
+    public void visit(OpUnfold opUnfold) ;
 
     // Op2
     public void visit(OpJoin opJoin) ;
@@ -49,6 +50,7 @@ public interface OpVisitor
     public void visit(OpUnion opUnion) ;
     public void visit(OpDiff opDiff) ;
     public void visit(OpMinus opMinus) ;
+    public void visit(OpLateral opLateral) ;
     public void visit(OpConditional opCondition) ;
     public void visit(OpSimJoin opSimJoin) ;
 

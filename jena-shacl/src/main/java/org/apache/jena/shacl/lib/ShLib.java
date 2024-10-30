@@ -18,20 +18,23 @@
 
 package org.apache.jena.shacl.lib;
 
-import java.io.OutputStream;
-import java.io.PrintStream;
-import java.util.*;
-
 import org.apache.jena.atlas.io.IndentedLineBuffer;
 import org.apache.jena.atlas.io.IndentedWriter;
 import org.apache.jena.atlas.lib.StrUtils;
+import org.apache.jena.datatypes.RDFDatatype;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
-import org.apache.jena.query.*;
+import org.apache.jena.graph.NodeFactory;
+import org.apache.jena.query.Query;
+import org.apache.jena.query.QueryExecution;
+import org.apache.jena.query.QueryExecutionFactory;
+import org.apache.jena.query.QueryFactory;
+import org.apache.jena.query.QueryParseException;
+import org.apache.jena.query.ResultSet;
+import org.apache.jena.query.Syntax;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.impl.Util;
-import org.apache.jena.riot.other.G;
 import org.apache.jena.riot.out.NodeFormatter;
 import org.apache.jena.riot.out.NodeFormatterTTL;
 import org.apache.jena.riot.system.PrefixMap;
@@ -47,10 +50,21 @@ import org.apache.jena.sparql.core.DatasetGraphFactory;
 import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.engine.binding.Binding;
 import org.apache.jena.sparql.path.Path;
+import org.apache.jena.system.G;
+import org.apache.jena.system.RDFDataException;
 import org.apache.jena.vocabulary.OWL;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
 import org.apache.jena.vocabulary.XSD;
+
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.StringJoiner;
 
 /** Misc operations used in the jena-shacl module. */
 public class ShLib {
@@ -121,7 +135,9 @@ public class ShLib {
     }
 
     public static void printReport(OutputStream output , ValidationReport report) {
-        PrintStream out = output instanceof PrintStream ? (PrintStream)output : new PrintStream(output);
+        PrintStream out = (output instanceof PrintStream pStream)
+                ? pStream
+                : new PrintStream(output);
         if ( report.conforms() ) {
             out.println("Conforms");
             out.flush();
@@ -145,18 +161,19 @@ public class ShLib {
 
         String qs = StrUtils.strjoinNL
             (PREFIXES
-                ,"SELECT * {"
-                //, "    [ a sh:ValidationReport ; sh:result ?R ]
-                , "    [] sh:result ?R ."
-                , "    ?R"
-                , "       sh:focusNode ?focusNode ;"
-                , "       sh:resultMessage ?message ;"
-                , "       sh:resultSeverity  ?severity ; "
-                , "       ."
-                , "    OPTIONAL { ?R sh:sourceConstraintComponent ?component }"
-                , "    OPTIONAL { ?R sh:sourceShape ?sourceShape }"
-                , "    OPTIONAL { ?R sh:resultPath    ?path}"
-                ,"}");
+            ,"""
+               SELECT * {
+                        #[ a sh:ValidationReport ; sh:result ?R ]
+                   [] sh:result ?R .
+                   ?R sh:focusNode ?focusNode ;
+                      sh:resultMessage ?message ;
+                      sh:resultSeverity  ?severity ;
+                      .
+                   OPTIONAL { ?R sh:sourceConstraintComponent ?component }
+                   OPTIONAL { ?R sh:sourceShape ?sourceShape }
+                   OPTIONAL { ?R sh:resultPath  ?path}
+               }
+               """);
         try ( QueryExecution qExec = QueryExecutionFactory.create(qs, report.getModel()) ) {
             ResultSet rs = qExec.execSelect();
             if ( ! rs.hasNext() ) {
@@ -198,6 +215,11 @@ public class ShLib {
     }
 
     public static String displayStr(Node n) {
+        return displayStr(n, nodeFmtAbbrev);
+    }
+
+    public static String displayStr(RDFDatatype dt) {
+        Node n = NodeFactory.createURI(dt.getURI());
         return displayStr(n, nodeFmtAbbrev);
     }
 
@@ -271,9 +293,14 @@ public class ShLib {
     public static String extractSPARQLQueryString(Graph shapesGraph, Node sparqlNode) {
         // XXX Optimize prefixes acquisition in case of use from more than one place.
         String prefixes = prefixes(shapesGraph, sparqlNode);
-        Node selectNode = G.getOneSP(shapesGraph, sparqlNode, SHACL.select);
+        Node selectNode;
+        try {
+            selectNode = G.getOneSP(shapesGraph, sparqlNode, SHACL.select);
+        } catch (RDFDataException ex) {
+            throw new ShaclParseException("required - one sh:select at : "+sparqlNode);
+        }
         if ( ! Util.isSimpleString(selectNode) )
-            throw new ShaclParseException("Not a string for sh:select: "+ShLib.displayStr(selectNode));
+            throw new ShaclParseException("Not a string for sh:select at : "+ShLib.displayStr(selectNode));
         String selectQuery = selectNode.getLiteralLexicalForm();
         String qs = prefixes+"\n"+selectQuery;
         return qs;

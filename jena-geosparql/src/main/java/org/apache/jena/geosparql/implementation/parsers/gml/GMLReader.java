@@ -21,9 +21,11 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.invoke.MethodHandles;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+
 import org.apache.jena.datatypes.DatatypeFormatException;
 import org.apache.jena.geosparql.implementation.DimensionInfo;
 import org.apache.jena.geosparql.implementation.SRSInfo;
@@ -62,7 +64,7 @@ public class GMLReader implements ParserReader {
     private final CoordinateSequenceDimensions dims;
     private final DimensionInfo dimensionInfo;
 
-    private static final Namespace GML_NAMESPACE = Namespace.getNamespace("gml", "http://www.opengis.net/ont/gml");
+    private static final Namespace GML_NAMESPACE = Namespace.getNamespace("gml", "http://www.opengis.net/gml/3.2");
 
     /**
      * Aiming to achieve SF-0 of GML Simple Features Profile 2.0 [10-100R3].<br>
@@ -690,7 +692,7 @@ public class GMLReader implements ParserReader {
         return memberElements;
     }
 
-    private static final String EMPTY_GML_TEXT = "<gml:Point xmlns:gml='http://www.opengis.net/ont/gml' srsName=\"http://www.opengis.net/def/crs/OGC/1.3/CRS84\" />";
+    private static final String EMPTY_GML_TEXT = "<gml:Point xmlns:gml='http://www.opengis.net/gml/3.2' srsName=\"http://www.opengis.net/def/crs/OGC/1.3/CRS84\" />";
 
     public static GMLReader extract(String gmlText) throws JDOMException, IOException {
 
@@ -698,13 +700,21 @@ public class GMLReader implements ParserReader {
             gmlText = EMPTY_GML_TEXT;
         }
 
-        SAXBuilder jdomBuilder = new SAXBuilder();
-        InputStream stream = new ByteArrayInputStream(gmlText.getBytes("UTF-8"));
+        SAXBuilder jdomBuilder = newSAXBuilder();
+        InputStream stream = new ByteArrayInputStream(gmlText.getBytes(StandardCharsets.UTF_8));
         Document xmlDoc = jdomBuilder.build(stream);
-
         Element gmlElement = xmlDoc.getRootElement();
-
         return new GMLReader(gmlElement);
+    }
+
+    // ---- XXE safe SAXBuilder
+    private static SAXBuilder newSAXBuilder() {
+        SAXBuilder builder = new SAXBuilder();
+        builder.setFeature("http://apache.org/xml/features/disallow-doctype-decl",true);
+        builder.setFeature("http://xml.org/sax/features/external-general-entities", false);
+        builder.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+        builder.setExpandEntities(false);
+        return builder;
     }
 
     @Override

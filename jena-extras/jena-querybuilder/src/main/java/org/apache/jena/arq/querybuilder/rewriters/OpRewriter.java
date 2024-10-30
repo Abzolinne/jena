@@ -64,11 +64,7 @@ import org.apache.jena.sparql.algebra.op.OpTopN;
 import org.apache.jena.sparql.algebra.op.OpTriple;
 import org.apache.jena.sparql.algebra.op.OpUnion;
 import org.apache.jena.sparql.algebra.table.TableN;
-import org.apache.jena.sparql.core.BasicPattern;
-import org.apache.jena.sparql.core.Quad;
-import org.apache.jena.sparql.core.QuadPattern;
-import org.apache.jena.sparql.core.Var;
-import org.apache.jena.sparql.core.VarExprList;
+import org.apache.jena.sparql.core.*;
 import org.apache.jena.sparql.engine.binding.Binding;
 import org.apache.jena.sparql.expr.ExprAggregator;
 import org.apache.jena.sparql.expr.ExprList;
@@ -82,7 +78,7 @@ class OpRewriter extends AbstractRewriter<Op> implements OpVisitor {
 
     /**
      * Constructor.
-     * 
+     *
      * @param values The values to replace.
      */
     OpRewriter(Map<Var, Node> values) {
@@ -243,6 +239,12 @@ class OpRewriter extends AbstractRewriter<Op> implements OpVisitor {
     }
 
     @Override
+    public void visit(OpUnfold opUnfold) {
+        opUnfold.getSubOp().visit(this);
+        push( new OpUnfold(pop(), opUnfold.getExpr(), opUnfold.getVar1(), opUnfold.getVar2()) );
+    }
+
+    @Override
     public void visit(OpJoin opJoin) {
         opJoin.getRight().visit(this);
         opJoin.getLeft().visit(this);
@@ -283,6 +285,13 @@ class OpRewriter extends AbstractRewriter<Op> implements OpVisitor {
         opMinus.getRight().visit(this);
         opMinus.getLeft().visit(this);
         push(OpMinus.create(pop(), pop()));
+    }
+
+    @Override
+    public void visit(OpLateral opLateral) {
+        opLateral.getRight().visit(this);
+        opLateral.getLeft().visit(this);
+        push(OpLateral.create(pop(), pop()));
     }
 
     @Override

@@ -38,12 +38,14 @@ public interface ElementTransform
     public Element transform(ElementFilter el, Expr expr2);
     public Element transform(ElementAssign el, Var v, Expr expr2);
     public Element transform(ElementBind el, Var v, Expr expr2);
+    public Element transform(ElementUnfold el, Expr expr, Var v1, Var v2);
     public Triple  transform(Triple triple);
     public Quad    transform(Quad quad);
     public Element transform(ElementData el);
     public Element transform(ElementDataset el, Element subElt);
     public Element transform(ElementUnion el, List<Element> elements);
     public Element transform(ElementOptional el, Element opElt);
+    public Element transform(ElementLateral el, Element opElt);
     public Element transform(ElementGroup el, List<Element> members);
     public Element transform(ElementNamedGraph el, Node gn, Element subElt);
     public Element transform(ElementExists el, Element subElt);

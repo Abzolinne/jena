@@ -22,6 +22,7 @@ import org.apache.jena.datatypes.RDFDatatype;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
+import org.apache.jena.irix.IRIx;
 import org.apache.jena.riot.tokens.Token;
 import org.apache.jena.sparql.core.Quad;
 
@@ -49,8 +50,11 @@ public interface ParserProfile {
     /** Create a quad */
     public Quad createQuad(Node graph, Node subject, Node predicate, Node object, long line, long col);
 
-    /** Create a URI Node */
+    /** Create a URI Node, where 'uriStr' could also be a blank node. */
     public Node createURI(String uriStr, long line, long col);
+
+    /** Create a URI Node */
+    public Node createURI(IRIx iriX, long line, long col);
 
     /** Create a literal for a string+datatype */
     public Node createTypedLiteral(String lexical, RDFDatatype datatype, long line, long col);
@@ -88,12 +92,15 @@ public interface ParserProfile {
     /** Is this in strict mode? */
     public boolean isStrictMode();
 
+    /* Return the current base URI. This may be null for "no current base". */
+    public String getBaseURI();
+
     /* Return the prefix map, if any, used for mapping tokens into Nodes. */
     public PrefixMap getPrefixMap();
 
-    /** Get the {@link ErrorHandler error handler} used by this {@code ParserProfile} */
+    /** Get the {@link ErrorHandler error handler} used by this {@code ParserProfile}. */
     public ErrorHandler getErrorHandler();
 
-    /** Get the {@link FactoryRDF factory for RDF terms, triples and quads} */
+    /** Get the {@link FactoryRDF factory} for RDF terms, triples and quads. */
     public FactoryRDF getFactorRDF();
 }

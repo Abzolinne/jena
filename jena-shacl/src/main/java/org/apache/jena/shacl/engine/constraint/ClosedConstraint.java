@@ -28,18 +28,20 @@ import org.apache.jena.atlas.io.IndentedWriter;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
-import org.apache.jena.riot.other.G;
 import org.apache.jena.riot.out.NodeFormatter;
 import org.apache.jena.shacl.engine.ValidationContext;
 import org.apache.jena.shacl.parser.Constraint;
 import org.apache.jena.shacl.parser.ConstraintVisitor;
 import org.apache.jena.shacl.parser.ShaclParseException;
 import org.apache.jena.shacl.parser.Shape;
+import org.apache.jena.shacl.validation.event.ConstraintEvaluatedOnSinglePathNodeEvent;
+import org.apache.jena.shacl.validation.event.ConstraintEvaluatedOnFocusNodeEvent;
 import org.apache.jena.shacl.vocabulary.SHACL;
 import org.apache.jena.sparql.path.Path;
 import org.apache.jena.sparql.path.PathFactory;
 import org.apache.jena.sparql.util.graph.GNode;
 import org.apache.jena.sparql.util.graph.GraphList;
+import org.apache.jena.system.G;
 
 /** sh:closed */
 public class ClosedConstraint implements Constraint {
@@ -54,7 +56,6 @@ public class ClosedConstraint implements Constraint {
         expected = shapeProperties(shapeGraph, shapeNode);
         this.active = active;
         List<Node> ignored = ignoredProperties(shapeGraph, shapeNode);
-        //ignoredProperties = (ignored == null) ? Collections.emptySet() : new HashSet<>(ignored);
         ignoredProperties = (ignored == null) ? Collections.emptyList() : ignored;
     }
 
@@ -109,14 +110,20 @@ public class ClosedConstraint implements Constraint {
         // is a bnode (usually).
 
         Set<Node> actual = properties(data,  focusNode);
+        boolean passed = true;
         for ( Node p : actual ) {
             if ( ! expected.contains(p) && ! ignoredProperties.contains(p) ) {
                 Path path = PathFactory.pathLink(p);
+                passed = false;
                 G.listSP(data, focusNode, p).forEach(o-> {
                     String msg = toString()+" Property = "+displayStr(p)+" : Object = "+displayStr(o);
+                    vCxt.notifyValidationListener(() -> new ConstraintEvaluatedOnSinglePathNodeEvent(vCxt, shape, focusNode, this, path, o,false));
                     vCxt.reportEntry(msg, shape, focusNode, path, o, this);
                 });
             }
+        }
+        if (passed) {
+            vCxt.notifyValidationListener(() ->  new ConstraintEvaluatedOnFocusNodeEvent(vCxt, shape, focusNode, this, true));
         }
     }
 

@@ -22,8 +22,9 @@ import java.util.List ;
 
 import org.apache.jena.sparql.algebra.op.* ;
 
-/** One step in the transformation process.
- *  Used with Transformer, performs a bottom-up rewrite.
+/**
+ * One step in the transformation process.
+ * Used with {@link Transformer}, performs a bottom-up rewrite.
  */
 public class TransformCopy implements Transform
 {
@@ -67,6 +68,8 @@ public class TransformCopy implements Transform
     public Op transform(OpAssign opAssign, Op subOp)                { return xform(opAssign, subOp) ; }
     @Override
     public Op transform(OpExtend opExtend, Op subOp)                { return xform(opExtend, subOp) ; }
+    @Override
+    public Op transform(OpUnfold opUnfold, Op subOp)                { return xform(opUnfold, subOp) ; }
 
     @Override
     public Op transform(OpJoin opJoin, Op left, Op right)           { return xform(opJoin, left, right) ; }
@@ -80,6 +83,8 @@ public class TransformCopy implements Transform
     public Op transform(OpMinus opMinus, Op left, Op right)         { return xform(opMinus, left, right) ; }
     @Override
     public Op transform(OpUnion opUnion, Op left, Op right)         { return xform(opUnion, left, right) ; }
+    @Override
+    public Op transform(OpLateral opLateral, Op left, Op right)     { return xform(opLateral, left, right) ; }
     @Override
     public Op transform(OpConditional opCond, Op left, Op right)    { return xform(opCond, left, right) ; }
 

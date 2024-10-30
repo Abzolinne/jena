@@ -18,86 +18,78 @@
 
 package org.apache.jena.sparql.algebra.op;
 
-import org.apache.jena.graph.Triple ;
-import org.apache.jena.sparql.algebra.Op ;
-import org.apache.jena.sparql.algebra.OpVisitor ;
-import org.apache.jena.sparql.algebra.Transform ;
-import org.apache.jena.sparql.core.BasicPattern ;
-import org.apache.jena.sparql.sse.Tags ;
-import org.apache.jena.sparql.util.Iso ;
-import org.apache.jena.sparql.util.NodeIsomorphismMap ;
+import org.apache.jena.graph.Triple;
+import org.apache.jena.sparql.algebra.Op;
+import org.apache.jena.sparql.algebra.OpVisitor;
+import org.apache.jena.sparql.algebra.Transform;
+import org.apache.jena.sparql.core.BasicPattern;
+import org.apache.jena.sparql.sse.Tags;
+import org.apache.jena.sparql.util.Iso;
+import org.apache.jena.sparql.util.NodeIsomorphismMap;
 
 /** Algebra operation for a single triple.  Not normally used - triples are
- * contained in basic graph patterns (which is the unit of extension in SPARQL, 
+ * contained in basic graph patterns (which is the unit of extension in SPARQL,
  * and also the unit for adapting to other data store in ARQ).  But for
  * experimentation, it can be useful to have a convenience direct triple access.
 
  * @see OpBGP
- */ 
+ */
 public class OpTriple extends Op0
 {
-    private final Triple triple ;
-    private OpBGP opBGP = null ;
-    
-    public OpTriple(Triple triple)
-    {
-        this.triple = triple ;
+    private final Triple triple;
+    private OpBGP opBGP = null;
+
+    public OpTriple(Triple triple) {
+        this.triple = triple;
     }
-    
-    public final Triple getTriple() { return triple ; }
-    
-    public final OpBGP asBGP()
-    { 
-        if ( opBGP == null )
-        {
-            BasicPattern bp = new BasicPattern() ;
-            bp.add(getTriple()) ;
-            opBGP = new OpBGP(bp) ;
+
+    public final Triple getTriple() { return triple; }
+
+    public final OpBGP asBGP() {
+        if ( opBGP == null ) {
+            BasicPattern bp = new BasicPattern();
+            bp.add(getTriple());
+            opBGP = new OpBGP(bp);
         }
-        return opBGP ;
-    }        
-    
+        return opBGP;
+    }
+
     @Override
     public Op apply(Transform transform)
-    { return transform.transform(this) ; }
+    { return transform.transform(this); }
 
     @Override
-    public Op0 copy()
-    {
-        return new OpTriple(triple) ;
+    public Op0 copy() {
+        return new OpTriple(triple);
     }
 
     @Override
-    public boolean equalTo(Op other, NodeIsomorphismMap labelMap)
-    {
-        if ( ! (other instanceof OpTriple) )
-            return false ;
-        OpTriple opTriple = (OpTriple)other ;
-        return Iso.tripleIso(getTriple(), opTriple.getTriple(), labelMap) ;
+    public boolean equalTo(Op other, NodeIsomorphismMap labelMap) {
+        if ( !(other instanceof OpTriple) )
+            return false;
+        OpTriple opTriple = (OpTriple)other;
+        return Iso.tripleIso(getTriple(), opTriple.getTriple(), labelMap);
     }
 
     @Override
-    public int hashCode()
-    {
-        return OpBase.HashTriple ^ triple.hashCode() ;
+    public int hashCode() {
+        return OpBase.HashTriple ^ triple.hashCode();
     }
 
     @Override
     public void visit(OpVisitor opVisitor)
-    { opVisitor.visit(this) ; }
+    { opVisitor.visit(this); }
 
     @Override
-    public String getName()
-    {
-        return Tags.tagTriple ;
+    public String getName() {
+        return Tags.tagOpTriple;
     }
 
-    public boolean equivalent(OpBGP opBGP)
-    {
-        BasicPattern bgp = opBGP.getPattern() ;
-        if ( bgp.size() != 1 ) return false ;
-        Triple t = bgp.get(0) ;
-        return triple.equals(t) ;  
+    public boolean equivalent(OpBGP opBGP) {
+        BasicPattern bgp = opBGP.getPattern();
+        if ( bgp.size() != 1 )
+            return false;
+        Triple t = bgp.get(0);
+        return triple.equals(t);
     }
-
 }

@@ -28,8 +28,6 @@ import org.apache.jena.atlas.lib.Cache;
 import org.apache.jena.atlas.lib.CacheFactory;
 import org.apache.jena.atlas.lib.Lib;
 import org.apache.jena.graph.*;
-import org.apache.jena.riot.other.G;
-import org.apache.jena.riot.out.NodeFmtLib;
 import org.apache.jena.riot.system.*;
 import org.apache.jena.shared.JenaException;
 import org.apache.jena.sparql.core.Quad;
@@ -51,18 +49,18 @@ public class RDFStar {
      * Returns a copy of the argument graph with any triple terms encoded as
      * reification.
      * <p>
-     * See {@link #decodeRDFStar(Graph)} for the reverse operation.
+     * See {@link #decodeFromRDF(Graph)} for the reverse operation.
      * <p>
-     * See {@link #encodeRDFStarInPlace(Graph)} {@link #decodeRDFStarInPlace(Graph)}
+     * See {@link #encodeAsRDFInPlace(Graph)} {@link #decodeFromRDFInPlace(Graph)}
      * for operations that alters the argument graph in-place.
      * <p>
      * Returns a new graph with triples involving triple terms replaced with
      * reification.
      */
-    public static Graph encodeRDFStar(Graph graph) {
+    public static Graph encodeAsRDF(Graph graph) {
         Graph output = GraphFactory.createDefaultGraph();
         StreamRDF dest = StreamRDFLib.graph(output);
-        StreamRDF process = encodeRDFStar(dest);
+        StreamRDF process = encodeAsRDF(dest);
         StreamRDFOps.graphToStream(graph, process);
         output.getPrefixMapping().samePrefixMappingAs(graph.getPrefixMapping());
         output.getPrefixMapping().setNsPrefix("rdf", RDF.getURI());
@@ -73,11 +71,11 @@ public class RDFStar {
      * Copy to a {@link StreamRDF}, encoding RDF-star Triple terms by replacing them with
      * RDF Reification.
      */
-    public static void encodeRDFStar(Graph graph, StreamRDF dest) {
+    public static void encodeAsRDF(Graph graph, StreamRDF dest) {
         StreamRDFOps.sendPrefixesToStream(graph.getPrefixMapping(), dest);
         // Ensure set because this process uses vocabulary from RDF.
         dest.prefix("rdf", RDF.getURI());
-        StreamRDF process = encodeRDFStar(dest);
+        StreamRDF process = encodeAsRDF(dest);
         StreamRDFOps.graphToStream(graph, process);
     }
 
@@ -85,14 +83,14 @@ public class RDFStar {
      * Returns a copy of the argument graph with any reifications for triple terms
      * translated to triple terms.
      * <p>
-     * See {@link #decodeRDFStar(Graph)} for the reverse operation.
+     * See {@link #decodeFromRDF(Graph)} for the reverse operation.
      * <p>
-     * See {@link #encodeRDFStarInPlace(Graph)} {@link #decodeRDFStarInPlace(Graph)}
+     * See {@link #encodeAsRDFInPlace(Graph)} {@link #decodeFromRDFInPlace(Graph)}
      * for operations that alters the argument graph in-place.
      */
-    public static Graph decodeRDFStar(Graph graph) {
+    public static Graph decodeFromRDF(Graph graph) {
         Graph gx = GraphFactory.createDefaultGraph();
-        decodeRDFStar(graph, StreamRDFLib.graph(gx));
+        decodeFromRDF(graph, StreamRDFLib.graph(gx));
         gx.getPrefixMapping().setNsPrefixes(graph.getPrefixMapping());
         return gx;
 
@@ -102,7 +100,7 @@ public class RDFStar {
      * Copy the argument graph to a {@link StreamRDF}, replacing reifications with for triple terms.
      * Caution: this operation uses space proportional to the number of triple terms present.
      */
-    public static void decodeRDFStar(Graph graph, StreamRDF dest) {
+    public static void decodeFromRDF(Graph graph, StreamRDF dest) {
         // Two pass
         // 1: Generate <<>>
         // 2: Process graph
@@ -112,7 +110,7 @@ public class RDFStar {
     }
 
     /** Return a {@link StreamRDF} that encodes RDF-star triples as reification. */
-    private static StreamRDF encodeRDFStar(StreamRDF dest) {
+    private static StreamRDF encodeAsRDF(StreamRDF dest) {
         return new ConvertToReified(dest);
     }
 
@@ -150,9 +148,9 @@ public class RDFStar {
      * Encode RDF-star Triple terms by replacing them with RDF Reification.
      * <p>
      * Changes the argument graph in-place.
-     * @see #decodeRDFStar
+     * @see #decodeFromRDF
      */
-    public static Graph encodeRDFStarInPlace(Graph graph) {
+    public static Graph encodeAsRDFInPlace(Graph graph) {
         Graph gx = graph;
 
         // Accumulate changes so that ConcurrentModificationExceptions don't happen.
@@ -187,7 +185,7 @@ public class RDFStar {
      */
 
     // [RDF-star] Streamify. Buffering Graph
-    public static Graph decodeRDFStarInPlace(Graph graph) {
+    public static Graph decodeFromRDFInPlace(Graph graph) {
         Graph gx = copyGraph(graph);
 
         graph.find(null, rdfPredicate, null).toList().forEach((t)->{
@@ -274,7 +272,7 @@ public class RDFStar {
         Node_Triple nt = ( t2 == null )
             ? (Node_Triple)x
             : (Node_Triple)NodeFactory.createTripleNode(t2);
-        return cache.getOrFill(nt, ()->genReif(nt, output));
+        return cache.get(nt, key->genReif(key, output));
     }
 
     /** Build a mapping of reification terms to RDF-startriple terms. */
@@ -391,7 +389,6 @@ public class RDFStar {
     private static void decode(Graph graph, Triple pReifTriple, List<Triple> deletes, List<Triple> inserts) {
         // Get all triples?
         Node reif = pReifTriple.getSubject();
-        System.out.println("    reif = "+NodeFmtLib.str(reif));
 
         Triple sReifTriple = G.getOne(graph, reif, rdfSubject, null);
         Triple oReifTriple = G.getOne(graph, reif, rdfObject, null);
@@ -400,7 +397,7 @@ public class RDFStar {
         Node p = pReifTriple.getObject();
         Node o = oReifTriple.getObject();
 
-        Node_Triple nodeTriple = new Node_Triple(s, p, o);
+        Node nodeTriple = NodeFactory.createTripleNode(s, p, o);
         if ( false )
             inserts.add(Triple.create(s, p, o));
 

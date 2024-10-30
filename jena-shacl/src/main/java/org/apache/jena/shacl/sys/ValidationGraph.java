@@ -23,13 +23,14 @@ import org.apache.jena.graph.TransactionHandler;
 import org.apache.jena.graph.impl.TransactionHandlerBase;
 import org.apache.jena.shacl.*;
 import org.apache.jena.sparql.graph.GraphWrapper;
+import org.apache.jena.system.G;
 
 /** A graph that performs SHACL validation on a graph during transaction "commit".
  *  (It does not validate on direct addition of date to the graph outside a transaction).
  *  Usage:
  *  <pre>
  *      try {
- *          graph.getTransactionHandler().execute(()->{
+ *          graph.getTransactionHandler().execute(()-&gt;{
  *             ... application code ...
  *             });
  *     } catch (ShaclValidationException ex) {
@@ -82,13 +83,10 @@ public class ValidationGraph extends GraphWrapper {
      * if there are any validation results from shapes.
      */
     public ValidationReport updateAndReport(Runnable action) {
-        TransactionHandler superTH = get().getTransactionHandler();
-        if ( superTH.transactionsSupported() ) {
-            superTH.execute(action);
-        } else {
+        return G.calcTxn(get(), ()-> {
             action.run();
-        }
-        return ShaclValidator.get().validate(shapes, get());
+            return ShaclValidator.get().validate(shapes, get());
+        });
     }
 
     private static class TransactionHandlerValidate extends TransactionHandlerBase {

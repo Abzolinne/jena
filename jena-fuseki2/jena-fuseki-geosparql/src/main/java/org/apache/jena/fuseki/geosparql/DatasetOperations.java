@@ -17,12 +17,13 @@
  */
 package org.apache.jena.fuseki.geosparql;
 
-import io.github.galbiston.rdf_tables.cli.DelimiterValidator;
-import io.github.galbiston.rdf_tables.datatypes.DatatypeController;
-import io.github.galbiston.rdf_tables.file.FileReader;
 import java.io.File;
 import java.lang.invoke.MethodHandles;
 import java.util.List;
+
+import org.apache.jena.ext.io.github.galbiston.rdf_tables.cli.DelimiterValidator;
+import org.apache.jena.ext.io.github.galbiston.rdf_tables.datatypes.DatatypeController;
+import org.apache.jena.ext.io.github.galbiston.rdf_tables.file.FileReader;
 import org.apache.jena.fuseki.geosparql.cli.ArgsConfig;
 import org.apache.jena.fuseki.geosparql.cli.FileGraphDelimiter;
 import org.apache.jena.fuseki.geosparql.cli.FileGraphFormat;
@@ -39,7 +40,7 @@ import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.RDFFormat;
-import org.apache.jena.tdb.TDBFactory;
+import org.apache.jena.tdb1.TDB1Factory;
 import org.apache.jena.tdb2.TDB2Factory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,6 +71,8 @@ public class DatasetOperations {
         //Convert Geo predicates to Geometry Literals.
         if (argsConfig.isConvertGeoPredicates()) //Apply validation of Geometry Literal.
         {
+            // ?? This returns a modified dataset which is discarded.
+            // So this is a No-Op??
             GeoSPARQLOperations.convertGeoPredicates(dataset, argsConfig.isRemoveGeoPredicates());
         }
 
@@ -92,6 +95,8 @@ public class DatasetOperations {
             GeoSPARQLConfig.setupNoIndex(argsConfig.isQueryRewrite());
         }
 
+        GeoSPARQLConfig.allowGeometrySRSTransformation(argsConfig.isTransformGeometry());
+
         //Setup Spatial Extension
         prepareSpatialExtension(dataset, argsConfig);
 
@@ -104,10 +109,10 @@ public class DatasetOperations {
         File tdbFolder = argsConfig.getTdbFile();
         if (tdbFolder != null) {
             LOGGER.info("TDB Dataset: {}, TDB2: {}", tdbFolder, argsConfig.isTDB2());
-            if(argsConfig.isTDB2()){
+            if (argsConfig.isTDB2()) {
                 dataset = TDB2Factory.connectDataset(tdbFolder.getAbsolutePath());
-            }else{
-                dataset = TDBFactory.createDataset(tdbFolder.getAbsolutePath());
+            } else {
+                dataset = TDB1Factory.createDataset(tdbFolder.getAbsolutePath());
             }
         } else {
             LOGGER.info("In-Memory Dataset");
@@ -160,7 +165,7 @@ public class DatasetOperations {
                         LOGGER.info("Reading RDF - Completed - File: {}, Graph Name: {}, RDF Format: {}", rdfFile, graphName, rdfFormat);
                     } else {
                         dataset.abort();
-                        LOGGER.info("Reading RDF - Not Completed - File: {} does not exist", rdfFile, graphName, rdfFormat);
+                        LOGGER.info("Reading RDF - Not Completed - File: {} does not exist", rdfFile);
                     }
                 }
             } catch (Throwable ex) {
@@ -231,7 +236,7 @@ public class DatasetOperations {
                 GeoSPARQLConfig.setupSpatialIndex(dataset);
             }
         } else {
-            LOGGER.warn("Datset empty. Spatial Index not constructed. Server will require restarting after adding data and any updates to build Spatial Index.");
+            LOGGER.warn("Dataset empty. Spatial Index not constructed. Server will require restarting after adding data and any updates to build Spatial Index.");
         }
     }
 

@@ -42,7 +42,7 @@ function testSortParallel() {
     set +e
     sort --parallel=3 < /dev/null &>/dev/null
     if [[ $? -ne 0 ]]; then
-        echo "No --parallel support in sort(1)" 2&>1
+        echo "No --parallel support in sort(1)" 1>&2
 	exit 9
     fi
     set -e
@@ -51,7 +51,7 @@ function testSortParallel() {
 JAVA="${JAVA:-java}"
 
 COMPLETE="yes"
-for F in jq sort /usr/bin/gzip java
+for F in jq sort gzip java
 do
     testForProgram "$F"
     if [[ $? -ne 0 ]] ; then
@@ -59,8 +59,17 @@ do
     fi
 done
 
-if [[ $COMPLETE -ne "yes" ]] ; then
-    echo "One or more programs missing" 2&>1
+## gzip must be /bin/gzip or /usr/bin/gzip
+
+testForProgram /bin/gzip || testForProgram /usr/bin/gzip
+if [[ $? -ne 0 ]]
+then
+    echo "gzip not installed in /bin/gzip or /usr/bin/gzip"
+    COMPLETE="no"
+fi
+
+if [[ $COMPLETE != "yes" ]] ; then
+    echo "One or more programs missing" 1>&2
     exit 9
 fi
 
@@ -88,8 +97,8 @@ function log() {
 }
 
 function debug() {
- if [ $DEBUG = 1 ]; then
-   log "DEBUG" "$@"
+  if [[ $DEBUG = 1 ]]; then
+    log "DEBUG" "$@"
  fi
 }
 
@@ -129,7 +138,7 @@ function printUsage() {
     cat <<EOF
 $(basename $0) TDB2 Bulk Loader
 
-Usage: ${TDB_CMD} --loc <Directory> [--tmpdir=DIR] FILE ...
+Usage: ${TDB_CMD} --loc <Directory> [--tmpdir=DIR] [--threads=N] FILE ...
 
 Bulk loader for TDB2.
 See https://jena.apache.org/documentation/tdb/tdb-xloader.html
@@ -146,9 +155,9 @@ JENA_CP
 
 JVM_ARGS
     Arguments for the JVM.
-    This defaults to "-Xmx2G"
+    This defaults to "-Xmx4G"
     Do not set to all available RAM.
-    Increasing it does not make the loader faster.
+    Increasing is only necessary for large numbers of long literals.
 
 The temporary directory defaults to the datbase directory.
 
@@ -229,6 +238,8 @@ if [ -z "$JENA_CP" ] ; then
 fi
 
 function exec_java() {
+    local ARGS="$@"
+    debug "Exec: $ARGS"
     "$JAVA" $JVM_ARGS -cp "$JENA_CP" "$@"
     local RC="$?"
     if [[ $RC != 0 ]] ; then
@@ -236,6 +247,9 @@ function exec_java() {
 	abort 1 "Java process returned $RC"
     fi
 }
+
+# Default value
+SORT_THREADS="2"
 
 while [ $# -gt 0 ]
 do
@@ -253,8 +267,8 @@ do
 	    printUsage
 	    exit 0
 	    ;;
+	# Database location
         --loc|-loc)
-	    # Location space separated
 	    shift
 	    LOC="$1"
 	    shift
@@ -264,8 +278,8 @@ do
 	    LOC=${ARG/-*loc=/}
 	    shift
 	    ;;
+	# Workspace directory
         -tmpdir|--tmpdir)
-	    # Workspace directory
 	    shift
 	    TMPDIR="$1"
 	    shift
@@ -273,6 +287,20 @@ do
 	-*tmpdir=*)
 	    TMPDIR=${ARG/-*tmpdir=/}
 	    shift
+	    ;;
+	## Number of sort threads
+	--threads|-threads)
+	    shift
+	    SORT_THREADS="$1"
+	    shift
+	    ;;
+	-*threads=*)
+	    SORT_THREADS=${ARG/-*threads=/}
+	    shift
+	    ;;
+	-version|--version)
+	    exec_java jena.version
+	    exit
 	    ;;
 	--)
 	    # Arguments separator
@@ -287,9 +315,16 @@ do
 	    ;;
     esac
 done
+
+## Check argument SORT_THREADS
+if [[ $SORT_THREADS != "-1" ]] ; then
+    if [[ ! $SORT_THREADS =~ ^[-+]?[0-9]+$ ]] ; then
+	abort 1 "Bad value for --threads : $SORT_THREADS"
+    fi
+fi
 	       
 if [[ $# -eq 0 ]] ; then
-    abort 1 "No files to load" 1>&2
+    abort 1 "No files to load"
 fi
 
 DATAFILES="$@"
@@ -298,7 +333,26 @@ if [[ -z $LOC ]] ; then
     abort 1 "No directory name for the database"
 fi
 
+## Don't mess up an existing database!
+if [ -e "$LOC" ]; then
+    abort 3 "Directory $LOC already exists"
+fi
+
 [[ -z $TMPDIR ]] && TMPDIR=$LOC
+
+if [[ ! -e $TMPDIR ]] ; then
+    mkdir -p "$TMPDIR"
+    #abort 2 echo "TMPDIR $TMPDIR does not exist"
+fi
+
+if [[ ! -d $TMPDIR ]] ; then
+    abort 2 "TMPDIR $TMPDIR is not a directory"
+fi
+
+if [[ ! -w $TMPDIR ]] ; then
+    abort 2 "TMPDIR $TMPDIR is not writable"
+fi
+
 export TMPDIR
 
 ## TDB1 / TDB2
@@ -309,9 +363,9 @@ case "$SYSTEM" in
 	## @@
 	PKG=tdb2.xloader
 	## @@
-	CMD_LOAD_TERMS=
-	CMD_INGEST_DATA=
-	CMD_BUILD_INDEX=
+## 	CMD_LOAD_TERMS=
+## 	CMD_INGEST_DATA=
+## 	CMD_BUILD_INDEX=
 	
 	;;
     "TDB1")
@@ -327,19 +381,17 @@ case "$SYSTEM" in
 	;;
 esac
 
-## Don't mess up an existing database!
-if [ -e "$LOC" ]; then
-    ## @@ Better
-    abort 3 "Directory $LOC already exists"
-fi
-
 info "Setup:"
 info "  Database: $LOC"
 info "  Data:     $DATAFILES"
 info "  TMPDIR:   $TMPDIR"
 
-# Large heap not required.
-JVM_ARGS="${JVM_ARGS:--Xmx2G}"
+## Large heap not required.
+## Max use is in the digest phase for the enlarged Node to Node id cache.
+JVM_ARGS="${JVM_ARGS:--Xmx4G}"
+
+## Unique string used to mark where steps end and where the key information is to be found.
+STEP_END_MARKER="=-=-=-=-=-=-=-="
 
 ## Time point.
 
@@ -351,8 +403,9 @@ if [ "$SYSTEM" == "TDB2" ]; then
     info
     T="$(now)"
     info "Load node table"
-    exec_java $PKG.CmdxBuildNodeTable --loc $LOC --tmpdir "$TMPDIR" $DATAFILES
+    exec_java $PKG.CmdxBuildNodeTable --loc $LOC --tmpdir "$TMPDIR" --threads $SORT_THREADS $DATAFILES
     TIME_NODE_TABLE=$(($(now)-$T))
+    info "$STEP_END_MARKER"
 fi
 
 ## ======== Ingest data, creates workfiles
@@ -361,6 +414,7 @@ info "Ingest data"
 T="$(now)"
 exec_java $PKG.CmdxIngestData --loc $LOC --tmpdir "$TMPDIR" --triples "$TMPDIR/triples.tmp" --quads "$TMPDIR/quads.tmp" $DATAFILES
 TIME_INGEST=$(($(now)-$T))
+info "$STEP_END_MARKER"
 
 ## ======== Indexes
 INFO="$TMPDIR/load.json"
@@ -372,9 +426,11 @@ function index() {
     local IDX="$1"
     info
     info "Build $IDX"
+    info "(Very long pause likely at this point)"
     local T="$(now)"
-    exec_java $PKG.CmdxBuildIndex --loc $LOC --tmpdir "$TMPDIR" --index $IDX \
+    exec_java $PKG.CmdxBuildIndex --loc $LOC --tmpdir "$TMPDIR" --threads $SORT_THREADS --index $IDX \
 	      "$TMPDIR/triples.tmp" "$TMPDIR/quads.tmp"
+    info "$STEP_END_MARKER"
     local T_IDX=$(($(now)-$T))
     TIME_IDX[$IDX]=$T_IDX
 }

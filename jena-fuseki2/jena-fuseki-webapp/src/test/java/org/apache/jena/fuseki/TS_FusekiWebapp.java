@@ -29,10 +29,9 @@ import org.junit.runners.Suite;
 
 @RunWith(Suite.class)
 @Suite.SuiteClasses( {
-     TestWebappSPARQLProtocol.class
-    ,  TestWebappAuthQuery_JDK.class
-    ,  TestWebappAuthUpdate_JDK.class
-    , TestWebappAuth_AHC.class
+      TestWebappSPARQLProtocol.class
+    , TestWebappAuthQuery_JDK.class
+    , TestWebappAuthUpdate_JDK.class
     , TestWebappFileUpload.class
     , TestAdmin.class
     , TestAdminAPI.class
@@ -43,7 +42,7 @@ import org.junit.runners.Suite;
 
 public class TS_FusekiWebapp extends ServerTest
 {
-    public static String FusekiTestHome = "target/FusekiHome";
+    public static String FusekiTestHome = "target/FusekiTest";
     public static String FusekiTestBase = FusekiTestHome+"/run";
 
     @BeforeClass public static void setupForFusekiServer() {
