@@ -16,10 +16,12 @@ import org.apache.jena.sparql.expr.ExprList;
 import com.eatthepath.jvptree.DistanceFunction;
 
 public class Distances {
-
+	
+    public static final String NS = "http://sj.dcc.uchile.cl/sim#";
+    
 	private static Map<String, DistFunc> registry = new HashMap<String, Distances.DistFunc>();
 	static {
-        registry.put("http://sj.dcc.uchile.cl/sim/manhattanvec", new DistFunc() {
+        registry.put(NS + "manhattanvec", new DistFunc() {
             @Override
             public double distance(List<Node> p1, List<Node> p2, Map<Expr, PairOfSameType<Number>> minMax, ExprList leftExpr, ExprList rightExpr) {
 				
@@ -69,7 +71,7 @@ public class Distances {
 			}
 		});
 		
-		registry.put("http://sj.dcc.uchile.cl/sim/manhattan", new DistFunc() {
+		registry.put(NS + "manhattan", new DistFunc() {
 			
 			@Override
 			public double distance(List<Node> p1, List<Node> p2, Map<Expr, PairOfSameType<Number>> minMax, ExprList leftExpr, ExprList rightExpr) {
@@ -86,7 +88,7 @@ public class Distances {
 				return d;
 			}
 		});
-		registry.put("http://sj.dcc.uchile.cl/sim/euclidean", new DistFunc() {
+		registry.put(NS + "euclidean", new DistFunc() {
 			
 			@Override
 			public double distance(List<Node> p1, List<Node> p2, Map<Expr, PairOfSameType<Number>> minMax, ExprList leftExpr, ExprList rightExpr) {
