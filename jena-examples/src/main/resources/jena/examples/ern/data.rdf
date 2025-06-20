@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF
+    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+    xmlns:ex="http://example.org/"
+    xmlns:sim="http://sim.dcc.uchile.cl/">
+
+    <rdf:Description rdf:about="http://example.org/UmaThurman">
+        <sim:hasVector rdf:datatype="http://sim.dcc.uchile.cl/vector">[1 2 3]</sim:hasVector>
+    </rdf:Description>
+</rdf:RDF>
