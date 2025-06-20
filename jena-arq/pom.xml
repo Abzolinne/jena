@@ -151,6 +151,27 @@
   <build>
 
     <plugins>
+		<plugin>
+  <groupId>org.codehaus.mojo</groupId>
+  <artifactId>javacc-maven-plugin</artifactId>
+  <version>2.6</version>
+  <executions>
+    <execution>
+      <id>generate-parser</id>
+      <phase>generate-sources</phase>
+      <goals>
+        <goal>javacc</goal>
+      </goals>
+      <configuration>
+        <sourceDirectory>${basedir}/Grammar</sourceDirectory>
+        <includes>
+          <include>sparql_12.jj</include>
+        </includes>
+        <lookahead>2</lookahead> <!-- opcional, puedes ajustar -->
+      </configuration>
+    </execution>
+  </executions>
+</plugin>
 
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

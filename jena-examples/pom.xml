@@ -53,6 +53,11 @@
       <artifactId>jena-fuseki-main</artifactId>
       <version>${project.version}</version>
     </dependency>
+	<dependency>
+	  <groupId>org.apache.jena</groupId>
+	  <artifactId>jena-arq</artifactId>
+	  <version>${project.version}</version>
+	</dependency>
 
     <!-- Require a logging implementation -->
     <dependency>

@@ -1398,6 +1398,7 @@ Expr BuiltInCall() : { Expr expr ;
     |
       <NIL> { return makeFunction_BNode() ; }
     )
+  | <SIZE> <LPAREN> expr = Expression() <RPAREN> { return new E_Size(expr);}
   | <RAND> <NIL> { return new E_Random() ; }
   | <ABS> <LPAREN> expr1 = Expression() <RPAREN> { return new E_NumAbs(expr1) ; }
   | <CEIL> <LPAREN> expr1 = Expression() <RPAREN> { return new E_NumCeiling(expr1) ; }
@@ -1699,8 +1700,8 @@ TOKEN:
 }
 TOKEN : { <KW_A: "a" > }
 TOKEN [IGNORE_CASE] :
-{
-   < BASE: "base" >
+{ <SIZE: "size" >
+| < BASE: "base" >
 | < PREFIX: "prefix" >
 | < VERSION: "version" >
 | < SELECT: "select" >
