@@ -22,7 +22,7 @@ public class Tags
 {
     public static final String LPAREN             = "(";
     public static final String RPAREN             = ")";
-
+    public static final String tagSize           = "size";
     public static final String LBRACKET           = "[";
     public static final String RBRACKET           = "]";
 
