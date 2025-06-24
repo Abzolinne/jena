@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.jena.datatypes.xsd.XSDDatatype;
+import org.apache.jena.graph.Node;
 import org.apache.jena.graph.NodeFactory;
 import org.apache.jena.query.QueryException;
 import org.apache.jena.sparql.core.Var;
@@ -54,13 +55,14 @@ public class KMeansSolver implements ClusteringSolver {
         		Binding current = elements.next();
         		double minDist = Double.MAX_VALUE;
         		int cluster = -1;
-        		for (int j=0; j < K; j++) {
-        			Binding c = centroids.get(j);
-        			double dist = ClusterDistances.manhattan(current, c, clusterVars);
-        			if (dist < minDist) {
-        				minDist = dist;
-        				cluster = j;
-        			}
+
+        		for (int j = 0; j < K; j++) {
+        		    Binding c = centroids.get(j);
+        		    double dist = ClusterDistances.manhattan(current, c, clusterVars);
+        		    if (dist < minDist) {
+        		        minDist = dist;
+        		        cluster = j;
+        		    }
         		}
         		clusters.get(cluster).add(current);
         	}
@@ -93,26 +95,56 @@ public class KMeansSolver implements ClusteringSolver {
 	}
 
 	private List<Binding> updateCentroids(VarExprList clusterVars, List<List<Binding>> clusters) {
-		List<Binding> newCentroids = new ArrayList<Binding>(K);
-		for (int i=0; i<K; i++) {
-			Map<Var, Double> sums = new HashMap<>();
-			for (Binding b : clusters.get(i)) {
-				for (Var v : clusterVars.getVars()) {
-					if (!sums.containsKey(v)) {
-						sums.put(v, ((Number) b.get(v).getLiteral().getValue()).doubleValue());
-					} else {
-						sums.put(v, sums.get(v) + ((Number) b.get(v).getLiteral().getValue()).doubleValue());
-					}
-				}
-			}
-			BindingBuilder newCentroid = BindingFactory.builder();
-			for (Var v : clusterVars.getVars()) {
-				double val = sums.get(v) / clusters.get(i).size();
-				newCentroid.add(v, NodeFactory.createLiteralByValue(val, XSDDatatype.XSDdouble));
-			}
-			newCentroids.add(newCentroid.build());
-		}
-		return newCentroids;
+	    List<Binding> newCentroids = new ArrayList<>(K);
+	    for (int i = 0; i < K; i++) {
+	        Map<Var, Object> sums = new HashMap<>();
+	        int clusterSize = clusters.get(i).size();
+	        for (Binding b : clusters.get(i)) {
+	            for (Var v : clusterVars.getVars()) {
+	                Node node = b.get(v);
+	                if (node == null || !node.isLiteral()) continue;
+	                Object value = node.getLiteralValue();
+	                if (value instanceof String) {
+	                    // Vector string
+	                    List<Double> vec = ClusterDistances.parseVectorString((String) value);
+	                    List<Double> sumVec = (List<Double>) sums.get(v);
+	                    if (sumVec == null) {
+	                        sums.put(v, new ArrayList<>(vec));
+	                    } else {
+	                        for (int idx = 0; idx < vec.size(); idx++) {
+	                            sumVec.set(idx, sumVec.get(idx) + vec.get(idx));
+	                        }
+	                    }
+	                } else if (value instanceof Number) {
+	                    // Scalar number
+	                    sums.put(v, ((Double) sums.getOrDefault(v, 0.0)) + ((Number) value).doubleValue());
+	                }
+	            }
+	        }
+	        BindingBuilder newCentroid = BindingFactory.builder();
+	        for (Var v : clusterVars.getVars()) {
+	            Object sum = sums.get(v);
+	            if (sum instanceof List) {
+	                // Mean vector
+	                List<Double> sumVec = (List<Double>) sum;
+	                List<Double> meanVec = new ArrayList<>();
+	                for (Double d : sumVec) meanVec.add(d / clusterSize);
+	                // Convert meanVec to string
+	                StringBuilder sb = new StringBuilder("[");
+	                for (int idx = 0; idx < meanVec.size(); idx++) {
+	                    sb.append(meanVec.get(idx));
+	                    if (idx < meanVec.size() - 1) sb.append(", ");
+	                }
+	                sb.append("]");
+	                newCentroid.add(v, NodeFactory.createLiteral(sb.toString()));
+	            } else if (sum instanceof Double) {
+	                double val = (Double) sum / clusterSize;
+	                newCentroid.add(v, NodeFactory.createLiteralByValue(val, XSDDatatype.XSDdouble));
+	            }
+	        }
+	        newCentroids.add(newCentroid.build());
+	    }
+	    return newCentroids;
 	}
 
 	@Override
