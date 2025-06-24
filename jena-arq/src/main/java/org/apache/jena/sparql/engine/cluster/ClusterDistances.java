@@ -36,31 +36,11 @@ public class ClusterDistances {
 	                // Both are numbers
 	                d += Math.abs(((Number) val1).doubleValue() - ((Number) val2).doubleValue());
 	            }
-	            // If types are mixed, you may want to handle or skip
 	        }
 	    }
 	    return d;
 	}
 
-	 static public double manhattanVec(Binding b1, Binding b2, VarExprList vars) {
-	    double d = 0.0;
-	    for (Var v : vars.getVars()) {
-	        Node n1 = b1.get(v);
-	        Node n2 = b2.get(v);
-	        if (n1 != null && n2 != null && n1.isLiteral() && n1.getLiteralValue() instanceof String) {
-	            // Parse vector strings
-	            List<Double> vec1 = parseVectorString((String) n1.getLiteralValue());
-	            List<Double> vec2 = parseVectorString((String) n2.getLiteralValue());
-	            int size = Math.min(vec1.size(), vec2.size());
-	            for (int i = 0; i < size; i++) {
-	                d += Math.abs(vec1.get(i) - vec2.get(i));
-	            }
-	        } else if (n1 != null && n2 != null && n1.isLiteral() && n2.isLiteral()) {
-	            d += Math.abs(((Number) n1.getLiteralValue()).doubleValue() - ((Number) n2.getLiteralValue()).doubleValue());
-	        }
-	    }
-	    return d;
-	}
 	
 	static public List<Double> parseVectorString(String vectorString) {
 

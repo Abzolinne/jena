@@ -105,7 +105,6 @@ public class KMeansSolver implements ClusteringSolver {
 	                if (node == null || !node.isLiteral()) continue;
 	                Object value = node.getLiteralValue();
 	                if (value instanceof String) {
-	                    // Vector string
 	                    List<Double> vec = ClusterDistances.parseVectorString((String) value);
 	                    List<Double> sumVec = (List<Double>) sums.get(v);
 	                    if (sumVec == null) {
@@ -116,7 +115,6 @@ public class KMeansSolver implements ClusteringSolver {
 	                        }
 	                    }
 	                } else if (value instanceof Number) {
-	                    // Scalar number
 	                    sums.put(v, ((Double) sums.getOrDefault(v, 0.0)) + ((Number) value).doubleValue());
 	                }
 	            }
@@ -125,11 +123,9 @@ public class KMeansSolver implements ClusteringSolver {
 	        for (Var v : clusterVars.getVars()) {
 	            Object sum = sums.get(v);
 	            if (sum instanceof List) {
-	                // Mean vector
 	                List<Double> sumVec = (List<Double>) sum;
 	                List<Double> meanVec = new ArrayList<>();
 	                for (Double d : sumVec) meanVec.add(d / clusterSize);
-	                // Convert meanVec to string
 	                StringBuilder sb = new StringBuilder("[");
 	                for (int idx = 0; idx < meanVec.size(); idx++) {
 	                    sb.append(meanVec.get(idx));
