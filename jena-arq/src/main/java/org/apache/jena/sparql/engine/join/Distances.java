@@ -64,8 +64,11 @@ public class Distances {
 			        if (part.endsWith("\"")) {
 			            part = part.substring(0, part.length() - 1);
 			        }
-		
-			        vector.add(Double.parseDouble(part));
+			        try {
+			            vector.add(Double.parseDouble(part));
+			        } catch (NumberFormatException e) {
+			            throw new IllegalArgumentException("Cannot parse '" + part + "' to Double in vector string: " + vectorString, e);
+			        }
 			    }
 			    return vector;
 			}
