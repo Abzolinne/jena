@@ -126,6 +126,7 @@ public class Tags
 
     // Expressions
     // sym => swiggly thing, tag => word-ish thing
+    public static final String tagSize           = "size";
 
     public static final String tagExpr            = "expr";
     public static final String tagExprList        = "exprlist";

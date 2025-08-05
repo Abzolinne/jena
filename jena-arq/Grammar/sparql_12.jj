@@ -1231,6 +1231,8 @@ Expr BuiltInCall() : { Expr expr ;
     { return new E_Str(expr) ; }
   | <LANG> <LPAREN> expr = Expression() <RPAREN>
     { return new E_Lang(expr) ; }
+  | <SIZE> <LPAREN> expr = Expression() <RPAREN> 
+  { return new E_Size(expr);}
   | <LANGMATCHES>
        <LPAREN> expr1 = Expression() <COMMA> expr2 = Expression() <RPAREN>
     { return new E_LangMatches(expr1, expr2) ; }
@@ -1749,6 +1751,7 @@ TOKEN :
 | < FPATH: "->" >
 | < RPATH: "<-" >
 | < QMARK: "?" >
+| <SIZE: "size" >
 }
 TOKEN:
 {
