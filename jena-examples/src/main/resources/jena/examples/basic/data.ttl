@@ -1,0 +1,8 @@
+@prefix ex: <http://example.org/> .
+@prefix sim: <http://sim.dcc.uchile.cl/> .
+
+ex:UmaThurman sim:hasVector "[1 2 3]"^^sim:vector .
+ex:JohnTravolta sim:hasVector "[0.1 0.2 0.3 0.4]"^^sim:vector .
+ex:SamuelJackson sim:hasVector "[7 8 9 10 11]"^^sim:vector .
+ex:BruceWillis sim:hasVector "[42]"^^sim:vector .
+ex:QuentinTarantino sim:hasVector "[3 2 1 0]"^^sim:vector .
