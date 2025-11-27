@@ -28,7 +28,7 @@ import com.github.jelmerk.hnswlib.core.hnsw.HnswIndex;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.jena.example.basic.VectorUtils.normalize;
-
+/**
 public class FastText {
 
     private static final String WORDS_FILE_URL = "https://dl.fbaipublicfiles.com/fasttext/vectors-crawl/cc.en.300.vec.gz";
@@ -160,4 +160,4 @@ public class FastText {
                     .collect(Collectors.toList());
         }
     }
-}
+}*/

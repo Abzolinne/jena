@@ -21,12 +21,12 @@ import org.apache.jena.rdf.model.StmtIterator;
 import org.apache.jena.sparql.util.Context;
 import org.apache.jena.query.ResultSet;
 import org.apache.jena.query.ResultSetFormatter; 
-import org.apache.jena.sparql.sim.SimKeys;
+
 
 public class Index {
 	public static void main(String[] args) throws Exception {
 		ARQ.init();
-		String resourcePath = "src/main/resources/jena/examples/arq/test.ttl";
+		String resourcePath = "src/main/resources/jena/examples/arq/testvec.ttl";
 		Model model = ModelFactory.createDefaultModel();
 		model.read(resourcePath);
 		/**
@@ -82,21 +82,20 @@ ORDER BY ?similarity
 		*/
 		Dataset ds = DatasetFactory.wrap(model);
 		String queryStr = """
-						PREFIX ex: <http://example/>
-						
-						SELECT ?x ?z ?d
-						WHERE {
-						    ?x ex:height ?hx .
-						    ?x ex:weight ?wx .
-						
-						    similarity join on (?hx , ?wx) (?hy2 , ?wy2)
-						        top 2
-						        distance <http://sj.dcc.uchile.cl/sim#euclidean> as ?d
-						    {
-						        ?z ex:height ?hy2 .
-						        ?z ex:weight ?wy2 .
-						    }
-						}
+					PREFIX sim: <http://sim.dcc.uchile.cl/>
+					
+					SELECT ?x ?y ?d
+					WHERE {
+					    ?x sim:hasVector ?vx .
+					
+					    similarity join on (?vx) (?vy)
+					        top 2
+					        distance <http://sj.dcc.uchile.cl/sim#euclidean> as ?d
+					    {
+					        ?y sim:hasVector ?vy .
+					    }
+					}
+
 				""";
 		Query q = QueryFactory.create(queryStr, Syntax.syntaxSPARQL_11_sim);
 		try (QueryExecution qexec = QueryExecutionFactory.create(q,ds)) {
