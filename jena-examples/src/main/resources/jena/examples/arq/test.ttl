@@ -1,0 +1,66 @@
+@prefix : <http://example.org/> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Personas con nombres similares
+:person1 a foaf:Person ;
+    foaf:name "John Smith" ;
+    :age 30 ;
+    :city "New York" .
+
+:person2 a foaf:Person ;
+    foaf:name "Jon Smyth" ;
+    :age 32 ;
+    :city "Boston" .
+
+:person3 a foaf:Person ;
+    foaf:name "Jane Smith" ;
+    :age 28 ;
+    :city "New York" .
+
+:person4 a foaf:Person ;
+    foaf:name "John Doe" ;
+    :age 35 ;
+    :city "Chicago" .
+
+:person5 a foaf:Person ;
+    foaf:name "Johann Schmidt" ;
+    :age 40 ;
+    :city "Berlin" .
+
+# Productos con descripciones similares
+:product1 a :Product ;
+    :name "Laptop Computer" ;
+    :description "High performance laptop with 16GB RAM" ;
+    :price 1200 .
+
+:product2 a :Product ;
+    :name "Desktop Computer" ;
+    :description "High performance desktop with 16GB RAM" ;
+    :price 1000 .
+
+:product3 a :Product ;
+    :name "Tablet Device" ;
+    :description "Portable tablet with 8GB RAM" ;
+    :price 500 .
+
+:product4 a :Product ;
+    :name "Gaming Laptop" ;
+    :description "Gaming laptop with high performance graphics" ;
+    :price 1500 .
+
+# Lugares con coordenadas
+:place1 a :Location ;
+    :name "Central Park" ;
+    :latitude "40.785091"^^xsd:decimal ;
+    :longitude "-73.968285"^^xsd:decimal .
+
+:place2 a :Location ;
+    :name "Times Square" ;
+    :latitude "40.758896"^^xsd:decimal ;
+    :longitude "-73.985130"^^xsd:decimal .
+
+:place3 a :Location ;
+    :name "Empire State Building" ;
+    :latitude "40.748817"^^xsd:decimal ;
+    :longitude "-73.985428"^^xsd:decimal .
