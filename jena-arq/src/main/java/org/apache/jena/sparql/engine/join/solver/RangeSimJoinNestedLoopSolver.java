@@ -42,7 +42,7 @@ public class RangeSimJoinNestedLoopSolver extends RangeSimJoinSolver {
 		    	cache.add(resultWithDistance);
 			}
 		}
-		bindingIterator = simjoin.getLeftRows().iterator();
+		bindingIterator = simjoin.getRightRows().iterator();
 	}
 
 }
