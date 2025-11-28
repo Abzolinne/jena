@@ -26,7 +26,7 @@ import org.apache.jena.query.ResultSetFormatter;
 public class Index {
 	public static void main(String[] args) throws Exception {
 		ARQ.init();
-		String resourcePath = "src/main/resources/jena/examples/arq/testvec.ttl";
+		String resourcePath = "src/main/resources/jena/examples/arq/test.ttl";
 		Model model = ModelFactory.createDefaultModel();
 		model.read(resourcePath);
 		/**
@@ -83,16 +83,18 @@ ORDER BY ?similarity
 		Dataset ds = DatasetFactory.wrap(model);
 		String queryStr = """
 					PREFIX sim: <http://sim.dcc.uchile.cl/>
-					
+					PREFIX ex: <http://example/>
 					SELECT ?x ?y ?d
 					WHERE {
-					    ?x sim:hasVector ?vx .
+					    ?x ex:height ?hx .
+					    ?x ex:weight ?wx .
 					
-					    similarity join on (?vx) (?vy)
+					    similarity join on (?hx,?wx) (?hy,?wy)
 					        top 2
 					        distance <http://sj.dcc.uchile.cl/sim#euclidean> as ?d
 					    {
-					        ?y sim:hasVector ?vy .
+					        ?y ex:height ?hy .
+					        ?y ex:weight ?wy .
 					    }
 					}
 
