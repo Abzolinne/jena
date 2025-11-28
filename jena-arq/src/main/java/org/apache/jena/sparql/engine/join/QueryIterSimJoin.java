@@ -38,7 +38,7 @@ public class QueryIterSimJoin extends QueryIter2 {
     
     protected Binding slot;
 	protected SimJoinSolver solver;
-	protected Map<Expr, PairOfSameType<Number>> minMax;
+	protected Map<Expr, List<PairOfSameType<Number>>> minMax;
 
 	public QueryIterSimJoin(QueryIterator left, QueryIterator right, ExecutionContext execCxt) {
 		super(left, right, execCxt);
@@ -136,7 +136,7 @@ public class QueryIterSimJoin extends QueryIter2 {
 		return distFunc;
 	}
 
-	public Map<Expr, PairOfSameType<Number>> getMinMax() {
+	public Map<Expr, List<PairOfSameType<Number>>> getMinMax() {
 		return minMax;
 	}
 

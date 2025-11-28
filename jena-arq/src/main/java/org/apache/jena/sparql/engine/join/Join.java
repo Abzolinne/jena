@@ -263,33 +263,39 @@ public class Join {
 			ExecutionContext execCxt) {
 		BufferedQueryIteratorFactory leftFactory = new BufferedQueryIteratorFactory(left);
 		BufferedQueryIteratorFactory rightFactory = new BufferedQueryIteratorFactory(right);
-		PairOfSameType<Map<Expr, PairOfSameType<Number>>> minMax = getNormalisationMap(leftFactory.createBufferedQueryIterator(),
+		PairOfSameType<Map<Expr, List<PairOfSameType<Number>>>> minMax = getNormalisationMap(leftFactory.createBufferedQueryIterator(),
 				rightFactory.createBufferedQueryIterator(), opSimJoin.getLeftAttributes(), opSimJoin.getRightAttributes());
-		Map<Expr, PairOfSameType<Number>> condensedMinMax = condense(minMax);
+		Map<Expr, List<PairOfSameType<Number>>> condensedMinMax = condense(minMax);
 		opSimJoin.setNormMap(condensedMinMax);
 		return QueryIterSimJoin.create(leftFactory.createBufferedQueryIterator(), rightFactory.createBufferedQueryIterator(), opSimJoin, execCxt);
 	}
 
-	private static Map<Expr, PairOfSameType<Number>> condense(
-			PairOfSameType<Map<Expr, PairOfSameType<Number>>> minMax) {
-		Map<Expr, PairOfSameType<Number>> res = new HashMap<Expr, PairOfSameType<Number>>();
-		Iterator<Entry<Expr, PairOfSameType<Number>>> leftIter = minMax.getLeft().entrySet().iterator();
-		Iterator<Entry<Expr, PairOfSameType<Number>>> rightIter = minMax.getRight().entrySet().iterator();
-		while (leftIter.hasNext() && rightIter.hasNext()) {
-			Entry<Expr, PairOfSameType<Number>> left = leftIter.next();
-			Entry<Expr, PairOfSameType<Number>> right = rightIter.next();
-			PairOfSameType<Number> pair = new PairOfSameType<Number>(
-					Math.min(left.getValue().getLeft().doubleValue(), right.getValue().getLeft().doubleValue()),
-					Math.max(left.getValue().getRight().doubleValue(), right.getValue().getRight().doubleValue()));
-			res.put(left.getKey(), pair);
+    private static Map<Expr, List<PairOfSameType<Number>>> condense(
+			PairOfSameType<Map<Expr, List<PairOfSameType<Number>>>> minMax) {
+		Map<Expr, List<PairOfSameType<Number>>> res = new HashMap<Expr, List<PairOfSameType<Number>>>();
+		Iterator<Entry<Expr, List<PairOfSameType<Number>>>> leftIter = minMax.getLeft().entrySet().iterator();
+		Iterator<Entry<Expr, List<PairOfSameType<Number>>>> rightIter = minMax.getRight().entrySet().iterator();
+		while(leftIter.hasNext() && rightIter.hasNext()) {
+			Entry<Expr, List<PairOfSameType<Number>>> left = leftIter.next();
+			Entry<Expr, List<PairOfSameType<Number>>> right = rightIter.next();
+			List<PairOfSameType<Number>> lst = new ArrayList<>();
+			int d = left.getValue().size();
+			for (int i=0; i<d; i++) {
+				PairOfSameType<Number> pair = new PairOfSameType<Number>(
+						Math.min(left.getValue().get(i).getLeft().doubleValue(),right.getValue().get(i).getLeft().doubleValue()),
+						Math.max(left.getValue().get(i).getRight().doubleValue(),right.getValue().get(i).getRight().doubleValue())
+						);
+				lst.add(pair);
+			}
+			res.put(left.getKey(), lst);
 		}
 		return res;
 	}
 
-	private static PairOfSameType<Map<Expr, PairOfSameType<Number>>> getNormalisationMap(QueryIterator left, QueryIterator right,
+	private static PairOfSameType<Map<Expr, List<PairOfSameType<Number>>>> getNormalisationMap(QueryIterator left, QueryIterator right,
 			ExprList leftAttributes, ExprList rightAttributes) {
-		Map<Expr, PairOfSameType<Number>> resultLeft = new HashMap<Expr, PairOfSameType<Number>>();
-		Map<Expr, PairOfSameType<Number>> resultRight = new HashMap<Expr, PairOfSameType<Number>>();
+		Map<Expr, List<PairOfSameType<Number>>> resultLeft = new HashMap<Expr, List<PairOfSameType<Number>>>();
+		Map<Expr, List<PairOfSameType<Number>>> resultRight = new HashMap<Expr, List<PairOfSameType<Number>>>();
 		for(;left.hasNext();) {
 			Binding current = left.nextBinding();
 			for(Expr lexpr : leftAttributes.getList()) {
@@ -302,26 +308,66 @@ public class Join {
 				probeToMap(resultRight, current, rexpr);
 			}
 		}
-		return new PairOfSameType<Map<Expr,PairOfSameType<Number>>>(resultLeft, resultRight);
+		return new PairOfSameType<Map<Expr,List<PairOfSameType<Number>>>>(resultLeft, resultRight);
 	}
 
-	private static void probeToMap(Map<Expr, PairOfSameType<Number>> result, Binding current, Expr expr) {
+	private static void probeToMap(Map<Expr, List<PairOfSameType<Number>>> result, Binding current, Expr expr) {
 		if(current.get(expr.asVar())==null)
 			throw new IllegalArgumentException("Similarity Join variables should not be obtained from an OPTIONAL clause");
 	    Object literalValue = current.get(expr.asVar()).getLiteralValue();
 	    if (literalValue instanceof String) {
 	    	return;
-	    } 
-		Number currentValue = (Number) literalValue;
-		if (!result.containsKey(expr)) {
-			result.put(expr, new PairOfSameType<Number>(currentValue, currentValue));
-			return;
-		}
-		if (currentValue.doubleValue() < result.get(expr).getLeft().doubleValue()) {
-			result.put(expr, new PairOfSameType<Number>(currentValue, result.get(expr).getRight()));
-		}
-		if (currentValue.doubleValue() > result.get(expr).getRight().doubleValue()) {
-			result.put(expr, new PairOfSameType<Number>(result.get(expr).getLeft(), currentValue));
-		}
+	    }
+	    if (literalValue instanceof Number) {
+	    	Number v = (Number) literalValue;
+	    	if(!result.containsKey(expr)) {
+	    		List<PairOfSameType<Number>> init = new ArrayList<>();
+	    		init.add(new PairOfSameType<>(v,v));
+	    		result.put(expr, init);
+	    		return;
+	    	}
+	    	List<PairOfSameType<Number>> lst = result.get(expr);
+	    	PairOfSameType<Number> p = lst.get(0);
+	    	Number min = p.getLeft();
+	    	Number max = p.getRight();
+	    	if (v.doubleValue() < min.doubleValue())
+	    		lst.set(0, new PairOfSameType<>(v, max));
+	    	if (v.doubleValue() > max.doubleValue())
+	    		lst.set(0, new PairOfSameType<>(min, v));
+	    	return;
+	    }
+	    
+	    if (!(literalValue instanceof double[]))
+	        throw new IllegalArgumentException("Expected double[] for vector literal");
+
+	    double[] vector = (double[]) literalValue;
+	    int d = vector.length;
+
+	    if (!result.containsKey(expr)) {
+	        List<PairOfSameType<Number>> init = new ArrayList<>(d);
+	        for (int i = 0; i < d; i++) {
+	            double v = vector[i];
+	            init.add(new PairOfSameType<>(v, v));
+	        }
+	        result.put(expr, init);
+	        return;
+	    }
+
+	    List<PairOfSameType<Number>> lst = result.get(expr);
+
+	    for (int i = 0; i < d; i++) {
+	        double v = vector[i];
+	        PairOfSameType<Number> p = lst.get(i);
+
+	        double min = p.getLeft().doubleValue();
+	        double max = p.getRight().doubleValue();
+
+	        if (v < min)
+	            lst.set(i, new PairOfSameType<>(v, max));
+
+	        if (v > max)
+	            lst.set(i, new PairOfSameType<>(min, v));
+	    }
 	}
+
 }
