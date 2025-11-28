@@ -23,7 +23,7 @@ public class Distances {
 	static {
         registry.put(NS + "manhattanvec", new DistFunc() {
             @Override
-            public double distance(List<Node> p1, List<Node> p2, Map<Expr, PairOfSameType<Number>> minMax, ExprList leftExpr, ExprList rightExpr) {
+            public double distance(List<Node> p1, List<Node> p2, Map<Expr, List<PairOfSameType<Number>>> minMax, ExprList leftExpr, ExprList rightExpr) {
 				
                 double d = 0.0;
                 Node n1 = p1.get(0);
@@ -77,16 +77,19 @@ public class Distances {
 		registry.put(NS + "manhattan", new DistFunc() {
 			
 			@Override
-			public double distance(List<Node> p1, List<Node> p2, Map<Expr, PairOfSameType<Number>> minMax, ExprList leftExpr, ExprList rightExpr) {
+			public double distance(List<Node> p1, List<Node> p2, Map<Expr, List<PairOfSameType<Number>>> minMax, ExprList leftExpr, ExprList rightExpr) {
 				double d = 0.0;
 				for (int i = 0; i < p1.size(); i++) {
-					Node n1 = p1.get(i);
-					Node n2 = p2.get(i);
-					double maxX = minMax.get(leftExpr.get(i)).getRight().doubleValue();
-					double minX = minMax.get(leftExpr.get(i)).getLeft().doubleValue();
-					double x = (((Number) n1.getLiteralValue()).doubleValue() - minX)/(maxX-minX);
-					double y = (((Number) n2.getLiteralValue()).doubleValue() - minX)/(maxX-minX);
-					d += Math.abs(x - y);
+					double dist = minMax.get(leftExpr.get(i)).size();
+					for (int j = 0; j < dist; j++) { 
+						Node n1 = p1.get(i);
+						Node n2 = p2.get(i);
+						double maxX = minMax.get(leftExpr.get(i)).get(j).getRight().doubleValue();
+						double minX = minMax.get(leftExpr.get(i)).get(j).getLeft().doubleValue();
+						double x = (((Number) n1.getLiteralValue()).doubleValue() - minX)/(maxX-minX);
+						double y = (((Number) n2.getLiteralValue()).doubleValue() - minX)/(maxX-minX);
+						d += Math.abs(x - y);
+					}
 				}
 				return d;
 			}
@@ -94,32 +97,52 @@ public class Distances {
 		registry.put(NS + "euclidean", new DistFunc() {
 			
 			@Override
-			public double distance(List<Node> p1, List<Node> p2, Map<Expr, PairOfSameType<Number>> minMax, ExprList leftExpr, ExprList rightExpr) {
+			public double distance(List<Node> p1, List<Node> p2, Map<Expr, List<PairOfSameType<Number>>> minMax, ExprList leftExpr, ExprList rightExpr) {
 				double d = 0;
 				for (int i = 0; i < p1.size(); i++) {
-					Node n1 = p1.get(i);
-					Node n2 = p2.get(i);
-					double maxX = minMax.get(leftExpr.get(i)).getRight().doubleValue();
-					double minX = minMax.get(leftExpr.get(i)).getLeft().doubleValue();
-					double x = (((Number) n1.getLiteralValue()).doubleValue()- minX)/(maxX-minX);
-					double y = (((Number) n2.getLiteralValue()).doubleValue()- minX)/(maxX-minX);
-					
-					d += (x-y)*(x-y);
+					Node val1 = p1.get(i);
+					Node val2 = p2.get(i);
+					double[] n1Value = asDoubleArray(val1);
+					double[] n2Value = asDoubleArray(val2);			
+					int vecDim = n1Value.length;
+					for (int j = 0; j<vecDim; j++) {
+						double minL = minMax.get(leftExpr.get(i)).get(j).getLeft().doubleValue();
+						double maxL = minMax.get(leftExpr.get(i)).get(j).getRight().doubleValue();
+						if (minL == maxL)
+							continue;
+						double x = (n1Value[j]-minL)/(maxL-minL);
+						double y = (n2Value[j]-minL)/(maxL-minL);
+						d += (x-y)*(x-y);
+					}
 				}
 				return d;
 			}
 		});
 	}
+	private static double[] asDoubleArray(Node n) {
+	    Object val = n.getLiteralValue();
 
+	    if (val instanceof double[])
+	        return (double[]) val;
+
+	    if (val instanceof Number) {
+	        double x = ((Number) val).doubleValue();
+	        return new double[] { x };
+	    }
+
+	    throw new IllegalArgumentException("Literal numérico no soportado: " + val);
+	}
+
+	
 	public interface DistFunc {
-		public double distance(List<Node> p1, List<Node> p2, Map<Expr, PairOfSameType<Number>> minMax, ExprList leftExpr, ExprList rightExpr);
+		public double distance(List<Node> p1, List<Node> p2, Map<Expr, List<PairOfSameType<Number>>> minMax, ExprList leftExpr, ExprList rightExpr);
 	}
 	
 	public static DistFunc getDistance(String distance) {
 		return registry.get(distance.toLowerCase());
 	}
-
-	public static DistanceFunction<List<Double>> asVPFunction(DistFunc distFunc, Map<Expr, PairOfSameType<Number>> minMax, ExprList leftExpr, ExprList rightExpr) {
+	
+	public static DistanceFunction<List<Double>> asVPFunction(DistFunc distFunc, Map<Expr, List<PairOfSameType<Number>>> minMax, ExprList leftExpr, ExprList rightExpr) {
 		DistanceFunction<List<Double>> res = new DistanceFunction<List<Double>>() {
 
 			@Override
@@ -136,7 +159,7 @@ public class Distances {
 		return res;
 	}
 
-	public static Metric getMetric(DistFunc distFunc, Map<Expr,PairOfSameType<Number>> minMax, ExprList leftExpr, ExprList rightExpr) {
+	public static Metric getMetric(DistFunc distFunc, Map<Expr,List<PairOfSameType<Number>>> minMax, ExprList leftExpr, ExprList rightExpr) {
 		return new Metric() {
 			
 			@Override
