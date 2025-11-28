@@ -82,19 +82,22 @@ ORDER BY ?similarity
 		*/
 		Dataset ds = DatasetFactory.wrap(model);
 		String queryStr = """
-					PREFIX sim: <http://sim.dcc.uchile.cl/>
-					
-					SELECT ?x ?y ?d
-					WHERE {
-					    ?x sim:hasVector ?vx .
-					
-					    similarity join on (?vx) (?vy)
-					        top 2
-					        distance <http://sj.dcc.uchile.cl/sim#euclidean> as ?d
-					    {
-					        ?y sim:hasVector ?vy .
-					    }
-					}
+					PREFIX ex: <http://example.org/>
+					PREFIX sim: <http://sim.dcc.uchile.cl/> 
+					 
+SELECT ?x ?y ?d
+WHERE {
+    ?x sim:vec ?vx .
+    ?x sim:age ?ax .
+
+    similarity join on (?vx , ?ax) (?vy , ?ay)
+        top 1
+        distance <http://sj.dcc.uchile.cl/sim#euclidean> as ?d
+    {
+        ?y sim:vec ?vy .
+        ?y sim:age ?ay .
+    }
+}
 
 				""";
 		Query q = QueryFactory.create(queryStr, Syntax.syntaxSPARQL_11_sim);

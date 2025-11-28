@@ -1,8 +1,14 @@
 @prefix ex:  <http://example.org/> .
 @prefix sim: <http://sim.dcc.uchile.cl/> .
 
-ex:u1 sim:hasVector "-0.0483 -0.0115"^^sim:vector .
+ex:u1
+    sim:vec   "1.0  0.0  3.0"^^sim:vector ;
+    sim:age   20 .
 
-ex:u2 sim:hasVector "0.1000 -0.2300"^^sim:vector .
+ex:u2
+    sim:vec   "0.5  1.0  2.5"^^sim:vector ;
+    sim:age   25 .
 
-ex:u3 sim:hasVector "-0.0500 -0.0100"^^sim:vector .
+ex:u3
+    sim:vec   "1.2  0.1  2.8"^^sim:vector ;
+    sim:age   22 .
