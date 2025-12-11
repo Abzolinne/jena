@@ -46,4 +46,9 @@ public class OpKNNSimJoin extends OpSimJoin {
 		return QueryIterKNNSimJoin.createknn(left, right, this, execCxt);
 	}
 
+	@Override
+	public String getIndex() {
+		return null;
+	}
+
 }

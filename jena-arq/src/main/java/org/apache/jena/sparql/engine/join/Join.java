@@ -282,8 +282,8 @@ public class Join {
 			int d = left.getValue().size();
 			for (int i=0; i<d; i++) {
 				PairOfSameType<Number> pair = new PairOfSameType<Number>(
-						Math.min(left.getValue().get(i).getLeft().doubleValue(),right.getValue().get(i).getLeft().doubleValue()),
-						Math.max(left.getValue().get(i).getRight().doubleValue(),right.getValue().get(i).getRight().doubleValue())
+						Math.min(left.getValue().get(i).getLeft().floatValue(),right.getValue().get(i).getLeft().floatValue()),
+						Math.max(left.getValue().get(i).getRight().floatValue(),right.getValue().get(i).getRight().floatValue())
 						);
 				lst.add(pair);
 			}
@@ -337,16 +337,16 @@ public class Join {
 	    	return;
 	    }
 	    
-	    if (!(literalValue instanceof double[]))
+	    if (!(literalValue instanceof float[]))
 	        throw new IllegalArgumentException("Expected double[] for vector literal");
 
-	    double[] vector = (double[]) literalValue;
+	    float[] vector = (float[]) literalValue;
 	    int d = vector.length;
 
 	    if (!result.containsKey(expr)) {
 	        List<PairOfSameType<Number>> init = new ArrayList<>(d);
 	        for (int i = 0; i < d; i++) {
-	            double v = vector[i];
+	        	float v = vector[i];
 	            init.add(new PairOfSameType<>(v, v));
 	        }
 	        result.put(expr, init);
@@ -356,11 +356,11 @@ public class Join {
 	    List<PairOfSameType<Number>> lst = result.get(expr);
 
 	    for (int i = 0; i < d; i++) {
-	        double v = vector[i];
+	    	float v = vector[i];
 	        PairOfSameType<Number> p = lst.get(i);
 
-	        double min = p.getLeft().doubleValue();
-	        double max = p.getRight().doubleValue();
+	        float min = p.getLeft().floatValue();
+	        float max = p.getRight().floatValue();
 
 	        if (v < min)
 	            lst.set(i, new PairOfSameType<>(v, max));

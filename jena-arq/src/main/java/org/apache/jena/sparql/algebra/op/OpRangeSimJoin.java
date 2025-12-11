@@ -42,4 +42,9 @@ public class OpRangeSimJoin extends OpSimJoin implements Op {
 		return QueryIterRangeSimJoin.createRange(left, right, this, execCxt);
 	}
 
+	@Override
+	public String getIndex() {
+		return null;
+	}
+
 }

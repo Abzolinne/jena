@@ -265,5 +265,6 @@ public class Tags
 	
     public static final String tagKNNSimJoin	  = "knn-simjoin";
     public static final String tagRangeSimJoin	  = "range-simjoin";
+    public static final String tagIndexSimJoin    = "index-simjoin";
 	public static final String tagClusterBy 	  = "cluster";
 }

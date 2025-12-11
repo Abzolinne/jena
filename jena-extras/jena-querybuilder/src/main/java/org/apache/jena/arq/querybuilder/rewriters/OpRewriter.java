@@ -265,7 +265,7 @@ class OpRewriter extends AbstractRewriter<Op> implements OpVisitor {
 		opSimJoin.getRight().visit(this);
 		opSimJoin.getLeft().visit(this);
 		push(OpSimJoin.create(pop(), pop(), opSimJoin.getLeftAttributes(), opSimJoin.getRightAttributes(),
-				opSimJoin.getTop(), opSimJoin.getWithin(), opSimJoin.getDistance(), opSimJoin.getAsVar()));
+				opSimJoin.getTop(), opSimJoin.getWithin(), opSimJoin.getIndex(), opSimJoin.getDistance(), opSimJoin.getAsVar()));
 	}
 
     @Override

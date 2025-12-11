@@ -17,7 +17,6 @@ import com.eatthepath.jvptree.DistanceFunction;
 import com.eatthepath.jvptree.VPTree;
 
 public class RangeSimJoinVPTreeSolver extends RangeSimJoinSolver {
-
 	private VPTree<List<Double>, VPVector<Binding>> index;
 	private DistanceFunction<List<Double>> fun;
 

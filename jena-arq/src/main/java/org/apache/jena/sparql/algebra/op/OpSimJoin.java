@@ -56,12 +56,14 @@ public abstract class OpSimJoin extends Op2 {
 	}	
 
 	public static Op create(Op left, Op right, ExprList leftAttrs, ExprList rightAttrs, int top, double within,
-			String distFunc, Var v) {
-		if(top > 0 && within == -1) {
+			String index, String distFunc, Var v) {
+		if(top > 0 && within == -1 && index == null) {
 			return new OpKNNSimJoin(left, right, top, distFunc, leftAttrs, rightAttrs, v);
-		} else if (within > 0 && top == -1) {
+		} else if (within > 0 && top == -1 && index == null) {
 			return new OpRangeSimJoin(left, right, within, distFunc, leftAttrs, rightAttrs, v);
-		} 
+		} else if (index != null && (within == -1) && (top != -1)) {
+			return new OpIndexSimJoin(left, right, top, index, distFunc, leftAttrs, rightAttrs, v);
+		}
 		return null;
 	}
 
@@ -87,6 +89,7 @@ public abstract class OpSimJoin extends Op2 {
 
 	public abstract int getTop();
 	public abstract double getWithin();
+	public abstract String getIndex();
 
 	public abstract QueryIterator createIterator(QueryIterator left, QueryIterator right, ExecutionContext execCxt);
 

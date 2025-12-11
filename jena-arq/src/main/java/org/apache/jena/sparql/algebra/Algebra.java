@@ -213,4 +213,5 @@ public class Algebra
         b.add(var, NodeFactory.createLiteralByValue(n.getDistance(), XSDDatatype.XSDdouble));
         return b.build();
 	}
+	
 }

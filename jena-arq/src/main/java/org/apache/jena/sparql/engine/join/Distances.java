@@ -98,20 +98,20 @@ public class Distances {
 			
 			@Override
 			public double distance(List<Node> p1, List<Node> p2, Map<Expr, List<PairOfSameType<Number>>> minMax, ExprList leftExpr, ExprList rightExpr) {
-				double d = 0;
+				float d = 0;
 				for (int i = 0; i < p1.size(); i++) {
 					Node val1 = p1.get(i);
 					Node val2 = p2.get(i);
-					double[] n1Value = asDoubleArray(val1);
-					double[] n2Value = asDoubleArray(val2);			
+					float[] n1Value = asFloatArray(val1);
+					float[] n2Value = asFloatArray(val2);			
 					int vecDim = n1Value.length;
 					for (int j = 0; j<vecDim; j++) {
-						double minL = minMax.get(leftExpr.get(i)).get(j).getLeft().doubleValue();
-						double maxL = minMax.get(leftExpr.get(i)).get(j).getRight().doubleValue();
+						float minL = minMax.get(leftExpr.get(i)).get(j).getLeft().floatValue();
+						float maxL = minMax.get(leftExpr.get(i)).get(j).getRight().floatValue();
 						if (minL == maxL)
 							continue;
-						double x = (n1Value[j]-minL)/(maxL-minL);
-						double y = (n2Value[j]-minL)/(maxL-minL);
+						float x = (n1Value[j]-minL)/(maxL-minL);
+						float y = (n2Value[j]-minL)/(maxL-minL);
 						d += (x-y)*(x-y);
 					}
 				}
@@ -119,15 +119,15 @@ public class Distances {
 			}
 		});
 	}
-	private static double[] asDoubleArray(Node n) {
+	private static float[] asFloatArray(Node n) {
 	    Object val = n.getLiteralValue();
 
-	    if (val instanceof double[])
-	        return (double[]) val;
+	    if (val instanceof float[])
+	        return (float[]) val;
 
 	    if (val instanceof Number) {
-	        double x = ((Number) val).doubleValue();
-	        return new double[] { x };
+	    	float x = ((Number) val).floatValue();
+	        return new float[] { x };
 	    }
 
 	    throw new IllegalArgumentException("Literal numérico no soportado: " + val);

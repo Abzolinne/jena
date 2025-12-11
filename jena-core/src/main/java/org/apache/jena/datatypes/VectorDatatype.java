@@ -37,9 +37,9 @@ public class VectorDatatype extends BaseDatatype {
 	@Override 
 	public Object parse(String lexicalForm) {
 		String[] parts = lexicalForm.replaceAll("[\\[\\]]", "").trim().split("\\s+");
-		double[] arr = new double[parts.length];
+		float[] arr = new float[parts.length];
 		for (int i = 0; i<parts.length; i++) {
-			arr[i] = Double.parseDouble(parts[i]);
+			arr[i] = Float.parseFloat(parts[i]);
 		}
 		return arr;
 	}

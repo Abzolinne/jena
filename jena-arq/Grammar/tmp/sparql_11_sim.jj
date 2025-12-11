@@ -573,7 +573,7 @@ Element OptionalGraphPattern() : { Element el ; }
     { return new ElementOptional(el) ; }
 }
 Element SimJoinGraphPattern() : { Element el ; ExprList expr1 = null ; ExprList expr2 = null;
-								  int t = -1 ; double w = -1.0 ; String dist = null ; Var v = null ;
+								  int t = -1 ; double w = -1.0 ; String i = null; String dist = null ; Var v = null ;
 }
 {
   <SIMJOIN>
@@ -581,10 +581,11 @@ Element SimJoinGraphPattern() : { Element el ; ExprList expr1 = null ; ExprList 
   expr1 = ExpressionList()
   expr2 = ExpressionList()
   (t = TopClause() | w = WithinClause())
+  (i = IndexClause())?
   dist = SimDistanceClause()
   v = SimDistanceBinding()
   el = GroupGraphPattern()
-    { return new ElementSimJoin(el, expr1, expr2, t, w, dist, v) ; }
+    { return new ElementSimJoin(el, expr1, expr2, t, w, i, dist, v) ; }
 }
 int TopClause() : { Token t ; }
 {
@@ -600,6 +601,11 @@ double WithinClause() : { Token t ; }
 {
   <WITHIN> t = <DECIMAL>
     { return doubleValue(t.image) ; }
+}
+String IndexClause() : { Token t ; }
+{
+  <INDEX> (t = <STRING_LITERAL1> | t = <STRING_LITERAL2> )
+    { return stripQuotes(t.image) ; }
 }
 String SimDistanceClause() : { String dist;}
 {
@@ -1544,6 +1550,7 @@ TOKEN [IGNORE_CASE] :
 | < DISTANCE: "distance" >
 | < TOP: "top" >
 | < WITHIN: "within" >
+| < INDEX: "index" >
 | < ON: "on" >
 | < UNION: "union" >
 | < MINUS_P: "minus" >

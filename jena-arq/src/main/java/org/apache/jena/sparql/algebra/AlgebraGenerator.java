@@ -404,7 +404,7 @@ public class AlgebraGenerator
     protected Op compileElementSimJoin(ElementSimJoin e, Op left) {
     	Element subElement = e.getSimJoinElement();
     	Op right = compile(subElement);
-		return OpSimJoin.create(left, right, e.getLeftAttrs(), e.getRightAttrs(), e.getTop(), e.getWithin(), e.getDistFunc(), e.getV());
+		return OpSimJoin.create(left, right, e.getLeftAttrs(), e.getRightAttrs(), e.getTop(), e.getWithin(), e.getIndex(), e.getDistFunc(), e.getV());
 	}
 
     protected Op compileElementLateral(Op current, ElementLateral eltLateral) {

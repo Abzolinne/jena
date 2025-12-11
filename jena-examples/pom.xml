@@ -70,10 +70,10 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
--  <groupId>com.github.jelmerk</groupId>
--  <artifactId>hnswlib-core</artifactId>
--  <version>1.2.1</version> <!-- o la versión más reciente -->
--</dependency>
+	  <groupId>com.github.jelmerk</groupId>
+	  <artifactId>hnswlib-core</artifactId>
+	  <version>1.2.1</version>
+	</dependency>
   </dependencies>
 
   <build> 
